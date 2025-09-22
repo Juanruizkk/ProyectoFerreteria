@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 /* import { AppSidebar } from "@/components/Common/AppSidebar" */
 import { AppSidebar } from "./app-sidebar"
+import { Toaster } from "sonner"
 
 export default function Layout({ children }) {
   return (
@@ -18,6 +19,7 @@ export default function Layout({ children }) {
           {children}
         </div>
       </main>
+      <Toaster position="top-right" richColors expand theme="system" />
     </SidebarProvider>
   )
 }
