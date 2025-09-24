@@ -14,15 +14,17 @@ import { Search, Plus, Package } from "lucide-react";
 import ProductForm from "@/components/Productos/product-form";
 import ProductList from "@/components/Productos/product-list";
 import { toast } from "sonner";
-import { fetchProducts } from "@/services/ProductQueries";
+import { fetchProductsWithDetails, createProduct } from "@/services/ProductQueries";
+import { fetchCategorias } from "@/services/CategoryQueries";
+import { fetchLocations } from "@/services/LocationQueries";
 
 // Datos de ejemplo para categorías y ubicaciones
-const categorias = [
-  { id: 1, nombre: "Electrónicos" },
-  { id: 2, nombre: "Ropa" },
-  { id: 3, nombre: "Hogar" },
-  { id: 4, nombre: "Deportes" },
-  { id: 5, nombre: "Libros" },
+const categoriasIniciales = [
+  { id: 1, categoria: "Electrónicos" },
+  { id: 2, categoria: "Ropa" },
+  { id: 3, categoria: "Hogar" },
+  { id: 4, categoria: "Deportes" },
+  { id: 5, categoria: "Libros" },
 ];
 
 const ubicaciones = [
@@ -71,6 +73,8 @@ const productosIniciales = [
 
 export default function ProductosPage() {
   const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [ubicaciones, setUbicaciones] = useState([]);
   const [productosFiltrados, setProductosFiltrados] =
     useState(productosIniciales);
   const [busqueda, setBusqueda] = useState("");
@@ -83,12 +87,11 @@ export default function ProductosPage() {
 
     async function cargarProductos() {
       try {
-        const data = await fetchProducts();
-        // Normalizar: aseguramos que todos tengan un id
+        const data = await fetchProductsWithDetails();
+
         if (mounted) {
           setProductos(data);
         }
-       
       } catch (error) {
         if (!mounted) return;
 
@@ -97,7 +100,31 @@ export default function ProductosPage() {
       }
     }
 
+    async function cargarCategorias() {
+    try {
+      const data = await fetchCategorias();
+      if (mounted) setCategorias(data);
+    } catch (error) {
+      if (!mounted) return;
+      toast.error("Error al cargar las categorías");
+      setCategorias(categoriasIniciales);
+    }
+  }
+
+  async function cargarUbicaciones() {
+    try {
+      const data = await fetchLocations();
+      if (mounted) setUbicaciones(data);
+    } catch (error) {
+      if (!mounted) return;
+      toast.error("Error al cargar las ubicaciones");
+      setUbicaciones(ubicaciones);
+    }
+  }
+
     cargarProductos();
+    cargarCategorias();
+    cargarUbicaciones();
 
     return () => {
       mounted = false;
@@ -119,18 +146,21 @@ export default function ProductosPage() {
     }
   }, [busqueda, productos]);
 
-  const handleCrearProducto = (nuevoProducto) => {
-    const producto = {
-      ...nuevoProducto,
-      id: Math.max(...productos.map((p) => p.id), 0) + 1,
-    };
-    setProductos([...productos, producto]);
-    setMostrarFormulario(false);
-    toast({
-      title: "Producto creado",
-      description: `${producto.nombre} ha sido agregado exitosamente.`,
-    });
-  };
+  const handleCrearProducto = async (nuevoProducto) => {
+    try {
+      const creado = await createProduct(nuevoProducto) 
+      setProductos([...productos, creado])
+      toast.success("Producto creado", {
+        description: `${creado.nombre} ha sido agregado exitosamente.`,
+      })
+    } catch (err) {
+      toast.error("Error", {
+        description: "No se pudo crear el producto",
+      })
+    } finally {
+      setMostrarFormulario(false)
+    }
+  }
 
   const handleEditarProducto = (productoActualizado) => {
     setProductos(
@@ -171,15 +201,6 @@ export default function ProductosPage() {
     setProductoEditando(null);
   };
 
-  const obtenerNombreCategoria = (id) => {
-    const categoria = categorias.find((c) => c.id === id);
-    return categoria ? categoria.nombre : "Sin categoría";
-  };
-
-  const obtenerNombreUbicacion = (id) => {
-    const ubicacion = ubicaciones.find((u) => u.id === id);
-    return ubicacion ? ubicacion.nombre : "Sin ubicación";
-  };
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -297,12 +318,8 @@ export default function ProductosPage() {
       {/* Lista de productos */}
       <ProductList
         productos={productosFiltrados}
-        categorias={categorias}
-        ubicaciones={ubicaciones}
         onEditar={abrirFormularioEditar}
         onEliminar={handleEliminarProducto}
-        obtenerNombreCategoria={obtenerNombreCategoria}
-        obtenerNombreUbicacion={obtenerNombreUbicacion}
       />
     </div>
   );

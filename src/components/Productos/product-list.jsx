@@ -17,12 +17,8 @@ import { Edit, Trash2, Package, AlertTriangle, MapPin, Tag } from "lucide-react"
 
 export default function ProductList({
   productos,
-  categorias,
-  ubicaciones,
   onEditar,
   onEliminar,
-  obtenerNombreCategoria,
-  obtenerNombreUbicacion,
 }) {
   const [productoAEliminar, setProductoAEliminar] = useState(null)
 
@@ -102,7 +98,7 @@ export default function ProductList({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Mínimo:</span>
-                    <p className="font-semibold">{producto.stock_minimo} unidades</p>
+                    <p className="font-semibold">{producto.stockMinimo} unidades</p>
                   </div>
                 </div>
 
@@ -111,12 +107,12 @@ export default function ProductList({
                   <div className="flex items-center gap-2 text-sm">
                     <Tag className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Categoría:</span>
-                    <Badge variant="outline">{obtenerNombreCategoria(producto.idcategoria)}</Badge>
+                    <Badge variant="outline">{producto.categoria}</Badge>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Ubicación:</span>
-                    <Badge variant="outline">{obtenerNombreUbicacion(producto.idubicacion)}</Badge>
+                    <Badge variant="outline">{producto.ubicacion}</Badge>
                   </div>
                 </div>
 
