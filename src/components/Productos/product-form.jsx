@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,40 +19,22 @@ export default function ProductForm({
   onSubmit,
   onCancel,
 }) {
-  const [formData, setFormData] = useState({
-    nombre: "",
-    marca: "",
-    descripcion: "",
-    precio: "",
-    stock: "",
-    stock_minimo: "",
-    idUbicacion: "",
-    idCategoria: "",
-    venta_sin_stock: false,
-  });
+  const mapProductoToState = (p) => ({
+    nombre: p?.nombre ?? "",
+    marca: p?.marca ?? "",
+    descripcion: p?.descripcion ?? "",
+    precio: p?.precio?.toString() ?? "",
+    stock: p?.stock?.toString() ?? "",
+    stockMinimo: (p?.stockMinimo ?? p?.stock_minimo)?.toString() ?? "",
+    idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion)?.toString() ?? "",
+    idCategoria: (p?.idCategoria ?? p?.id_categoria)?.toString() ?? "",
+    ventaSinStock: Boolean(p?.ventaSinStock ?? p?.venta_sin_stock ?? false),
+  })
+
+
+  const [formData, setFormData] = useState(() => mapProductoToState(producto))
 
   const [errores, setErrores] = useState({});
-
-  useEffect(() => {
-    if (producto) {
-      setFormData({
-        nombre: producto.nombre || "",
-        marca: producto.marca || "",
-        descripcion: producto.descripcion || "",
-        precio: producto.precio?.toString() || "",
-        stock: producto.stock?.toString() || "",
-        stock_minimo:
-          (producto.stock_minimo ?? producto.stockMinimo)?.toString() || "",
-        idUbicacion:
-          (producto.idUbicacion ?? producto.id_ubicacion)?.toString() || "",
-        idCategoria:
-          (producto.idCategoria ?? producto.id_categoria)?.toString() || "",
-        venta_sin_stock: Boolean(
-          producto.venta_sin_stock ?? producto.ventaSinStock ?? false
-        ),
-      });
-    }
-  }, [producto]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -103,10 +85,10 @@ export default function ProductForm({
     if (!Number.isFinite(stockN) || stockN < 0)
       e.stock = "El stock debe ser un entero ≥ 0";
 
-    // stock_minimo: int >= 0
-    const stockMinN = toInt(formData.stock_minimo, NaN);
+    // stockMinimo: int >= 0
+    const stockMinN = toInt(formData.stockMinimo, NaN);
     if (!Number.isFinite(stockMinN) || stockMinN < 0)
-      e.stock_minimo = "El stock mínimo debe ser un entero ≥ 0";
+      e.stockMinimo = "El stock mínimo debe ser un entero ≥ 0";
 
     // FK requeridas
     if (!formData.idCategoria) e.idCategoria = "Debe seleccionar una categoría";
@@ -120,20 +102,21 @@ export default function ProductForm({
     e.preventDefault();
     if (!validarFormulario()) return;
 
-    // Normalizar para API (snake_case según tu esquema)
+    // Normalizar para API (camelCase típico en .NET)
     const payload = {
       nombre: formData.nombre.trim(),
       marca: formData.marca.trim(),
       descripcion: formData.descripcion?.trim() || "",
       precio: toMoney2(formData.precio, 0), // number con 2 decimales
       stock: toInt(formData.stock, 0), // int
-      stockMinimo: toInt(formData.stock_minimo, 0), // int (camelCase)
-      ventaSinStock: Boolean(formData.venta_sin_stock),
+      stockMinimo: toInt(formData.stockMinimo, 0), // int (camelCase)
+      ventaSinStock: Boolean(formData.ventaSinStock),
       idUbicacion: toInt(formData.idUbicacion, 0),
       idCategoria: toInt(formData.idCategoria, 0),
+      activo: true,
     };
     if (producto?.id ?? producto?.id_producto) {
-      payload.id_producto = producto.id ?? producto.id_producto;
+      payload.idProducto = producto.id ?? producto.id_producto;
     }
 
     onSubmit(payload);
@@ -210,18 +193,18 @@ export default function ProductForm({
 
         {/* Stock Mínimo */}
         <div className="space-y-2">
-          <Label htmlFor="stock_minimo">Stock Mínimo *</Label>
+          <Label htmlFor="stockMinimo">Stock Mínimo *</Label>
           <Input
-            id="stock_minimo"
+            id="stockMinimo"
             type="number"
             min="0"
-            value={formData.stock_minimo}
-            onChange={(e) => handleInputChange("stock_minimo", e.target.value)}
+            value={formData.stockMinimo}
+            onChange={(e) => handleInputChange("stockMinimo", e.target.value)}
             placeholder="0"
-            className={errores.stock_minimo ? "border-destructive" : ""}
+            className={errores.stockMinimo ? "border-destructive" : ""}
           />
-          {errores.stock_minimo && (
-            <p className="text-sm text-destructive">{errores.stock_minimo}</p>
+          {errores.stockMinimo && (
+            <p className="text-sm text-destructive">{errores.stockMinimo}</p>
           )}
         </div>
 
@@ -279,13 +262,13 @@ export default function ProductForm({
 
         {/* Venta sin stock (bool) */}
         {/*  <div className="space-y-2">
-          <Label htmlFor="venta_sin_stock">Permitir venta sin stock</Label>
+          <Label htmlFor="ventaSinStock">Permitir venta sin stock</Label>
           <div className="flex items-center gap-2">
             <input
-              id="venta_sin_stock"
+              id="ventaSinStock"
               type="checkbox"
-              checked={formData.venta_sin_stock}
-              onChange={(e) => handleInputChange("venta_sin_stock", e.target.checked)}
+              checked={formData.ventaSinStock}
+              onChange={(e) => handleInputChange("ventaSinStock", e.target.checked)}
             />
             <span className="text-sm text-muted-foreground">Habilita vender con stock 0</span>
           </div>
