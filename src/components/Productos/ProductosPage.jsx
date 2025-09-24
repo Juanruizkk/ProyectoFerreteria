@@ -14,7 +14,7 @@ import { Search, Plus, Package } from "lucide-react";
 import ProductForm from "@/components/Productos/product-form";
 import ProductList from "@/components/Productos/product-list";
 import { toast } from "sonner";
-import { fetchProductsWithDetails, createProduct, updateProduct } from "@/services/ProductQueries";
+import { fetchProductsWithDetails, createProduct, updateProduct,deleteProduct } from "@/services/ProductQueries";
 import { fetchCategorias } from "@/services/CategoryQueries";
 import { fetchLocations } from "@/services/LocationQueries";
 
@@ -180,14 +180,16 @@ export default function ProductosPage() {
     }
   };
 
-  const handleEliminarProducto = (id) => {
-    const producto = productos.find((p) => p.id === id);
-    setProductos(productos.filter((p) => p.id !== id));
-    toast({
-      title: "Producto eliminado",
-      description: `${producto.nombre} ha sido eliminado.`,
-      variant: "destructive",
-    });
+  const handleEliminarProducto = async (id) => {
+    try {
+      await deleteProduct(id);
+      setProductos(productos.filter((p) => p.id !== id));
+      toast.success("Producto eliminado", {
+        description: "El producto ha sido eliminado exitosamente.",
+      });
+    } catch (error) {
+      toast.error("Error", { description: "No se pudo eliminar el producto" });
+    }
   };
 
   const abrirFormularioCrear = () => {

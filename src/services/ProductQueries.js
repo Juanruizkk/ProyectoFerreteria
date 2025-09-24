@@ -51,3 +51,14 @@ export async function updateProduct(producto) {
     id: data.idProducto ?? id,
   };
 }
+
+export async function deleteProduct(id) {
+  if (!id) throw new Error("deleteProduct: id requerido");
+  const url = `${API_URL}/${id}`;
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`DELETE ${url} -> ${res.status} ${res.statusText}`);
+  }
+  return true;
+}
+

@@ -197,11 +197,9 @@ export default function ProductList({ productos, onEditar, onEliminar }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>¿Desea desactivar el producto <strong>"{productoAEliminar?.nombre}"</strong>?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el
-              producto <strong>"{productoAEliminar?.nombre}"</strong> del
-              inventario.
+              No estará disponible en el inventario ni en nuevas operaciones, aunque seguirá guardado en el sistema.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
