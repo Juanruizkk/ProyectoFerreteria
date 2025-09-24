@@ -14,7 +14,7 @@ import { Search, Plus, Package } from "lucide-react";
 import ProductForm from "@/components/Productos/product-form";
 import ProductList from "@/components/Productos/product-list";
 import { toast } from "sonner";
-import { fetchProductsWithDetails, createProduct } from "@/services/ProductQueries";
+import { fetchProductsWithDetails, createProduct, updateProduct } from "@/services/ProductQueries";
 import { fetchCategorias } from "@/services/CategoryQueries";
 import { fetchLocations } from "@/services/LocationQueries";
 
@@ -136,12 +136,13 @@ export default function ProductosPage() {
     if (busqueda.trim() === "") {
       setProductosFiltrados(productos);
     } else {
-      const filtrados = productos.filter(
-        (producto) =>
-          producto.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-          producto.marca.toLowerCase().includes(busqueda.toLowerCase()) ||
-          producto.descripcion.toLowerCase().includes(busqueda.toLowerCase())
-      );
+      const q = busqueda.toLowerCase();
+      const filtrados = productos.filter((producto) => {
+        const nombre = (producto.nombre || "").toLowerCase();
+        const marca = (producto.marca || "").toLowerCase();
+        const descripcion = (producto.descripcion || "").toLowerCase();
+        return nombre.includes(q) || marca.includes(q) || descripcion.includes(q);
+      });
       setProductosFiltrados(filtrados);
     }
   }, [busqueda, productos]);
@@ -162,18 +163,21 @@ export default function ProductosPage() {
     }
   }
 
-  const handleEditarProducto = (productoActualizado) => {
-    setProductos(
-      productos.map((p) =>
-        p.id === productoActualizado.id ? productoActualizado : p
-      )
-    );
-    setProductoEditando(null);
-    setMostrarFormulario(false);
-    toast({
-      title: "Producto actualizado",
-      description: `${productoActualizado.nombre} ha sido actualizado exitosamente.`,
-    });
+  const handleEditarProducto = async (productoActualizado) => {
+    try {
+      const actualizado = await updateProduct(productoActualizado);
+      setProductos((prev) =>
+        prev.map((p) => (p.id === actualizado.id ? { ...p, ...actualizado } : p))
+      );
+      toast.success("Producto actualizado", {
+        description: `${actualizado.nombre} ha sido actualizado exitosamente.`,
+      });
+    } catch (err) {
+      toast.error("Error", { description: "No se pudo actualizar el producto" });
+    } finally {
+      setProductoEditando(null);
+      setMostrarFormulario(false);
+    }
   };
 
   const handleEliminarProducto = (id) => {
@@ -240,7 +244,7 @@ export default function ProductosPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {productos.filter((p) => p.stock <= p.stock_minimo).length}
+              {productos.filter((p) => p.stock <= (p.stockMinimo ?? p.stock_minimo ?? 0)).length}
             </div>
           </CardContent>
         </Card>

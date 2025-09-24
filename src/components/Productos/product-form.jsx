@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,13 +26,19 @@ export default function ProductForm({
     precio: p?.precio?.toString() ?? "",
     stock: p?.stock?.toString() ?? "",
     stockMinimo: (p?.stockMinimo ?? p?.stock_minimo)?.toString() ?? "",
-    idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion)?.toString() ?? "",
-    idCategoria: (p?.idCategoria ?? p?.id_categoria)?.toString() ?? "",
+    idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion ?? p?.idubicacion)?.toString() ?? "",
+    idCategoria: (p?.idCategoria ?? p?.id_categoria ?? p?.idcategoria)?.toString() ?? "",
     ventaSinStock: Boolean(p?.ventaSinStock ?? p?.venta_sin_stock ?? false),
   })
 
 
   const [formData, setFormData] = useState(() => mapProductoToState(producto))
+
+  // Rehidratar el formulario si cambian las props (p. ej., editar otro producto sin cerrar)
+  useEffect(() => {
+    setFormData(mapProductoToState(producto))
+    setErrores({})
+  }, [producto])
 
   const [errores, setErrores] = useState({});
 
@@ -115,8 +121,10 @@ export default function ProductForm({
       idCategoria: toInt(formData.idCategoria, 0),
       activo: true,
     };
-    if (producto?.id ?? producto?.id_producto) {
-      payload.idProducto = producto.id ?? producto.id_producto;
+    if (producto?.id ?? producto?.id_producto ?? producto?.idProducto) {
+      const anyId = producto.id ?? producto.id_producto ?? producto.idProducto;
+      payload.id = anyId; // útil para la UI/state local
+      payload.idProducto = anyId; // útil para la API .NET si espera esta clave
     }
 
     onSubmit(payload);
@@ -222,11 +230,14 @@ export default function ProductForm({
               <SelectValue placeholder="Seleccionar categoría" />
             </SelectTrigger>
             <SelectContent>
-              {categorias.map((c) => (
-                <SelectItem key={c.idCategoria} value={String(c.idCategoria)}>
-                  {c.categoria}
-                </SelectItem>
-              ))}
+              {categorias.map((c) => {
+                const cid = c.idCategoria ?? c.id;
+                return (
+                  <SelectItem key={cid} value={String(cid)}>
+                    {c.categoria}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
           {errores.idCategoria && (
@@ -248,11 +259,18 @@ export default function ProductForm({
               <SelectValue placeholder="Seleccionar ubicación" />
             </SelectTrigger>
             <SelectContent>
-              {ubicaciones.map((u) => (
-                <SelectItem key={u.idUbicacion} value={String(u.idUbicacion)}>
-                  {`${u.fila} ${u.seccion} ${u.nivel}`}
-                </SelectItem>
-              ))}
+              {ubicaciones.map((u) => {
+                const uid = u.idUbicacion ?? u.id;
+                const label =
+                  [u.fila, u.seccion, u.nivel].some((v) => v !== undefined)
+                    ? `${u.fila ?? ''} ${u.seccion ?? ''} ${u.nivel ?? ''}`.trim()
+                    : u.nombre ?? `Ubicación ${uid}`;
+                return (
+                  <SelectItem key={uid} value={String(uid)}>
+                    {label}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
           {errores.idUbicacion && (
@@ -261,7 +279,7 @@ export default function ProductForm({
         </div>
 
         {/* Venta sin stock (bool) */}
-        {/*  <div className="space-y-2">
+         <div className="space-y-2">
           <Label htmlFor="ventaSinStock">Permitir venta sin stock</Label>
           <div className="flex items-center gap-2">
             <input
@@ -272,7 +290,7 @@ export default function ProductForm({
             />
             <span className="text-sm text-muted-foreground">Habilita vender con stock 0</span>
           </div>
-        </div> */}
+        </div>
       </div>
 
       {/* Descripción */}

@@ -32,3 +32,22 @@ export async function createProduct(producto) {
     id: data.idProducto ?? data.productId ?? data.Id, // normalizamos
   };
 }
+export async function updateProduct(producto) {
+  const id = producto.idProducto ?? producto.id ?? producto.productId ?? producto.Id;
+  if (!id) throw new Error("updateProduct: id requerido");
+
+  const url = `${API_URL}/update`;
+  const headers = { "Content-Type": "application/json" };
+  const body = JSON.stringify(producto);
+
+  const res = await fetch(url, { method: "PUT", headers, body });
+  if (!res.ok) {
+    throw new Error(`PUT ${url} -> ${res.status} ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  return {
+    ...data,
+    id: data.idProducto ?? id,
+  };
+}

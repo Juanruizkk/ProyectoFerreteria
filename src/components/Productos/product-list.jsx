@@ -1,8 +1,7 @@
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,36 +11,41 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Edit, Trash2, Package, AlertTriangle, MapPin, Tag } from "lucide-react"
+} from "@/components/ui/alert-dialog";
+import {
+  Edit,
+  Trash2,
+  Package,
+  AlertTriangle,
+  MapPin,
+  Tag,
+  CheckCircle, XCircle
+} from "lucide-react";
 
-export default function ProductList({
-  productos,
-  onEditar,
-  onEliminar,
-}) {
-  const [productoAEliminar, setProductoAEliminar] = useState(null)
+export default function ProductList({ productos, onEditar, onEliminar }) {
+  const [productoAEliminar, setProductoAEliminar] = useState(null);
 
   const confirmarEliminacion = (producto) => {
-    setProductoAEliminar(producto)
-  }
+    setProductoAEliminar(producto);
+  };
 
   const handleEliminar = () => {
     if (productoAEliminar) {
-      onEliminar(productoAEliminar.id)
-      setProductoAEliminar(null)
+      onEliminar(productoAEliminar.id);
+      setProductoAEliminar(null);
     }
-  }
+  };
 
   const getStockStatus = (producto) => {
+    const stockMin = producto.stockMinimo ?? producto.stock_minimo ?? 0;
     if (producto.stock === 0) {
-      return { variant: "destructive", text: "Sin Stock", icon: AlertTriangle }
-    } else if (producto.stock <= producto.stock_minimo) {
-      return { variant: "secondary", text: "Stock Bajo", icon: AlertTriangle }
+      return { variant: "destructive", text: "Sin Stock", icon: AlertTriangle };
+    } else if (producto.stock <= stockMin) {
+      return { variant: "secondary", text: "Stock Bajo", icon: AlertTriangle };
     } else {
-      return { variant: "default", text: "En Stock", icon: Package }
+      return { variant: "default", text: "En Stock", icon: Package };
     }
-  }
+  };
 
   if (productos.length === 0) {
     return (
@@ -61,16 +65,24 @@ export default function ProductList({
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {productos.map((producto) => {
-          const stockStatus = getStockStatus(producto)
-          const StockIcon = stockStatus.icon
+          const stockStatus = getStockStatus(producto);
+          const StockIcon = stockStatus.icon;
+          const allowNoStock = producto.ventaSinStock ?? false;
 
           return (
-            <Card key={producto.id} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={producto.id}
+              className="hover:shadow-lg transition-shadow"
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg text-balance">{producto.nombre}</CardTitle>
-                    <p className="text-sm text-muted-foreground font-medium">{producto.marca}</p>
+                    <CardTitle className="text-lg text-balance">
+                      {producto.nombre}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground font-medium">
+                      {producto.marca}
+                    </p>
                   </div>
                   <Badge variant={stockStatus.variant} className="gap-1 ml-2">
                     <StockIcon className="h-3 w-3" />
@@ -81,13 +93,19 @@ export default function ProductList({
               <CardContent className="space-y-4">
                 {/* Descripción */}
                 {producto.descripcion && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">{producto.descripcion}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {producto.descripcion}
+                  </p>
                 )}
 
                 {/* Precio */}
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-primary">${producto.precio.toLocaleString()}</span>
-                  <span className="text-xs text-muted-foreground">ID: {producto.id}</span>
+                  <span className="text-2xl font-bold text-primary">
+                    ${producto.precio.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ID: {producto.id}
+                  </span>
                 </div>
 
                 {/* Stock */}
@@ -98,7 +116,10 @@ export default function ProductList({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Mínimo:</span>
-                    <p className="font-semibold">{producto.stockMinimo} unidades</p>
+                    <p className="font-semibold">
+                      {producto.stockMinimo ?? producto.stock_minimo ?? 0}{" "}
+                      unidades
+                    </p>
                   </div>
                 </div>
 
@@ -114,6 +135,33 @@ export default function ProductList({
                     <span className="text-muted-foreground">Ubicación:</span>
                     <Badge variant="outline">{producto.ubicacion}</Badge>
                   </div>
+
+                  {/* Venta sin stock */}
+                  <div className="flex items-center gap-2 text-sm">
+                    {allowNoStock ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 " />
+                        <span className="text-muted-foreground">
+                          Venta sin stock:
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="border-green-600 text-green-700"
+                        >
+                          Permitida
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Venta sin stock:
+                        </span>
+                        <Badge variant="outline"
+                        className="border-red-400 text-red-400">No permitida</Badge>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Botones de acción */}
@@ -122,7 +170,8 @@ export default function ProductList({
                     variant="outline"
                     size="sm"
                     onClick={() => onEditar(producto)}
-                    className="flex-1 gap-2">
+                    className="flex-1 gap-2"
+                  >
                     <Edit className="h-4 w-4" />
                     Editar
                   </Button>
@@ -130,7 +179,8 @@ export default function ProductList({
                     variant="outline"
                     size="sm"
                     onClick={() => confirmarEliminacion(producto)}
-                    className="gap-2 text-destructive hover:text-destructive">
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
                     <Trash2 className="h-4 w-4" />
                     Eliminar
                   </Button>
@@ -143,20 +193,23 @@ export default function ProductList({
       {/* Dialog de confirmación para eliminar */}
       <AlertDialog
         open={!!productoAEliminar}
-        onOpenChange={() => setProductoAEliminar(null)}>
+        onOpenChange={() => setProductoAEliminar(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el producto{" "}
-              <strong>"{productoAEliminar?.nombre}"</strong> del inventario.
+              Esta acción no se puede deshacer. Se eliminará permanentemente el
+              producto <strong>"{productoAEliminar?.nombre}"</strong> del
+              inventario.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleEliminar}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
