@@ -26,8 +26,8 @@ export default function ProductForm({
     precio: p?.precio?.toString() ?? "",
     stock: p?.stock?.toString() ?? "",
     stockMinimo: (p?.stockMinimo ?? p?.stock_minimo)?.toString() ?? "",
-    idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion ?? p?.idubicacion)?.toString() ?? "",
-    idCategoria: (p?.idCategoria ?? p?.id_categoria ?? p?.idcategoria)?.toString() ?? "",
+    idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion)?.toString() ?? "",
+    idCategoria: (p?.idCategoria ?? p?.id_categoria)?.toString() ?? "",
     ventaSinStock: Boolean(p?.ventaSinStock ?? p?.venta_sin_stock ?? false),
   })
 
