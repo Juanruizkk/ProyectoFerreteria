@@ -1,17 +1,32 @@
 const API_URL = "http://localhost:5019/Product";
 
-export async function fetchProductsWithDetails(activo = true) {
-  const response = await fetch(API_URL + `/with-details${`?activo=${activo}`}`);
-  if (!response.ok) {
-    throw new Error("Error al obtener los productos");
-  }
-  const data = await response.json();
+export async function fetchProductsWithDetails(
+  activo = true,
+  pageIndex = 1,
+  pageSize = 9,
+  search = ""
+) {
+  let url = `${API_URL}/with-details-paged?activo=${activo}&pageIndex=${pageIndex}&pageSize=${pageSize}`
 
-  // Normalizar: siempre devolvemos un array con `id`
-  return data.map((p, index) => ({   
-    ...p,
-    id: p.idProducto ?? p.productId ?? p.Id ?? index, // fallback
-  }));
+  if (search && search.trim() !== "") {
+    url += `&search=${encodeURIComponent(search)}`
+  }
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error("Error al obtener los productos")
+  }
+
+  const data = await response.json()
+
+  return {
+    ...data,
+    items: data.items.map((p, index) => ({
+      ...p,
+      id: p.idProducto ?? p.productId ?? p.Id ?? index,
+    })),
+  }
 }
 
 export async function createProduct(producto) {
@@ -62,3 +77,20 @@ export async function deleteProduct(id) {
   return true;
 }
 
+export async function toggleProductEstado(id) {
+  if (!id) throw new Error("toggleProductEstado: id requerido");
+
+  const url = `${API_URL}/${id}/toggle-estado`;
+  const res = await fetch(url, { method: "PATCH" });
+
+  if (!res.ok) {
+    throw new Error(`PATCH ${url} -> ${res.status} ${res.statusText}`);
+  }
+
+  const data = await res.json(); // { idProducto, activo }
+
+  return {
+    id: data.idProducto ?? id,
+    activo: data.activo,
+  };
+}

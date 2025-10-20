@@ -1,218 +1,71 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Edit,
-  Trash2,
-  Package,
-  AlertTriangle,
-  MapPin,
-  Tag,
-  CheckCircle, XCircle
-} from "lucide-react";
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Edit, Trash2, Package, AlertTriangle, MapPin, Tag, CheckCircle, XCircle } from "lucide-react"
 
-export default function ProductList({ productos, onEditar, onEliminar }) {
-  const [productoAEliminar, setProductoAEliminar] = useState(null);
-
-  const confirmarEliminacion = (producto) => {
-    setProductoAEliminar(producto);
-  };
-
-  const handleEliminar = () => {
-    if (productoAEliminar) {
-      onEliminar(productoAEliminar.id);
-      setProductoAEliminar(null);
-    }
-  };
-
-  const getStockStatus = (producto) => {
-    const stockMin = producto.stockMinimo ?? producto.stock_minimo ?? 0;
-    if (producto.stock === 0) {
-      return { variant: "destructive", text: "Sin Stock", icon: AlertTriangle };
-    } else if (producto.stock <= stockMin) {
-      return { variant: "secondary", text: "Stock Bajo", icon: AlertTriangle };
-    } else {
-      return { variant: "default", text: "En Stock", icon: Package };
-    }
-  };
-
+export default function ProductList({ productos, onEditar, onEliminar, onToggleEstado }) {
   if (productos.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Package className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No hay productos</h3>
-          <p className="text-muted-foreground text-center">
-            No se encontraron productos que coincidan con tu búsqueda.
-          </p>
+          <p className="text-muted-foreground text-center">No se encontraron productos que coincidan con tu búsqueda.</p>
         </CardContent>
       </Card>
-    );
+    )
+  }
+
+  const getStockStatus = (producto) => {
+    const stockMin = producto.stockMinimo ?? producto.stock_minimo ?? 0
+    if (producto.stock === 0) return { variant: "destructive", text: "Sin Stock", icon: AlertTriangle }
+    else if (producto.stock <= stockMin) return { variant: "secondary", text: "Stock Bajo", icon: AlertTriangle }
+    else return { variant: "default", text: "En Stock", icon: Package }
   }
 
   return (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {productos.map((producto) => {
-          const stockStatus = getStockStatus(producto);
-          const StockIcon = stockStatus.icon;
-          const allowNoStock = producto.ventaSinStock ?? false;
-
-          return (
-            <Card
-              key={producto.id}
-              className="hover:shadow-lg transition-shadow"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg text-balance">
-                      {producto.nombre}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground font-medium">
-                      {producto.marca}
-                    </p>
-                  </div>
-                  <Badge variant={stockStatus.variant} className="gap-1 ml-2">
-                    <StockIcon className="h-3 w-3" />
-                    {stockStatus.text}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Descripción */}
-                {producto.descripcion && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {producto.descripcion}
-                  </p>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {productos.map((producto) => {
+        const stockStatus = getStockStatus(producto)
+        const StockIcon = stockStatus.icon
+        return (
+          <Card key={producto.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3 flex justify-between items-start">
+              <div>
+                <CardTitle className="text-lg">{producto.nombre}</CardTitle>
+                <p className="text-sm text-muted-foreground">{producto.marca}</p>
+              </div>
+              <Badge variant={stockStatus.variant} className="gap-1 ml-2">
+                <StockIcon className="h-3 w-3" />{stockStatus.text}
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {producto.descripcion && <p className="text-sm text-muted-foreground line-clamp-2">{producto.descripcion}</p>}
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold text-primary">${producto.precio.toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">ID: {producto.id}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><span className="text-muted-foreground">Stock:</span><p className="font-semibold">{producto.stock}</p></div>
+                <div><span className="text-muted-foreground">Mínimo:</span><p className="font-semibold">{producto.stockMinimo ?? producto.stock_minimo ?? 0}</p></div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex gap-2 items-center"><Tag className="h-4 w-4 text-muted-foreground"/><span>Categoría:</span><Badge variant="outline">{producto.categoria}</Badge></div>
+                <div className="flex gap-2 items-center"><MapPin className="h-4 w-4 text-muted-foreground"/><span>Ubicación:</span><Badge variant="outline">{producto.ubicacion}</Badge></div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => onEditar(producto)} className="flex-1 gap-2"><Edit className="h-4 w-4"/>Editar</Button>
+                {producto.activo ? (
+                  <Button variant="outline" size="sm" onClick={() => onEliminar(producto.id)} className="gap-2 text-destructive"><Trash2 className="h-4 w-4"/>Eliminar</Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => onToggleEstado(producto.id)} className="gap-2 text-green-600">Reactivar</Button>
                 )}
-
-                {/* Precio */}
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-primary">
-                    ${producto.precio.toLocaleString()}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    ID: {producto.id}
-                  </span>
-                </div>
-
-                {/* Stock */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Stock:</span>
-                    <p className="font-semibold">{producto.stock} unidades</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Mínimo:</span>
-                    <p className="font-semibold">
-                      {producto.stockMinimo ?? producto.stock_minimo ?? 0}{" "}
-                      unidades
-                    </p>
-                  </div>
-                </div>
-
-                {/* Categoría y Ubicación */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Tag className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Categoría:</span>
-                    <Badge variant="outline">{producto.categoria}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Ubicación:</span>
-                    <Badge variant="outline">{producto.ubicacion}</Badge>
-                  </div>
-
-                  {/* Venta sin stock */}
-                  <div className="flex items-center gap-2 text-sm">
-                    {allowNoStock ? (
-                      <>
-                        <CheckCircle className="h-4 w-4 " />
-                        <span className="text-muted-foreground">
-                          Venta sin stock:
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="border-green-600 text-green-700"
-                        >
-                          Permitida
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                          Venta sin stock:
-                        </span>
-                        <Badge variant="outline"
-                        className="border-red-400 text-red-400">No permitida</Badge>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Botones de acción */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEditar(producto)}
-                    className="flex-1 gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => confirmarEliminacion(producto)}
-                    className="gap-2 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Eliminar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      {/* Dialog de confirmación para eliminar */}
-      <AlertDialog
-        open={!!productoAEliminar}
-        onOpenChange={() => setProductoAEliminar(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Desea desactivar el producto <strong>"{productoAEliminar?.nombre}"</strong>?</AlertDialogTitle>
-            <AlertDialogDescription>
-              No estará disponible en el inventario ni en nuevas operaciones, aunque seguirá guardado en el sistema.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleEliminar}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
+    </div>
+  )
 }
