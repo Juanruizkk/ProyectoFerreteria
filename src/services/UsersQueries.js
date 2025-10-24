@@ -1,12 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5019";
-
-export async function searchUsers({ pageIndex = 1, searchTerm = "" } = {}) {
-  const url = new URL(`${API_BASE}/api/User/search`);
-  url.searchParams.set("pageIndex", pageIndex);
-  url.searchParams.set("searchTerm", searchTerm.trim().toLowerCase());
-  const res = await fetch(url.toString(), { credentials: "include" });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json(); // { items, pageIndex, totalPages, totalCount, pageSize }
+const API_URL = `${API_BASE}/api/User`;
+export async function searchUsers({ pageIndex = 1, searchTerm = "", estado = "activos" }) {
+  const url = `${API_URL}/search?pageIndex=${pageIndex}&searchTerm=${encodeURIComponent(searchTerm)}&estado=${estado}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Error al obtener los usuarios");
+  return await response.json();
 }
 
 export async function getUserById(id) {
@@ -19,7 +17,7 @@ export async function getUserById(id) {
 }
 
 export async function createUser(payload) {
-  const res = await fetch(`${API_BASE}/api/User/create`, {
+  const res = await fetch(`${API_URL}/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

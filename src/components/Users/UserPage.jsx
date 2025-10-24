@@ -38,7 +38,7 @@ function useDebouncedValue(value, delay = 400) {
 }
 
 export default function UsersPage() {
-  const [tab, setTab] = useState("todos");
+  const [estado, setEstado] = useState("activos"); // 🔹 activos | eliminados
   const [q, setQ] = useState("");
   const dq = useDebouncedValue(q, 400);
 
@@ -54,32 +54,30 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState(null);
   const [permCategories, setPermCategories] = useState([]);
 
+  // Cargar categorías de permisos una sola vez
   useEffect(() => {
     getPermissionCategories()
       .then(setPermCategories)
       .catch((err) =>
-        toast({
-          variant: "destructive",
-          title: "Error al cargar permisos",
-          description: err.message,
-        })
+        toast.error("Error al cargar permisos: " + err.message)
       );
   }, []);
 
+  // 🔹 Cargar usuarios al cambiar página, búsqueda o estado
   useEffect(() => {
     let alive = true;
     async function run() {
       setLoading(true);
       try {
-        const data = await searchUsers({ pageIndex, searchTerm: dq });
+        const data = await searchUsers({
+          pageIndex,
+          searchTerm: dq,
+          estado, // 👈 enviamos el filtro de estado
+        });
         if (!alive) return;
         setPaged(data);
       } catch (err) {
-        toast({
-          variant: "destructive",
-          title: "Error al listar usuarios",
-          description: err.message,
-        });
+        toast.error("Error al listar usuarios: " + err.message);
       } finally {
         setLoading(false);
       }
@@ -88,7 +86,7 @@ export default function UsersPage() {
     return () => {
       alive = false;
     };
-  }, [pageIndex, dq]);
+  }, [pageIndex, dq, estado]); // 👈 importante incluir 'estado'
 
   const visibleItems = useMemo(() => paged.items ?? [], [paged]);
 
@@ -103,11 +101,7 @@ export default function UsersPage() {
       setEditingUser(full);
       setDrawerOpen(true);
     } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "No se pudo abrir el usuario",
-        description: err.message,
-      });
+      toast.error("No se pudo abrir el usuario: " + err.message);
     }
   }
 
@@ -116,15 +110,11 @@ export default function UsersPage() {
       return;
     try {
       await deleteUser(userLite.idUsuario);
-      toast({ title: "Usuario eliminado" });
-      const data = await searchUsers({ pageIndex, searchTerm: dq });
+      toast.success(`Usuario eliminado: ${userLite.nombre} ${userLite.apellido}`);
+      const data = await searchUsers({ pageIndex, searchTerm: dq, estado });
       setPaged(data);
     } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Error al eliminar",
-        description: err.message,
-      });
+      toast.error(`Error al eliminar usuario: ${err.message || "Ocurrió un error inesperado"}`);
     }
   }
 
@@ -136,24 +126,30 @@ export default function UsersPage() {
         <Button onClick={openCreate}>+ Nuevo Usuario</Button>
       </div>
 
-      {/* Filtros */}
+      {/* Tabs de filtro */}
       <div className="grid grid-cols-2 sm:grid-cols-2 gap-6 justify-center">
         <Card
           className={`cursor-pointer hover:shadow transition ${
-            tab === "todos" ? "ring-2 ring-primary" : ""
+            estado === "activos" ? "ring-2 ring-primary" : ""
           }`}
-          onClick={() => setTab("todos")}
+          onClick={() => {
+            setEstado("activos");
+            setPageIndex(1);
+          }}
         >
           <CardHeader className="text-center">
-            <CardTitle>Todos</CardTitle>
+            <CardTitle>Activos</CardTitle>
           </CardHeader>
         </Card>
 
         <Card
           className={`cursor-pointer hover:shadow transition ${
-            tab === "eliminados" ? "ring-2 ring-primary" : ""
+            estado === "eliminados" ? "ring-2 ring-primary" : ""
           }`}
-          onClick={() => setTab("eliminados")}
+          onClick={() => {
+            setEstado("eliminados");
+            setPageIndex(1);
+          }}
         >
           <CardHeader className="text-center">
             <CardTitle>Eliminados</CardTitle>
@@ -178,7 +174,7 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Tabla de usuarios */}
+      {/* Tabla */}
       <Card>
         <CardContent className="p-0">
           <div className="border rounded-md overflow-hidden">
@@ -194,46 +190,26 @@ export default function UsersPage() {
               <Table className="w-full border-collapse">
                 <TableHeader>
                   <TableRow className="sticky top-0 bg-muted z-10">
-                    <TableHead className="font-semibold text-muted-foreground">
-                      Id
-                    </TableHead>
-                    <TableHead className="font-semibold text-muted-foreground">
-                      Usuario
-                    </TableHead>
-                    <TableHead className="font-semibold text-muted-foreground">
-                      Nombre
-                    </TableHead>
-                    <TableHead className="font-semibold text-muted-foreground">
-                      Apellido
-                    </TableHead>
-                    <TableHead className="font-semibold text-muted-foreground">
-                      Email
-                    </TableHead>
-                    <TableHead className="font-semibold text-muted-foreground">
-                      Rol
-                    </TableHead>
-                    <TableHead className="text-right font-semibold text-muted-foreground">
-                      Acciones
-                    </TableHead>
+                    <TableHead>Id</TableHead>
+                    <TableHead>Usuario</TableHead>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Apellido</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visibleItems.length === 0 && !loading && (
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center py-8 text-muted-foreground"
-                      >
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Sin datos
                       </TableCell>
                     </TableRow>
                   )}
 
                   {visibleItems.map((u) => (
-                    <TableRow
-                      key={u.idUsuario}
-                      className="hover:bg-muted/40 transition"
-                    >
+                    <TableRow key={u.idUsuario} className="hover:bg-muted/40 transition">
                       <TableCell>{u.idUsuario}</TableCell>
                       <TableCell>{u.usuario}</TableCell>
                       <TableCell>{u.nombre}</TableCell>
@@ -253,20 +229,24 @@ export default function UsersPage() {
                             </PopoverContent>
                           </Popover>
 
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEdit(u)}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => onDelete(u)}
-                          >
-                            Eliminar
-                          </Button>
+                          {estado === "activos" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEdit(u)}
+                              >
+                                Editar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => onDelete(u)}
+                              >
+                                Eliminar
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -306,7 +286,7 @@ export default function UsersPage() {
         user={editingUser}
         permCategories={permCategories}
         onSaved={async () => {
-          const data = await searchUsers({ pageIndex, searchTerm: dq });
+          const data = await searchUsers({ pageIndex, searchTerm: dq, estado });
           setPaged(data);
         }}
       />
@@ -314,6 +294,7 @@ export default function UsersPage() {
   );
 }
 
+// Popover con permisos
 function UserPermissionsPopover({ userId }) {
   const [loading, setLoading] = useState(true);
   const [perms, setPerms] = useState([]);
@@ -327,11 +308,7 @@ function UserPermissionsPopover({ userId }) {
         if (!alive) return;
         setPerms(full?.permisos || []);
       } catch (err) {
-        toast({
-          variant: "destructive",
-          title: "Error al cargar permisos",
-          description: err.message,
-        });
+        toast.error("Error al cargar permisos: " + err.message);
       } finally {
         setLoading(false);
       }
