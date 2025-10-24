@@ -202,6 +202,10 @@ export default function UserFormDrawer({
                             onCheckedChange={() => togglePerm(p.idPermiso)}
                           />
                           <span>{p.permiso}</span>
+                          {p.descripcion && (
+                              <p className="text-xs text-muted-foreground p-1">
+                                {p.descripcion}
+                              </p>)}
                         </label>
                       ))}
                     </CardContent>
