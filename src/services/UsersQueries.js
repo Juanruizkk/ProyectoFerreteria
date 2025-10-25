@@ -1,5 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5019";
 const API_URL = `${API_BASE}/api/User`;
+
+
 export async function searchUsers({ pageIndex = 1, searchTerm = "", estado = "activos" }) {
   const url = `${API_URL}/search?pageIndex=${pageIndex}&searchTerm=${encodeURIComponent(searchTerm)}&estado=${estado}`;
   const response = await fetch(url);
