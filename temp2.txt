@@ -1,0 +1,42 @@
+okey claude, te comento: 
+Debemos hacer correciones a la hora de modificar un cliente. 
+Desde el backend cuando le pedimos a la api un cliente por un id nos responde esto: 
+ public class ClientResponseDTO
+    {
+        public int IdCliente { get; set; }
+        public string Nombre { get; set; }
+        public string Apellido { get; set; }
+        public string RazonSocial { get; set; }
+        public string Dni { get; set; }
+        public string Cuit { get; set; }
+        public string Telefono { get; set; }
+        public string Mail { get; set; }
+        public bool EsEmpresa { get; set; }
+        public bool TieneCuentaCorriente { get; set; }
+    }
+    Y ahora tiene implementado el campo EsEmpresa que se mapea asi en el back: 
+     // Cliente -> ClienteResponseDTO
+            CreateMap<Cliente, ClientResponseDTO>()
+                .ForMember(dest => dest.TieneCuentaCorriente,
+                    opt => opt.MapFrom(src => src.MovimientoCcs.Any()))
+                .ForMember(dest => dest.EsEmpresa,
+                    opt => opt.MapFrom(src => src.RazonSocial != null && src.Cuit != null));
+    Entonces la idea es la siguiente: 
+    - Si el cliente es comun.. que se puedan editar sus datos estandar: 
+     public string Nombre { get; set; }
+        public string Apellido { get; set; }
+        public string Dni { get; set; }
+        public string Cuit { get; set; }
+        public string Telefono { get; set; }
+        public string Mail { get; set; }
+        Y que solo eso aparezca en la vista. 
+    Si el cliente es empresa que aparezca: 
+     public string Nombre { get; set; }
+        public string Apellido { get; set; }
+        public string RazonSocial { get; set; }
+        public string Cuit { get; set; }
+        public string Telefono { get; set; }
+        public string Mail { get; set; }
+    .
+    Ademas no quiero que aparezca nada de la cuenta corriente en la parte de editar. Ya que eso lo manejaremos por otro lado. 
+    Lo cual ya te dire como haremos con la cuenta corriente luego de corregir el editar.

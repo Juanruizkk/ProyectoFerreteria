@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import Prueba from "./components/Common/Prueba";
 import ProductosPage from "./components/Productos/ProductosPage";
 import UsersPage from "./components/Users/UserPage";
+import ClientesPage from "./components/Clientes/ClientesPage";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
           <Route path="/" element={<Prueba />} />
           <Route path="/productos" element={<ProductosPage />} />
           <Route path="/usuarios" element={<UsersPage />} />
+          <Route path="/clientes" element={<ClientesPage />} />
         </Routes>
       </Layout>
     

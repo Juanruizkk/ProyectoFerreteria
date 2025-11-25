@@ -1,0 +1,164 @@
+Para editar un cliente, se siguen basicamente las mismas reglas que para crear un cliente. 
+Solo que en este caso no se puede hacer modificacion de la cuenta correinte, eso lo manejaremos por otro lado. 
+Esta es la forma de validar el dto que le llega a la api : 
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+
+namespace venta_stock_webapi.Client.DTO
+{
+    public class ClientUpdateDTO : IValidatableObject
+    {
+        [Required(ErrorMessage = "El ID del cliente es obligatorio.")]
+        public int IdCliente { get; set; }
+
+        //Obligatorios solo para clientes comunes (EsEmpresa == false)
+        public string Nombre { get; set; }
+
+        public string Apellido { get; set; }
+
+        //Obligatorios solo para empresas (EsEmpresa == true)
+        public string RazonSocial { get; set; }
+        public string Dni { get; set; }
+        public string Cuit { get; set; }
+
+        //Siempre obligatorios
+        [Required(ErrorMessage = "El teléfono es obligatorio.")]
+        public string Telefono { get; set; }
+
+        [Required(ErrorMessage = "El mail es obligatorio.")]
+        [EmailAddress(ErrorMessage = "El campo Mail no es una dirección de correo electrónico válida.")]
+        public string Mail { get; set; }
+
+        public bool EsEmpresa { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            // ---------------------------
+            // ID del cliente
+            // ---------------------------
+            if (IdCliente <= 0)
+            {
+                yield return new ValidationResult(
+                    "El ID del cliente debe ser mayor que 0.",
+                    new[] { nameof(IdCliente) }
+                );
+            }
+
+            // ---------------------------
+            // EMPRESA
+            // ---------------------------
+            if (EsEmpresa)
+            {
+                if (string.IsNullOrWhiteSpace(RazonSocial))
+                {
+                    yield return new ValidationResult(
+                        "El campo Razón Social es obligatorio para empresas.",
+                        new[] { nameof(RazonSocial) }
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(Cuit))
+                {
+                    yield return new ValidationResult(
+                        "El campo CUIT es obligatorio para empresas.",
+                        new[] { nameof(Cuit) }
+                    );
+                }
+            }
+            // ---------------------------
+            // CLIENTE COMÚN / PERSONA
+            // ---------------------------
+            else
+            {
+                if (string.IsNullOrWhiteSpace(Nombre))
+                {
+                    yield return new ValidationResult(
+                        "El nombre es obligatorio para clientes comunes.",
+                        new[] { nameof(Nombre) }
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(Apellido))
+                {
+                    yield return new ValidationResult(
+                        "El apellido es obligatorio para clientes comunes.",
+                        new[] { nameof(Apellido) }
+                    );
+                }
+
+                if (string.IsNullOrWhiteSpace(Dni))
+                {
+                    yield return new ValidationResult(
+                        "El DNI es obligatorio para clientes comunes.",
+                        new[] { nameof(Dni) }
+                    );
+                }
+            }
+        }
+    }
+}
+
+Cuya implementacion la peudes encontrar aqui: 
+C:\Users\enzo_\OneDrive\Documentos\Facultad\ProyectoFinal\venta_stock_webapi
+
+Asi es como se actualiza el cliente: 
+ public async Task<Result<ClientResponseDTO>> UpdateClient(ClientUpdateDTO clienteDTO)
+        {
+            try
+            {
+                var clienteExistente = await _clienteRepository.GetByIdAsync(clienteDTO.IdCliente);
+
+                if (clienteExistente == null)
+                {
+                    return Result<ClientResponseDTO>.Failure(ClientErrorCode.cliente_not_found);
+                }
+
+                // Validar unicidad de Email (global para todos los clientes, excepto el actual)
+                if (await _clienteRepository.EmailExistsForOtherClientAsync(clienteDTO.Mail, clienteDTO.IdCliente))
+                {
+                    return Result<ClientResponseDTO>.Failure(ClientErrorCode.email_in_use);
+                }
+
+                // Validaciones específicas según tipo de cliente
+                if (clienteDTO.EsEmpresa)
+                {
+                    // EMPRESA: Validar RazonSocial única (excepto el cliente actual)
+                    if (await _clienteRepository.EnterpriseExistsForOtherClientAsync(clienteDTO.RazonSocial, clienteDTO.IdCliente))
+                    {
+                        return Result<ClientResponseDTO>.Failure(ClientErrorCode.empresa_in_use);
+                    }
+                    // CUIT NO se valida (puede repetirse)
+                }
+                else
+                {
+                    // PERSONA FÍSICA: Validar DNI único (excepto el cliente actual)
+                    if (await _clienteRepository.DniExistsForOtherClientAsync(clienteDTO.Dni, clienteDTO.IdCliente))
+                    {
+                        return Result<ClientResponseDTO>.Failure(ClientErrorCode.dni_in_use);
+                    }
+                }
+
+                clienteExistente.Nombre = clienteDTO.Nombre;
+                clienteExistente.Apellido = clienteDTO.Apellido;
+                clienteExistente.RazonSocial = clienteDTO.RazonSocial;
+                clienteExistente.Dni = clienteDTO.Dni;
+                clienteExistente.Cuit = clienteDTO.Cuit;
+                clienteExistente.Telefono = clienteDTO.Telefono;
+                clienteExistente.Mail = clienteDTO.Mail;
+
+                await _clienteRepository.UpdateAsync(clienteExistente);
+
+                var clienteActualizado = await _clienteRepository.GetByIdAsync(clienteDTO.IdCliente);
+                var responseDTO = _mapper.Map<ClientResponseDTO>(clienteActualizado);
+
+                return Result<ClientResponseDTO>.Succes(responseDTO);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error inesperado al actualizar cliente: " + ex);
+                return Result<ClientResponseDTO>.Failure(ClientErrorCode.unexpected_error);
+            }
+        }
+
+De nuevo, si cliente comun, solo sus datos. 
+Si es empresa, solo sus datos.
