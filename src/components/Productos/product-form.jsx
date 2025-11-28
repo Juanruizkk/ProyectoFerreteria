@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, X } from "lucide-react";
+import { Save, X, Barcode, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function ProductForm({
   producto,
@@ -38,9 +39,29 @@ export default function ProductForm({
   useEffect(() => {
     setFormData(mapProductoToState(producto))
     setErrores({})
+
+    // Cargar códigos de barra si el producto los tiene
+    if (producto?.codigoBarras && Array.isArray(producto.codigoBarras)) {
+      setCodigosBarras(producto.codigoBarras.map(cb => ({
+        idCodigo: cb.idCodigo ?? cb.IdCodigo ?? 0,
+        codigo: cb.codigo ?? cb.Codigo ?? ""
+      })));
+      setAgregarCodigosBarras(producto.codigoBarras.length > 0);
+    } else {
+      setCodigosBarras([]);
+      setAgregarCodigosBarras(false);
+    }
+    setCodigoBarraInput("");
+    setErrorCodigoBarra("");
   }, [producto])
 
   const [errores, setErrores] = useState({});
+
+  // Estados para códigos de barra
+  const [agregarCodigosBarras, setAgregarCodigosBarras] = useState(false);
+  const [codigosBarras, setCodigosBarras] = useState([]);
+  const [codigoBarraInput, setCodigoBarraInput] = useState("");
+  const [errorCodigoBarra, setErrorCodigoBarra] = useState("");
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -49,6 +70,44 @@ export default function ProductForm({
     }));
     if (errores[field]) {
       setErrores((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  // Funciones para manejo de códigos de barra
+  const handleAgregarCodigoBarra = () => {
+    setErrorCodigoBarra("");
+
+    // Validar que no esté vacío
+    if (!codigoBarraInput.trim()) {
+      setErrorCodigoBarra("El código de barra no puede estar vacío");
+      return;
+    }
+
+    // Validar que no sea duplicado
+    if (codigosBarras.some(cb => cb.codigo === codigoBarraInput.trim())) {
+      setErrorCodigoBarra("Este código de barra ya fue agregado");
+      return;
+    }
+
+    // Agregar código a la lista
+    setCodigosBarras(prev => [...prev, {
+      idCodigo: 0,
+      codigo: codigoBarraInput.trim()
+    }]);
+    setCodigoBarraInput("");
+  };
+
+  const handleEliminarCodigoBarra = (codigoAEliminar) => {
+    setCodigosBarras(prev => prev.filter(cb => cb.codigo !== codigoAEliminar));
+    setErrorCodigoBarra("");
+  };
+
+  const handleToggleCodigosBarras = (checked) => {
+    setAgregarCodigosBarras(checked);
+    if (!checked) {
+      setCodigosBarras([]);
+      setCodigoBarraInput("");
+      setErrorCodigoBarra("");
     }
   };
 
@@ -120,6 +179,7 @@ export default function ProductForm({
       idUbicacion: toInt(formData.idUbicacion, 0),
       idCategoria: toInt(formData.idCategoria, 0),
       activo: true,
+      codigoBarras: agregarCodigosBarras ? codigosBarras : [],
     };
     if (producto?.id ?? producto?.id_producto ?? producto?.idProducto) {
       const anyId = producto.id ?? producto.id_producto ?? producto.idProducto;
@@ -307,6 +367,93 @@ export default function ProductForm({
         />
         {errores.descripcion && (
           <p className="text-sm text-destructive">{errores.descripcion}</p>
+        )}
+      </div>
+
+      {/* Códigos de Barra */}
+      <div className="space-y-4 border rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          <input
+            id="agregarCodigosBarras"
+            type="checkbox"
+            checked={agregarCodigosBarras}
+            onChange={(e) => handleToggleCodigosBarras(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <Label htmlFor="agregarCodigosBarras" className="cursor-pointer flex items-center gap-2">
+            <Barcode className="h-4 w-4" />
+            Agregar códigos de barra
+          </Label>
+        </div>
+
+        {agregarCodigosBarras && (
+          <div className="space-y-4 pl-6">
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-2">
+                <Input
+                  type="text"
+                  value={codigoBarraInput}
+                  onChange={(e) => {
+                    setCodigoBarraInput(e.target.value);
+                    setErrorCodigoBarra("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAgregarCodigoBarra();
+                    }
+                  }}
+                  placeholder="Ingrese código de barra"
+                  className={errorCodigoBarra ? "border-destructive" : ""}
+                />
+                {errorCodigoBarra && (
+                  <p className="text-sm text-destructive">{errorCodigoBarra}</p>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAgregarCodigoBarra}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Añadir código
+              </Button>
+            </div>
+
+            {codigosBarras.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Códigos agregados ({codigosBarras.length}):</Label>
+                <div className="flex flex-wrap gap-2">
+                  {codigosBarras.map((cb) => (
+                    <Badge
+                      key={cb.codigo}
+                      variant="secondary"
+                      className="pl-3 pr-1 py-1 gap-2 text-sm"
+                    >
+                      <Barcode className="h-3 w-3" />
+                      {cb.codigo}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEliminarCodigoBarra(cb.codigo)}
+                        className="h-5 w-5 p-0 hover:bg-destructive/20"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {codigosBarras.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Puede añadir más códigos de barra usando el campo de arriba.
+              </p>
+            )}
+          </div>
         )}
       </div>
 

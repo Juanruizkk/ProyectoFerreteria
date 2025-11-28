@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, CheckCircle, XCircle } from "lucide-react"
+import { Edit, Trash2, CheckCircle, XCircle, RefreshCw } from "lucide-react"
 
 export default function ProductTable({ productos, onEditar, onEliminar, onToggleEstado }) {
   const [productoAEliminar, setProductoAEliminar] = useState(null)
@@ -40,11 +40,11 @@ export default function ProductTable({ productos, onEditar, onEliminar, onToggle
                 <TableCell>{producto.ventaSinStock ? <Badge className="border-green-600 text-green-700 gap-1"><CheckCircle className="h-4 w-4"/>Permitida</Badge> : <Badge className="border-red-400 text-red-400 gap-1"><XCircle className="h-4 w-4"/>No</Badge>}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{producto.descripcion}</TableCell>
                 <TableCell className="text-right space-x-2">
-                  <Button size="sm" variant="outline" onClick={() => onEditar(producto)} className="gap-1"><Edit className="h-4 w-4"/>Editar</Button>
+                  <Button size="sm" variant="outline" onClick={() => onEditar(producto)}><Edit className="h-4 w-4"/></Button>
                   {producto.activo ? (
-                    <Button size="sm" variant="outline" className="text-destructive gap-1" onClick={() => onEliminar(producto.id)}><Trash2 className="h-4 w-4"/>Eliminar</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => onEliminar(producto.id)}><Trash2 className="h-4 w-4"/></Button>
                   ) : (
-                    <Button size="sm" variant="outline" className="text-green-600 gap-1" onClick={() => onToggleEstado(producto.id)}>Reactivar</Button>
+                    <Button size="sm" variant="outline" className="text-green-600" onClick={() => onToggleEstado(producto.id)}><RefreshCw className="h-4 w-4"/></Button>
                   )}
                 </TableCell>
               </TableRow>
