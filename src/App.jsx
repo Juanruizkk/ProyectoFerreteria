@@ -3,18 +3,20 @@ import Layout from "@/components/Layout";
 import Prueba from "./components/Common/Prueba";
 import ProductosPage from "./components/Productos/ProductosPage";
 import UsersPage from "./components/Users/UserPage";
+import CategoryManager from "./components/Category/CategoryManager";
 
 function App() {
   return (
-    
+
       <Layout>
         <Routes>
           <Route path="/" element={<Prueba />} />
           <Route path="/productos" element={<ProductosPage />} />
           <Route path="/usuarios" element={<UsersPage />} />
+          <Route path="/categorias" element={<CategoryManager />} />
         </Routes>
       </Layout>
-    
+
   );
 }
 
