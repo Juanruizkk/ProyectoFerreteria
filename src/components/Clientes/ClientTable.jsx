@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-export default function ClientTable({ clientes, onEdit, onDelete }) {
+export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails }) {
   const getNombreCompleto = (cliente) => {
     if (cliente.razonSocial && cliente.razonSocial.trim() !== "") {
       return cliente.razonSocial;
@@ -61,6 +61,14 @@ export default function ClientTable({ clientes, onEdit, onDelete }) {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewDetails(cliente.idCliente)}
+                    title="Ver detalles"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

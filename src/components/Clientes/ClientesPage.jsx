@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
@@ -18,6 +19,7 @@ import {
 } from "@/services/ClienteQueries";
 
 export default function ClientesPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("activos");
 
   // Clientes activos
@@ -189,6 +191,10 @@ export default function ClientesPage() {
     setEditingCliente(null);
   };
 
+  const handleViewDetails = (idCliente) => {
+    navigate(`/clientes/${idCliente}`);
+  };
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col gap-6">
@@ -248,6 +254,7 @@ export default function ClientesPage() {
                   clientes={clientesActivos}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onViewDetails={handleViewDetails}
                 />
 
                 {/* Pagination */}
