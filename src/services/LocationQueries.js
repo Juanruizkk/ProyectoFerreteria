@@ -1,12 +1,17 @@
-const API_URL = "http://localhost:5019/Location"
+const API_URL = "http://localhost:5019/api/Location"
 
 export async function fetchLocations() {
-  const res = await fetch(API_URL)
+  // Usar el endpoint /search con pageSize alto para obtener todas las ubicaciones activas
+  const res = await fetch(`${API_URL}/search?pageIndex=1&pageSize=1000&activos=true`)
   if (!res.ok) throw new Error("Error al obtener ubicaciones")
   const data = await res.json();
 
-  return data.map((c, index) => ({
+  // El endpoint /search devuelve un objeto paginado con estructura { items: [...], ... }
+  const items = data.items || data;
+
+  return items.map((c, index) => ({
     ...c,
-    id: c.idUbicacion ?? c.locationId ?? c.Id ?? index, // fallback
+    id: c.idUbicacion ?? c.locationId ?? c.Id ?? index,
+    idUbicacion: c.idUbicacion ?? c.locationId ?? c.Id ?? index,
   }));
 }

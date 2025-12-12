@@ -94,3 +94,97 @@ export async function toggleProductEstado(id) {
     activo: data.activo,
   };
 }
+
+export async function descargarPlantillaCsv() {
+  const url = `${API_URL}/export/plantilla-csv`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Error al descargar plantilla CSV: ${res.status} ${res.statusText}`);
+  }
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = "plantilla_productos.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+export async function descargarPlantillaExcel() {
+  const url = `${API_URL}/export/plantilla-excel`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Error al descargar plantilla Excel: ${res.status} ${res.statusText}`);
+  }
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = "plantilla_productos.xlsx";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+export async function importarProductos(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const url = `${API_URL}/importar`;
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Error al importar productos: ${res.status} ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  return data; // { productosCreados, productosActualizados, errores }
+}
+
+export async function exportarProductosCsv() {
+  const url = `${API_URL}/export/csv`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Error al exportar productos CSV: ${res.status} ${res.statusText}`);
+  }
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = "productos.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+export async function exportarProductosExcel() {
+  const url = `${API_URL}/export/excel`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Error al exportar productos Excel: ${res.status} ${res.statusText}`);
+  }
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = "productos.xlsx";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}

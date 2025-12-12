@@ -18,6 +18,7 @@ import {
 import ProductForm from "@/components/Productos/product-form";
 import ProductList from "@/components/Productos/product-list";
 import ProductTable from "./product-table";
+import ProductImport from "@/components/Productos/ProductImport";
 import PaginationControls from "../Common/PaginationControls";
 import { toast } from "sonner";
 
@@ -38,8 +39,13 @@ export default function ProductosPage() {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [mostrarImportacion, setMostrarImportacion] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
-  const [vista, setVista] = useState("cards");
+  const [vista, setVista] = useState(() => {
+    // Leer preferencia de vista desde localStorage
+    const vistaGuardada = localStorage.getItem("productos-vista-preferencia");
+    return vistaGuardada || "cards";
+  });
 
   // filtros
   const [filtroPrincipal, setFiltroPrincipal] = useState("todos"); // "todos" | "eliminados"
@@ -55,6 +61,39 @@ export default function ProductosPage() {
 
   // cache por página
   const cacheRef = useRef({ activos: {}, eliminados: {} });
+
+  // guardar preferencia de vista en localStorage cuando cambia
+  useEffect(() => {
+    localStorage.setItem("productos-vista-preferencia", vista);
+  }, [vista]);
+
+  // cargar categorías y ubicaciones al montar
+  useEffect(() => {
+    const loadCategorias = async () => {
+      try {
+        const data = await fetchCategorias();
+        setCategorias(data);
+      } catch (error) {
+        toast.error("Error al cargar categorías", {
+          description: error.message,
+        });
+      }
+    };
+
+    const loadUbicaciones = async () => {
+      try {
+        const data = await fetchLocations();
+        setUbicaciones(data);
+      } catch (error) {
+        toast.error("Error al cargar ubicaciones", {
+          description: error.message,
+        });
+      }
+    };
+
+    loadCategorias();
+    loadUbicaciones();
+  }, []);
 
   // cargar productos según filtro y paginado
   useEffect(() => {
@@ -168,14 +207,32 @@ export default function ProductosPage() {
     }
   };
 
-  const abrirFormularioCrear = () => setMostrarFormulario(true);
+  const abrirFormularioCrear = () => {
+    setMostrarImportacion(false);
+    setMostrarFormulario(true);
+  };
   const abrirFormularioEditar = (producto) => {
     setProductoEditando(producto);
+    setMostrarImportacion(false);
     setMostrarFormulario(true);
   };
   const cerrarFormulario = () => {
     setProductoEditando(null);
     setMostrarFormulario(false);
+  };
+  const abrirImportacion = () => {
+    setMostrarFormulario(false);
+    setProductoEditando(null);
+    setMostrarImportacion(true);
+  };
+  const cerrarImportacion = () => {
+    setMostrarImportacion(false);
+  };
+  const handleImportComplete = () => {
+    // Limpiar cache y recargar
+    cacheRef.current = { activos: {}, eliminados: {} };
+    setPageIndex(1);
+    // El useEffect se disparará automáticamente con el cambio de pageIndex
   };
 
   // aplicar subfiltro stock bajo
@@ -252,7 +309,7 @@ export default function ProductosPage() {
                   setFiltroPrincipal("eliminados");
                 else if (card.key === "stock")
                   setStockBajoActivo(!stockBajoActivo);
-                else if (card.key === "nuevo") abrirFormularioCrear();
+                else if (card.key === "nuevo") abrirImportacion();
               }}
               className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
             >
@@ -268,7 +325,7 @@ export default function ProductosPage() {
 
       {/* Buscador */}
       <Card className="mb-6">
-        <CardContent>
+        <CardContent className="py-4">
           <SearchBar
             value={busqueda}
             onChange={(val) => {
@@ -279,6 +336,28 @@ export default function ProductosPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Importación masiva */}
+      {mostrarImportacion && (
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Carga Masiva de Productos</CardTitle>
+                <CardDescription>
+                  Descarga la plantilla, complétala y súbela para importar productos
+                </CardDescription>
+              </div>
+              <Button variant="ghost" onClick={cerrarImportacion}>
+                Cerrar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ProductImport onImportComplete={handleImportComplete} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Formulario */}
       {mostrarFormulario && (
