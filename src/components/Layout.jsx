@@ -14,7 +14,8 @@ export default function Layout({ children }) {
   const handleLogout = () => {
     logout();
     toast.success("Sesión cerrada exitosamente");
-    navigate("/login");
+    // Forzar recarga completa para asegurar que se muestre el login
+    window.location.href = "/login";
   };
 
   return (

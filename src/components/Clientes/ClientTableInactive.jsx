@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import PermissionGuard from "@/components/PermissionGuard";
 
 export default function ClientTableInactive({ clientes, onActivate }) {
   const getNombreCompleto = (cliente) => {
@@ -61,16 +62,18 @@ export default function ClientTableInactive({ clientes, onActivate }) {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onActivate(cliente.idCliente)}
-                    title="Activar cliente"
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Activar
-                  </Button>
+                  <PermissionGuard permission="CLI_UPDATE">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onActivate(cliente.idCliente)}
+                      title="Activar cliente"
+                      className="text-green-600 hover:text-green-700"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Activar
+                    </Button>
+                  </PermissionGuard>
                 </div>
               </TableCell>
             </TableRow>

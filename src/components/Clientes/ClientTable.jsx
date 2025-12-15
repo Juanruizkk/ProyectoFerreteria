@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import PermissionGuard from "@/components/PermissionGuard";
 
 export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails }) {
   const getNombreCompleto = (cliente) => {
@@ -61,30 +62,38 @@ export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails 
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewDetails(cliente.idCliente)}
-                    title="Ver detalles"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEdit(cliente)}
-                    title="Editar"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDelete(cliente.idCliente)}
-                    title="Eliminar"
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <PermissionGuard permission="CLI_READ">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewDetails(cliente.idCliente)}
+                      title="Ver detalles"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </PermissionGuard>
+
+                  <PermissionGuard permission="CLI_UPDATE">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(cliente)}
+                      title="Editar"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </PermissionGuard>
+
+                  <PermissionGuard permission="CLI_DELETE">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDelete(cliente.idCliente)}
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </PermissionGuard>
                 </div>
               </TableCell>
             </TableRow>

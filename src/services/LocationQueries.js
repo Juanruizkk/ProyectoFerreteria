@@ -1,7 +1,9 @@
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
+
 const API_URL = "http://localhost:5019/Location"
 
 export async function fetchLocations() {
-  const res = await fetch(API_URL)
+  const res = await fetchWithAuth(API_URL)
   if (!res.ok) throw new Error("Error al obtener ubicaciones")
   const data = await res.json();
 

@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
+
 const API_URL = "http://localhost:5019/Product";
 
 export async function fetchProductsWithDetails(
@@ -12,7 +14,7 @@ export async function fetchProductsWithDetails(
     url += `&search=${encodeURIComponent(search)}`
   }
 
-  const response = await fetch(url)
+  const response = await fetchWithAuth(url)
 
   if (!response.ok) {
     throw new Error("Error al obtener los productos")
@@ -30,7 +32,7 @@ export async function fetchProductsWithDetails(
 }
 
 export async function createProduct(producto) {
-  const response = await fetch(API_URL, {
+  const response = await fetchWithAuth(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(producto),
@@ -55,7 +57,7 @@ export async function updateProduct(producto) {
   const headers = { "Content-Type": "application/json" };
   const body = JSON.stringify(producto);
 
-  const res = await fetch(url, { method: "PUT", headers, body });
+  const res = await fetchWithAuth(url, { method: "PUT", headers, body });
   if (!res.ok) {
     throw new Error(`PUT ${url} -> ${res.status} ${res.statusText}`);
   }
@@ -70,7 +72,7 @@ export async function updateProduct(producto) {
 export async function deleteProduct(id) {
   if (!id) throw new Error("deleteProduct: id requerido");
   const url = `${API_URL}/${id}`;
-  const res = await fetch(url, { method: "DELETE" });
+  const res = await fetchWithAuth(url, { method: "DELETE" });
   if (!res.ok) {
     throw new Error(`DELETE ${url} -> ${res.status} ${res.statusText}`);
   }
@@ -81,7 +83,7 @@ export async function toggleProductEstado(id) {
   if (!id) throw new Error("toggleProductEstado: id requerido");
 
   const url = `${API_URL}/${id}/toggle-estado`;
-  const res = await fetch(url, { method: "PATCH" });
+  const res = await fetchWithAuth(url, { method: "PATCH" });
 
   if (!res.ok) {
     throw new Error(`PATCH ${url} -> ${res.status} ${res.statusText}`);

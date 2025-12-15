@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
+
 const BASE_URL = "http://localhost:5019";
 
 /**
@@ -13,7 +15,7 @@ const BASE_URL = "http://localhost:5019";
  */
 export const createCurrentAccount = async (accountData) => {
   try {
-    const response = await fetch(`${BASE_URL}/api/CurrentAccount/create-movement`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/create-account`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -51,7 +53,7 @@ export const createCurrentAccount = async (accountData) => {
  */
 export const getAccountMovements = async (clientId) => {
   try {
-    const response = await fetch(`${BASE_URL}/api/CurrentAccount/movements/${clientId}`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/movements/${clientId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -83,7 +85,7 @@ export const getAccountMovements = async (clientId) => {
  */
 export const getMovementTypes = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/api/CurrentAccount/movement-types`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/movement-types`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -122,7 +124,7 @@ export const getMovementTypes = async () => {
  */
 export const registerMovement = async (movementData) => {
   try {
-    const response = await fetch(`${BASE_URL}/api/CurrentAccount/register-movement`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/register-movement`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

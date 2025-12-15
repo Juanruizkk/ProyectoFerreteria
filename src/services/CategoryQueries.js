@@ -1,8 +1,10 @@
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
+
 // services/categorias.js
 const API_URL = "http://localhost:5019/Category"
 
 export async function fetchCategorias() {
-  const res = await fetch(API_URL)
+  const res = await fetchWithAuth(API_URL)
   if (!res.ok) throw new Error("Error al obtener categorías")
   const data = await res.json();
 

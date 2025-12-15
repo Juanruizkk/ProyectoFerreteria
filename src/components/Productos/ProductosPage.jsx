@@ -20,6 +20,8 @@ import ProductList from "@/components/Productos/product-list";
 import ProductTable from "./product-table";
 import PaginationControls from "../Common/PaginationControls";
 import { toast } from "sonner";
+import PermissionGuard from "@/components/PermissionGuard";
+import { usePermission } from "@/hooks/usePermission";
 
 import {
   fetchProductsWithDetails,
@@ -33,6 +35,7 @@ import { fetchLocations } from "@/services/LocationQueries";
 import SearchBar from "../Common/SearchBar";
 
 export default function ProductosPage() {
+  const { hasPermission } = usePermission();
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
@@ -222,9 +225,11 @@ export default function ProductosPage() {
           >
             <TableIcon className="h-4 w-4" />
           </Button>
-          <Button onClick={abrirFormularioCrear} className="gap-2">
-            <Plus className="h-4 w-4" /> Nuevo Producto
-          </Button>
+          <PermissionGuard permission="PROD_CREATE">
+            <Button onClick={abrirFormularioCrear} className="gap-2">
+              <Plus className="h-4 w-4" /> Nuevo Producto
+            </Button>
+          </PermissionGuard>
         </div>
       </div>
 

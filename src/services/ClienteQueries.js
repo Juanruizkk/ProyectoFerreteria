@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
+
 const API_BASE = "http://localhost:5019";
 
 /**
@@ -7,7 +9,7 @@ const API_BASE = "http://localhost:5019";
 export async function fetchClientes(pageIndex = 1, pageSize = 10, searchTerm = "", estado = "activos") {
   let url = `${API_BASE}/api/Cliente/search?pageIndex=${pageIndex}&pageSize=${pageSize}&searchTerm=${encodeURIComponent(searchTerm)}&estado=${estado}`;
 
-  const response = await fetch(url);
+  const response = await fetchWithAuth(url);
 
   if (!response.ok) {
     // Intentar obtener el mensaje de error de la API
@@ -39,7 +41,7 @@ export async function fetchClientes(pageIndex = 1, pageSize = 10, searchTerm = "
  * Endpoint: GET /api/Cliente/client/{id}
  */
 export async function getClienteById(id) {
-  const response = await fetch(`${API_BASE}/api/Cliente/client/${id}`);
+  const response = await fetchWithAuth(`${API_BASE}/api/Cliente/client/${id}`);
 
   if (!response.ok) {
     // Intentar obtener el mensaje de error de la API
@@ -69,7 +71,7 @@ export async function getClienteById(id) {
  * Endpoint: POST /api/Cliente/create
  */
 export async function createCliente(clienteData) {
-  const response = await fetch(`${API_BASE}/api/Cliente/create`, {
+  const response = await fetchWithAuth(`${API_BASE}/api/Cliente/create`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -107,7 +109,7 @@ export async function createCliente(clienteData) {
  * Endpoint: PUT /api/Cliente/update
  */
 export async function updateCliente(id, clienteData) {
-  const response = await fetch(`${API_BASE}/api/Cliente/update`, {
+  const response = await fetchWithAuth(`${API_BASE}/api/Cliente/update`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -143,7 +145,7 @@ export async function updateCliente(id, clienteData) {
  * Endpoint: PUT /api/Cliente/toggle-status
  */
 export async function deleteCliente(id) {
-  const response = await fetch(`${API_BASE}/api/Cliente/toggle-status`, {
+  const response = await fetchWithAuth(`${API_BASE}/api/Cliente/toggle-status`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -194,7 +196,7 @@ export async function deleteCliente(id) {
  * Endpoint: PUT /api/Cliente/toggle-status
  */
 export async function activateCliente(id) {
-  const response = await fetch(`${API_BASE}/api/Cliente/toggle-status`, {
+  const response = await fetchWithAuth(`${API_BASE}/api/Cliente/toggle-status`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

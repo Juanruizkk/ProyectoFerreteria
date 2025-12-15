@@ -9,6 +9,8 @@ import PaginationControls from "../Common/PaginationControls";
 import ClientTable from "./ClientTable";
 import ClientTableInactive from "./ClientTableInactive";
 import ClientForm from "./ClientForm";
+import PermissionGuard from "@/components/PermissionGuard";
+import { usePermission } from "@/hooks/usePermission";
 import {
   fetchClientes,
   getClienteById,
@@ -20,6 +22,7 @@ import {
 
 export default function ClientesPage() {
   const navigate = useNavigate();
+  const { hasPermission } = usePermission();
   const [activeTab, setActiveTab] = useState("activos");
 
   // Clientes activos
@@ -201,20 +204,24 @@ export default function ClientesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="text-3xl font-bold">Clientes</h1>
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Cliente
-          </Button>
+          <PermissionGuard permission="CLI_CREATE">
+            <Button onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Cliente
+            </Button>
+          </PermissionGuard>
         </div>
 
         {/* Form */}
-        {showForm && (
-          <ClientForm
-            initialData={editingCliente}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-          />
-        )}
+        <PermissionGuard anyOf={["CLI_CREATE", "CLI_UPDATE"]}>
+          {showForm && (
+            <ClientForm
+              initialData={editingCliente}
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+            />
+          )}
+        </PermissionGuard>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

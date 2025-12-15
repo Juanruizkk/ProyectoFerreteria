@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
+
 const BASE_URL = "http://localhost:5019";
 
 /**
@@ -13,7 +15,7 @@ export const fetchAccountConfigs = async (activo = null) => {
       url += `?activo=${activo}`;
     }
 
-    const response = await fetch(url, {
+    const response = await fetchWithAuth(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -46,7 +48,7 @@ export const fetchAccountConfigs = async (activo = null) => {
  */
 export const fetchAccountConfigById = async (configId) => {
   try {
-    const response = await fetch(`${BASE_URL}/api/AccountConfig/account-configs/${configId}`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/AccountConfig/account-configs/${configId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -81,7 +83,7 @@ export const fetchAccountConfigById = async (configId) => {
  */
 export const createAccountConfig = async (configData) => {
   try {
-    const response = await fetch(`${BASE_URL}/api/AccountConfig/create-account-configs`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/AccountConfig/create-account-configs`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -117,7 +119,7 @@ export const createAccountConfig = async (configData) => {
  */
 export const updateAccountConfig = async (configData) => {
   try {
-    const response = await fetch(`${BASE_URL}/api/AccountConfig/update-account-configs`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/AccountConfig/update-account-configs`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -151,7 +153,7 @@ export const updateAccountConfig = async (configData) => {
  */
 export const toggleAccountConfigState = async (configId, active) => {
   try {
-    const response = await fetch(`${BASE_URL}/api/AccountConfig/toggle-state/${configId}/${active}`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/AccountConfig/toggle-state/${configId}/${active}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
