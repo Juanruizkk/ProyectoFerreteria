@@ -1,5 +1,7 @@
-import { Home, Package, Layers, Users } from "lucide-react"
+import { Users, UserCircle, Package, Home, Settings, Layers } from "lucide-react"
 import { Link } from "react-router-dom"
+import PermissionGuard from "@/components/PermissionGuard"
+import { PermissionGroups } from "@/config/permissions"
 
 import {
   Sidebar,
@@ -12,48 +14,93 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// Menu items.
-const items = [
-  {
-    title: "Inicio",
-    url: "/",
-    icon: Home,
-  },
-  {
-    title: "Productos",
-    url: "/productos",
-    icon: Package,
-  },
-  {
-    title: "Categorías",
-    url: "/categorias",
-    icon: Layers,
-  },
-  {
-    title: "Usuarios",
-    url: "/usuarios",
-    icon: Users,
-  },
-]
-
 export function AppSidebar() {
   return (
     <Sidebar variant="inset">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Sistema de Ferretería</SidebarGroupLabel>
+          <SidebarGroupLabel>Sistema Ferretería</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
+              {/* Home - siempre visible */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link to="/">
+                    <Home />
+                    <span>Inicio</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Usuarios - solo si tiene algún permiso USR_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.USERS.permissions)}
+              >
+                <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
+                    <Link to="/usuarios">
+                      <Users />
+                      <span>Usuarios</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+              </PermissionGuard>
+
+              {/* Clientes - solo si tiene algún permiso CLI_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.CLIENTS.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/clientes">
+                      <UserCircle />
+                      <span>Clientes</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
+              {/* Productos - solo si tiene algún permiso PROD_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/productos">
+                      <Package />
+                      <span>Productos</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
+              {/* Categorías - solo si tiene algún permiso PROD_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/categorias">
+                      <Layers />
+                      <span>Categorías</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
+              {/* Configuración CC - solo si tiene algún permiso CC_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/configuracion-cc">
+                      <Settings />
+                      <span>Configuración CC</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

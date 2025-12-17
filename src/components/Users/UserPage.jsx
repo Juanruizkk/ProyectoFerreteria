@@ -6,6 +6,8 @@ import {
 } from "../../services/UsersQueries";
 import { getPermissionCategories } from "../../services/PermissionsQueries";
 import UserFormDrawer from "../Users/UserFormDrawer";
+import PermissionGuard from "@/components/PermissionGuard";
+import { usePermission } from "@/hooks/usePermission";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +47,7 @@ function useDebouncedValue(value, delay = 400) {
 }
 
 export default function UsersPage() {
+  const { hasPermission } = usePermission();
   const [estado, setEstado] = useState("activos"); // 🔹 activos | eliminados
   const [q, setQ] = useState("");
   const dq = useDebouncedValue(q, 400);
@@ -130,7 +133,9 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
-        <Button onClick={openCreate}>+ Nuevo Usuario</Button>
+        <PermissionGuard permission="USR_CREATE">
+          <Button onClick={openCreate}>+ Nuevo Usuario</Button>
+        </PermissionGuard>
       </div>
 
       {/* Tabs de filtro */}
