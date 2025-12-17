@@ -16,6 +16,12 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -26,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 function useDebouncedValue(value, delay = 400) {
@@ -217,37 +224,61 @@ export default function UsersPage() {
                       <TableCell>{u.email}</TableCell>
                       <TableCell>{u.rol}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button size="sm" variant="secondary">
-                                Ver +
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80">
-                              <UserPermissionsPopover userId={u.idUsuario} />
-                            </PopoverContent>
-                          </Popover>
+                        <TooltipProvider>
+                          <div className="flex gap-2 justify-end">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="secondary">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Ver permisos</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-80">
+                                <UserPermissionsPopover userId={u.idUsuario} />
+                              </PopoverContent>
+                            </Popover>
 
-                          {estado === "activos" && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openEdit(u)}
-                              >
-                                Editar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => onDelete(u)}
-                              >
-                                Eliminar
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                            {estado === "activos" && (
+                              <>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      onClick={() => openEdit(u)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar usuario</p>
+                                  </TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      onClick={() => onDelete(u)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Eliminar usuario</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -259,7 +290,7 @@ export default function UsersPage() {
       </Card>
 
       {/* Paginación */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-between gap-2">
         <Button
           variant="outline"
           disabled={pageIndex <= 1}

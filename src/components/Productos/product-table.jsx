@@ -37,7 +37,7 @@ export default function ProductTable({ productos, onEditar, onEliminar, onToggle
                 <TableCell>{producto.stockMinimo ?? producto.stock_minimo ?? 0}</TableCell>
                 <TableCell><Badge variant="outline">{producto.categoria}</Badge></TableCell>
                 <TableCell><Badge variant="outline">{producto.ubicacion}</Badge></TableCell>
-                <TableCell>{producto.ventaSinStock ? <Badge className="border-green-600 text-green-700 gap-1"><CheckCircle className="h-4 w-4"/>Permitida</Badge> : <Badge className="border-red-400 text-red-400 gap-1"><XCircle className="h-4 w-4"/>No</Badge>}</TableCell>
+                <TableCell>{producto.ventaSinStock ? <span className="flex items-center gap-1 text-green-600"><CheckCircle className="h-4 w-4"/>Permitida</span> : <span className="flex items-center gap-1 text-red-600"><XCircle className="h-4 w-4"/>No</span>}</TableCell>
                 <TableCell className="max-w-[200px] truncate">{producto.descripcion}</TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button size="sm" variant="outline" onClick={() => onEditar(producto)}><Edit className="h-4 w-4"/></Button>
