@@ -1,6 +1,6 @@
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
-const API_URL = "http://localhost:5019/Location"
+const API_URL = "http://localhost:5019/api/Location"
 
 export async function fetchLocations() {
   // Usar el endpoint /search con pageSize alto para obtener todas las ubicaciones activas
