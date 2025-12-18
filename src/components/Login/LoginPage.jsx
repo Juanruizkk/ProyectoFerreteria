@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import ferreteriaBackground from "@/assets/ferreteria-background.png";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -86,8 +87,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
-      <Card className="w-full max-w-md shadow-2xl">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative"
+      style={{
+        backgroundImage: `url(${ferreteriaBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Overlay oscuro para mejorar legibilidad */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* Contenido */}
+      <Card className="w-full max-w-md shadow-2xl relative z-10">
         <CardHeader className="space-y-3 text-center">
           <div className="flex justify-center mb-2">
             <div className="p-4 bg-primary/10 rounded-full">

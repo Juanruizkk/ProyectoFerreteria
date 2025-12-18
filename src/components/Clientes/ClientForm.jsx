@@ -12,9 +12,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { fetchAccountConfigs } from "@/services/AccountConfigQueries";
+import { getCurrentUser } from "@/services/AuthService";
 
 export default function ClientForm({ initialData, onSubmit, onCancel }) {
   const isEditMode = !!initialData;
+  const currentUser = getCurrentUser();
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -28,7 +30,7 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
     tieneCuentaCorriente: false,
     limiteCuenta: null,
     saldoInicial: 0,
-    idUsuarioRegistra: 1, // TODO: Usar usuario logueado
+    idUsuarioRegistra: currentUser?.userId || 1,
   });
 
   const [accountConfigs, setAccountConfigs] = useState([]);
@@ -57,10 +59,10 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
         tieneCuentaCorriente: initialData.tieneCuentaCorriente || false,
         limiteCuenta: initialData.limiteCuenta || null,
         saldoInicial: initialData.saldoInicial || 0,
-        idUsuarioRegistra: initialData.idUsuarioRegistra || 1,
+        idUsuarioRegistra: initialData.idUsuarioRegistra || currentUser?.userId || 1,
       });
     }
-  }, [initialData]);
+  }, [initialData, currentUser]);
 
   const loadAccountConfigs = async () => {
     try {
