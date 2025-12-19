@@ -61,8 +61,24 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
         saldoInicial: initialData.saldoInicial || 0,
         idUsuarioRegistra: initialData.idUsuarioRegistra || currentUser?.userId || 1,
       });
+    } else {
+      // Resetear formulario si no hay initialData
+      setFormData({
+        nombre: "",
+        apellido: "",
+        esEmpresa: false,
+        razonSocial: "",
+        dni: "",
+        cuit: "",
+        telefono: "",
+        mail: "",
+        tieneCuentaCorriente: false,
+        limiteCuenta: null,
+        saldoInicial: 0,
+        idUsuarioRegistra: currentUser?.userId || 1,
+      });
     }
-  }, [initialData, currentUser]);
+  }, [initialData?.idCliente]);
 
   const loadAccountConfigs = async () => {
     try {
@@ -172,16 +188,6 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
       if (!formData.cuit.trim()) {
         newErrors.cuit = "El CUIT es requerido para empresas";
       }
-
-      // En modo edición también validar nombre y apellido del contacto
-      if (isEditMode) {
-        if (!formData.nombre.trim()) {
-          newErrors.nombre = "El nombre del contacto es requerido";
-        }
-        if (!formData.apellido.trim()) {
-          newErrors.apellido = "El apellido del contacto es requerido";
-        }
-      }
     } else {
       // Es persona física: requiere nombre, apellido y DNI
       if (!formData.nombre.trim()) {
@@ -197,8 +203,8 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
       }
     }
 
-    // Validaciones de cuenta corriente
-    if (formData.tieneCuentaCorriente) {
+    // Validaciones de cuenta corriente - Solo en modo creación
+    if (!isEditMode && formData.tieneCuentaCorriente) {
       if (!formData.limiteCuenta || formData.limiteCuenta <= 0) {
         newErrors.limiteCuenta =
           "Debe seleccionar un límite de cuenta corriente";
@@ -230,8 +236,8 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
         // Payload para UPDATE - ClientUpdateDTO
         dataToSend = {
           // Campos obligatorios solo para cliente común (cuando EsEmpresa == false)
-          nombre: formData.esEmpresa ? formData.nombre : formData.nombre,
-          apellido: formData.esEmpresa ? formData.apellido : formData.apellido,
+          nombre: formData.esEmpresa ? "" : formData.nombre,
+          apellido: formData.esEmpresa ? "" : formData.apellido,
           dni: formData.esEmpresa ? "" : formData.dni,
 
           esEmpresa: formData.esEmpresa,
@@ -327,89 +333,24 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
 
             {formData.esEmpresa ? (
               // Campos para EMPRESA - Solo Razón Social
-              <>
-                {isEditMode ? (
-                  // En modo edición: mostrar también Nombre y Apellido del contacto
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="razonSocial">
-                        Razón Social <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="razonSocial"
-                        value={formData.razonSocial}
-                        onChange={(e) =>
-                          handleChange("razonSocial", e.target.value)
-                        }
-                        placeholder="Razón social de la empresa"
-                      />
-                      {errors.razonSocial && (
-                        <p className="text-sm text-destructive">
-                          {errors.razonSocial}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="nombre">
-                          Nombre <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="nombre"
-                          value={formData.nombre}
-                          onChange={(e) => handleChange("nombre", e.target.value)}
-                          placeholder="Nombre del contacto"
-                        />
-                        {errors.nombre && (
-                          <p className="text-sm text-destructive">
-                            {errors.nombre}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="apellido">
-                          Apellido <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="apellido"
-                          value={formData.apellido}
-                          onChange={(e) =>
-                            handleChange("apellido", e.target.value)
-                          }
-                          placeholder="Apellido del contacto"
-                        />
-                        {errors.apellido && (
-                          <p className="text-sm text-destructive">
-                            {errors.apellido}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  // En modo creación: solo Razón Social
-                  <div className="space-y-2">
-                    <Label htmlFor="razonSocial">
-                      Razón Social <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="razonSocial"
-                      value={formData.razonSocial}
-                      onChange={(e) =>
-                        handleChange("razonSocial", e.target.value)
-                      }
-                      placeholder="Razón social de la empresa"
-                    />
-                    {errors.razonSocial && (
-                      <p className="text-sm text-destructive">
-                        {errors.razonSocial}
-                      </p>
-                    )}
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="razonSocial">
+                  Razón Social <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="razonSocial"
+                  value={formData.razonSocial}
+                  onChange={(e) =>
+                    handleChange("razonSocial", e.target.value)
+                  }
+                  placeholder="Razón social de la empresa"
+                />
+                {errors.razonSocial && (
+                  <p className="text-sm text-destructive">
+                    {errors.razonSocial}
+                  </p>
                 )}
-              </>
+              </div>
             ) : (
               // Campos para PERSONA FÍSICA
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

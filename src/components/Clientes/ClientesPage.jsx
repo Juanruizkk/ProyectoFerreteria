@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import SearchBar from "../Common/SearchBar";
@@ -10,6 +20,8 @@ import ClientTable from "./ClientTable";
 import ClientTableInactive from "./ClientTableInactive";
 import ClientForm from "./ClientForm";
 import PermissionGuard from "@/components/PermissionGuard";
+import AccessDenied from "@/components/Common/AccessDenied";
+import { PermissionGroups } from "@/config/permissions";
 import { usePermission } from "@/hooks/usePermission";
 import {
   fetchClientes,
@@ -46,6 +58,11 @@ export default function ClientesPage() {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingCliente, setEditingCliente] = useState(null);
+
+  // Estados para el diálogo de eliminación
+  const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false);
+  const [clienteAEliminar, setClienteAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   const pageSize = 10;
 
@@ -158,19 +175,34 @@ export default function ClientesPage() {
     loadClientesActivos();
   };
 
-  const handleDelete = async (idCliente) => {
-    if (!confirm("¿Está seguro de que desea eliminar este cliente?")) {
-      return;
-    }
+  const handleSolicitarEliminar = (cliente) => {
+    setClienteAEliminar(cliente);
+    setMostrarDialogoEliminar(true);
+  };
+
+  const handleConfirmarEliminar = async () => {
+    if (!clienteAEliminar) return;
 
     try {
-      await deleteCliente(idCliente);
+      setEliminando(true);
+      await deleteCliente(clienteAEliminar.idCliente);
       toast.success("Cliente eliminado exitosamente");
       loadClientesActivos();
+      setMostrarDialogoEliminar(false);
+      setClienteAEliminar(null);
     } catch (error) {
       console.error("Error al eliminar cliente:", error);
       toast.error(error.message || "Error al eliminar el cliente");
+      setMostrarDialogoEliminar(false);
+      setClienteAEliminar(null);
+    } finally {
+      setEliminando(false);
     }
+  };
+
+  const handleCancelarEliminar = () => {
+    setMostrarDialogoEliminar(false);
+    setClienteAEliminar(null);
   };
 
   const handleActivate = async (idCliente) => {
@@ -199,7 +231,11 @@ export default function ClientesPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
+    <PermissionGuard
+      anyOf={Object.values(PermissionGroups.CLIENTS.permissions)}
+      fallback={<AccessDenied moduleName="la gestión de clientes" />}
+    >
+      <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -260,7 +296,7 @@ export default function ClientesPage() {
                 <ClientTable
                   clientes={clientesActivos}
                   onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  onDelete={handleSolicitarEliminar}
                   onViewDetails={handleViewDetails}
                 />
 
@@ -328,7 +364,36 @@ export default function ClientesPage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Diálogo de confirmación para eliminar */}
+        <AlertDialog open={mostrarDialogoEliminar} onOpenChange={setMostrarDialogoEliminar}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                ¿Estás seguro de eliminar al cliente{" "}
+                <span className="font-semibold text-foreground">
+                  "{clienteAEliminar?.razonSocial || `${clienteAEliminar?.nombre} ${clienteAEliminar?.apellido}`}"
+                </span>
+                ? Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelarEliminar} disabled={eliminando}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmarEliminar}
+                disabled={eliminando}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {eliminando ? "Eliminando..." : "Eliminar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

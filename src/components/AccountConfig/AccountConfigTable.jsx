@@ -62,7 +62,7 @@ export default function AccountConfigTable({ configs, onEdit, onToggleState, isA
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onToggleState(config.idConfig, false)}
+                          onClick={() => onToggleState(config, false)}
                           title="Desactivar"
                         >
                           <PowerOff className="h-4 w-4 text-destructive" />
@@ -72,7 +72,7 @@ export default function AccountConfigTable({ configs, onEdit, onToggleState, isA
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onToggleState(config.idConfig, true)}
+                        onClick={() => onToggleState(config, true)}
                         title="Activar"
                       >
                         <Power className="h-4 w-4 text-green-600" />

@@ -13,6 +13,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Plus, Search, CheckCircle, XCircle, Layers } from "lucide-react"
+import PermissionGuard from "@/components/PermissionGuard"
+import AccessDenied from "@/components/Common/AccessDenied"
+import { PermissionGroups } from "@/config/permissions"
 import CategoryForm from "./CategoryForm"
 import CategoryList from "./CategoryList"
 import {
@@ -144,7 +147,11 @@ export default function CategoryManager() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <PermissionGuard
+      anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
+      fallback={<AccessDenied moduleName="la gestión de categorías" />}
+    >
+      <div className="container mx-auto p-6 space-y-6">
       {/* Alerta de notificaciones */}
       {alerta.mostrar && (
         <div
@@ -266,5 +273,6 @@ export default function CategoryManager() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </PermissionGuard>
   )
 }

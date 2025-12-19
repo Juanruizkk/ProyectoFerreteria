@@ -9,6 +9,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Search,
   Plus,
   Package,
@@ -22,6 +32,8 @@ import ProductImport from "@/components/Productos/ProductImport";
 import PaginationControls from "../Common/PaginationControls";
 import { toast } from "sonner";
 import PermissionGuard from "@/components/PermissionGuard";
+import AccessDenied from "@/components/Common/AccessDenied";
+import { PermissionGroups } from "@/config/permissions";
 import { usePermission } from "@/hooks/usePermission";
 
 import {
@@ -64,6 +76,11 @@ export default function ProductosPage() {
 
   // cache por página
   const cacheRef = useRef({ activos: {}, eliminados: {} });
+
+  // Estados para el diálogo de eliminación
+  const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false);
+  const [productoAEliminar, setProductoAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   // guardar preferencia de vista en localStorage cuando cambia
   useEffect(() => {
@@ -178,16 +195,35 @@ export default function ProductosPage() {
     }
   };
 
-  const handleEliminarProducto = async (id) => {
+  const handleSolicitarEliminar = (producto) => {
+    setProductoAEliminar(producto);
+    setMostrarDialogoEliminar(true);
+  };
+
+  const handleConfirmarEliminar = async () => {
+    if (!productoAEliminar) return;
+
     try {
-      await deleteProduct(id);
-      setProductos((prev) => prev.filter((p) => p.id !== id));
+      setEliminando(true);
+      await deleteProduct(productoAEliminar.id);
+      setProductos((prev) => prev.filter((p) => p.id !== productoAEliminar.id));
       toast.success("Producto eliminado", {
         description: "El producto ha sido eliminado exitosamente.",
       });
+      setMostrarDialogoEliminar(false);
+      setProductoAEliminar(null);
     } catch {
       toast.error("Error", { description: "No se pudo eliminar el producto" });
+      setMostrarDialogoEliminar(false);
+      setProductoAEliminar(null);
+    } finally {
+      setEliminando(false);
     }
+  };
+
+  const handleCancelarEliminar = () => {
+    setMostrarDialogoEliminar(false);
+    setProductoAEliminar(null);
   };
 
   const handleToggleEstado = async (id) => {
@@ -256,7 +292,11 @@ export default function ProductosPage() {
   );
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <PermissionGuard
+      anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
+      fallback={<AccessDenied moduleName="la gestión de productos" />}
+    >
+      <div className="container mx-auto p-6 max-w-7xl">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <Package className="h-8 w-8 text-primary" />
@@ -402,14 +442,14 @@ export default function ProductosPage() {
         <ProductList
           productos={productosVisibles}
           onEditar={abrirFormularioEditar}
-          onEliminar={handleEliminarProducto}
+          onEliminar={handleSolicitarEliminar}
           onToggleEstado={handleToggleEstado}
         />
       ) : (
         <ProductTable
           productos={productosVisibles}
           onEditar={abrirFormularioEditar}
-          onEliminar={handleEliminarProducto}
+          onEliminar={handleSolicitarEliminar}
           onToggleEstado={handleToggleEstado}
         />
       )}
@@ -424,6 +464,35 @@ export default function ProductosPage() {
           onPageChange={setPageIndex}
         />
       )}
+
+      {/* Diálogo de confirmación para eliminar */}
+      <AlertDialog open={mostrarDialogoEliminar} onOpenChange={setMostrarDialogoEliminar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de eliminar el producto{" "}
+              <span className="font-semibold text-foreground">
+                "{productoAEliminar?.nombre}"
+              </span>
+              ? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelarEliminar} disabled={eliminando}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarEliminar}
+              disabled={eliminando}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {eliminando ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+    </PermissionGuard>
   );
 }

@@ -1,8 +1,21 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import PermissionGuard from "@/components/PermissionGuard";
+import AccessDenied from "@/components/Common/AccessDenied";
+import { PermissionGroups } from "@/config/permissions";
 import AccountConfigTable from "./AccountConfigTable";
 import CreateAccountConfigForm from "./CreateAccountConfigForm";
 import EditAccountConfigForm from "./EditAccountConfigForm";
@@ -28,6 +41,12 @@ export default function AccountConfigPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingConfig, setEditingConfig] = useState(null);
+
+  // Estados para el diálogo de desactivación/activación
+  const [mostrarDialogoToggle, setMostrarDialogoToggle] = useState(false);
+  const [configAToggle, setConfigAToggle] = useState(null);
+  const [nuevoEstado, setNuevoEstado] = useState(false);
+  const [procesando, setProcesando] = useState(false);
 
   // Load configuraciones activas
   useEffect(() => {
@@ -105,11 +124,20 @@ export default function AccountConfigPage() {
     }
   };
 
-  const handleToggleState = async (configId, newState) => {
+  const handleSolicitarToggle = (config, newState) => {
+    setConfigAToggle(config);
+    setNuevoEstado(newState);
+    setMostrarDialogoToggle(true);
+  };
+
+  const handleConfirmarToggle = async () => {
+    if (!configAToggle) return;
+
     try {
-      await toggleAccountConfigState(configId, newState);
+      setProcesando(true);
+      await toggleAccountConfigState(configAToggle.idConfig, nuevoEstado);
       toast.success(
-        newState
+        nuevoEstado
           ? "Configuración activada exitosamente"
           : "Configuración desactivada exitosamente"
       );
@@ -120,10 +148,22 @@ export default function AccountConfigPage() {
       } else {
         await loadConfigsInactivas();
       }
+
+      setMostrarDialogoToggle(false);
+      setConfigAToggle(null);
     } catch (error) {
       console.error("Error al cambiar estado de configuración:", error);
       toast.error(error.message || "Error al cambiar el estado de la configuración");
+      setMostrarDialogoToggle(false);
+      setConfigAToggle(null);
+    } finally {
+      setProcesando(false);
     }
+  };
+
+  const handleCancelarToggle = () => {
+    setMostrarDialogoToggle(false);
+    setConfigAToggle(null);
   };
 
   const handleCancelCreate = () => {
@@ -136,7 +176,11 @@ export default function AccountConfigPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <PermissionGuard
+      anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}
+      fallback={<AccessDenied moduleName="la configuración de cuenta corriente" />}
+    >
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">
@@ -188,7 +232,7 @@ export default function AccountConfigPage() {
               <AccountConfigTable
                 configs={configsActivas}
                 onEdit={handleEdit}
-                onToggleState={handleToggleState}
+                onToggleState={handleSolicitarToggle}
                 isActive={true}
               />
             )}
@@ -203,13 +247,44 @@ export default function AccountConfigPage() {
               <AccountConfigTable
                 configs={configsInactivas}
                 onEdit={handleEdit}
-                onToggleState={handleToggleState}
+                onToggleState={handleSolicitarToggle}
                 isActive={false}
               />
             )}
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Diálogo de confirmación para activar/desactivar */}
+      <AlertDialog open={mostrarDialogoToggle} onOpenChange={setMostrarDialogoToggle}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de {nuevoEstado ? "activar" : "desactivar"} la configuración{" "}
+              <span className="font-semibold text-foreground">
+                "{configAToggle?.nombre}"
+              </span>
+              ? {!nuevoEstado && "Esta acción desactivará la configuración y dejará de estar disponible para asignación."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelarToggle} disabled={procesando}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarToggle}
+              disabled={procesando}
+              className={nuevoEstado ? "bg-green-600 hover:bg-green-700" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+            >
+              {procesando
+                ? nuevoEstado ? "Activando..." : "Desactivando..."
+                : nuevoEstado ? "Activar" : "Desactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+    </PermissionGuard>
   );
 }

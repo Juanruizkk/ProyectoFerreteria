@@ -1,4 +1,4 @@
-import { Users, UserCircle, Package, Home, Settings, Layers } from "lucide-react"
+import { Users, UserCircle, Package, Home, Settings, Layers, History } from "lucide-react"
 import { Link } from "react-router-dom"
 import PermissionGuard from "@/components/PermissionGuard"
 import { PermissionGroups } from "@/config/permissions"
@@ -97,6 +97,20 @@ export function AppSidebar() {
                     <Link to="/configuracion-cc">
                       <Settings />
                       <span>Configuración CC</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
+              {/* Auditoría - solo si tiene permiso HIS_VIEW */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.HISTORY.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/auditoria">
+                      <History />
+                      <span>Auditoría</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

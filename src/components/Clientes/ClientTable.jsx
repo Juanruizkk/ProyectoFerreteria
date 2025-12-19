@@ -88,7 +88,7 @@ export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails 
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onDelete(cliente.idCliente)}
+                      onClick={() => onDelete(cliente)}
                       title="Eliminar"
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />

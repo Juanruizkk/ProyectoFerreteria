@@ -1,22 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   createUser,
   updateUser,
-  getUserById,
 } from "../../services/UsersQueries";
-import {
-  Drawer,
-  DrawerTrigger,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerFooter,
-  DrawerClose,
-  DrawerDescription,
-} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,10 +29,15 @@ export default function UserFormDrawer({
     rol: "",
   });
   const [selectedPerms, setSelectedPerms] = useState([]); // ids
+  const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Pre-cargar valores si es edición
+  // Pre-cargar valores cuando se abre el formulario
   useEffect(() => {
-    if (isEdit) {
+    if (!open) return;
+
+    if (isEdit && user) {
       setForm({
         idUsuario: user.idUsuario,
         usuario: user.usuario || "",
@@ -69,7 +63,27 @@ export default function UserFormDrawer({
       });
       setSelectedPerms([]);
     }
-  }, [isEdit, user]);
+    setErrors({});
+    setApiError(null);
+  }, [open, isEdit, user]);
+
+  const handleChange = (field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: null,
+      }));
+    }
+
+    if (apiError) {
+      setApiError(null);
+    }
+  };
 
   function togglePerm(id) {
     setSelectedPerms((prev) =>
@@ -77,8 +91,87 @@ export default function UserFormDrawer({
     );
   }
 
+  // Seleccionar/deseleccionar todos los permisos de una categoría
+  function toggleCategoryPerms(category) {
+    const categoryPermIds = (category.permissions || []).map((p) => p.idPermiso);
+    const allSelected = categoryPermIds.every((id) => selectedPerms.includes(id));
+
+    if (allSelected) {
+      // Deseleccionar todos los permisos de esta categoría
+      setSelectedPerms((prev) => prev.filter((id) => !categoryPermIds.includes(id)));
+    } else {
+      // Seleccionar todos los permisos de esta categoría
+      setSelectedPerms((prev) => {
+        const newPerms = [...prev];
+        categoryPermIds.forEach((id) => {
+          if (!newPerms.includes(id)) {
+            newPerms.push(id);
+          }
+        });
+        return newPerms;
+      });
+    }
+  }
+
+  // Verificar si todos los permisos de una categoría están seleccionados
+  function isCategoryFullySelected(category) {
+    const categoryPermIds = (category.permissions || []).map((p) => p.idPermiso);
+    return categoryPermIds.length > 0 && categoryPermIds.every((id) => selectedPerms.includes(id));
+  }
+
+  // Verificar si algunos (pero no todos) permisos de una categoría están seleccionados
+  function isCategoryPartiallySelected(category) {
+    const categoryPermIds = (category.permissions || []).map((p) => p.idPermiso);
+    const selectedCount = categoryPermIds.filter((id) => selectedPerms.includes(id)).length;
+    return selectedCount > 0 && selectedCount < categoryPermIds.length;
+  }
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!form.usuario.trim()) {
+      newErrors.usuario = "El usuario es requerido";
+    }
+
+    if (!form.password.trim()) {
+      newErrors.password = "La contraseña es requerida";
+    }
+
+    if (!form.nombre.trim()) {
+      newErrors.nombre = "El nombre es requerido";
+    }
+
+    if (!form.apellido.trim()) {
+      newErrors.apellido = "El apellido es requerido";
+    }
+
+    if (!form.email.trim()) {
+      newErrors.email = "El email es requerido";
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email)) {
+        newErrors.email = "Ingrese un email válido";
+      }
+    }
+
+    if (!form.rol.trim()) {
+      newErrors.rol = "El rol es requerido";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setSubmitting(true);
+    setApiError(null);
+
     const payloadBase = {
       usuario: form.usuario,
       password: form.password,
@@ -86,116 +179,174 @@ export default function UserFormDrawer({
       apellido: form.apellido,
       email: form.email,
       rol: form.rol,
-      permisos: selectedPerms, // backend espera List<int> de permisos
+      permisos: selectedPerms,
     };
 
     try {
       if (isEdit) {
         await updateUser({ idUsuario: form.idUsuario, ...payloadBase });
-         toast.success(`Usuario actualizado correctamente: ${form.nombre} ${form.apellido}`)
+        toast.success(`Usuario actualizado correctamente: ${form.nombre} ${form.apellido}`);
       } else {
         await createUser(payloadBase);
-         toast.success(`Usuario creado correctamente: ${form.nombre} ${form.apellido}`)
+        toast.success(`Usuario creado correctamente: ${form.nombre} ${form.apellido}`);
       }
       onOpenChange(false);
       onSaved && onSaved();
     } catch (err) {
-      toast.error(`Error al guardar usuario: ${err.message || "Ocurrió un error inesperado"}`);
+      console.error("Error al guardar usuario:", err);
+      setApiError(err.message || "Ocurrió un error inesperado");
+    } finally {
+      setSubmitting(false);
     }
   }
 
+  if (!open) return null;
+
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[90vh] overflow-y-auto">
-        <DrawerHeader>
-          {/* 🔹 Título accesible */}
-          <DrawerTitle>
-            {isEdit ? "Editar usuario" : "Nuevo usuario"}
-          </DrawerTitle>
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle>
+          {isEdit ? "Editar Usuario" : "Nuevo Usuario"}
+        </CardTitle>
+        <CardDescription>
+          {isEdit
+            ? "Actualiza la información del usuario"
+            : "Completa los datos para registrar un nuevo usuario"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Datos del Usuario */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Datos del Usuario</h3>
 
-          {/* 🔹 Descripción accesible (puede estar visualmente oculta si no querés mostrarla) */}
-          <DrawerDescription>
-            {isEdit
-              ? "Actualizá la información del usuario seleccionado."
-              : "Completá los campos para registrar un nuevo usuario."}
-          </DrawerDescription>
-        </DrawerHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="usuario">
+                  Usuario <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="usuario"
+                  value={form.usuario}
+                  onChange={(e) => handleChange("usuario", e.target.value)}
+                  placeholder="Nombre de usuario"
+                />
+                {errors.usuario && (
+                  <p className="text-sm text-destructive">{errors.usuario}</p>
+                )}
+              </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 pb-6 overflow-hidden"
-        >
-          {/* Columna izquierda: datos */}
-          <div className="space-y-3">
-            <div className="grid gap-2">
-              <Label>Usuario</Label>
-              <Input
-                value={form.usuario}
-                onChange={(e) => setForm({ ...form, usuario: e.target.value })}
-                required
-              />
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Contraseña <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  placeholder="Contraseña"
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label>Contraseña</Label>
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nombre">
+                  Nombre <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="nombre"
+                  value={form.nombre}
+                  onChange={(e) => handleChange("nombre", e.target.value)}
+                  placeholder="Nombre"
+                />
+                {errors.nombre && (
+                  <p className="text-sm text-destructive">{errors.nombre}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="apellido">
+                  Apellido <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="apellido"
+                  value={form.apellido}
+                  onChange={(e) => handleChange("apellido", e.target.value)}
+                  placeholder="Apellido"
+                />
+                {errors.apellido && (
+                  <p className="text-sm text-destructive">{errors.apellido}</p>
+                )}
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label>Nombre</Label>
-              <Input
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Apellido</Label>
-              <Input
-                value={form.apellido}
-                onChange={(e) => setForm({ ...form, apellido: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Rol (string)</Label>
-              <Input
-                value={form.rol}
-                onChange={(e) => setForm({ ...form, rol: e.target.value })}
-                required
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">
+                  Email <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  placeholder="usuario@ejemplo.com"
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rol">
+                  Rol <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="rol"
+                  value={form.rol}
+                  onChange={(e) => handleChange("rol", e.target.value)}
+                  placeholder="Rol del usuario"
+                />
+                {errors.rol && (
+                  <p className="text-sm text-destructive">{errors.rol}</p>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Columna derecha: permisos por categoría */}
+          {/* Permisos */}
           <div className="space-y-4">
-            <Label>Permisos</Label>
-            <ScrollArea className="h-[380px] pr-2">
+            <h3 className="text-lg font-semibold">Permisos</h3>
+
+            <ScrollArea className="h-[400px] pr-4">
               <div className="grid gap-3">
                 {(permCategories || []).map((cat) => (
                   <Card key={cat.idCategoriaPermiso} className="border-dashed">
                     <CardHeader className="py-3">
-                      <CardTitle className="text-base">
-                        {cat.categoria}
-                      </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">
+                          {cat.categoria}
+                        </CardTitle>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <Checkbox
+                            checked={isCategoryFullySelected(cat)}
+                            onCheckedChange={() => toggleCategoryPerms(cat)}
+                            className={isCategoryPartiallySelected(cat) ? "data-[state=checked]:bg-primary/50" : ""}
+                          />
+                          <span className="font-medium text-primary">Seleccionar todo</span>
+                        </label>
+                      </div>
                     </CardHeader>
                     <CardContent className="flex flex-wrap gap-3">
                       {(cat.permissions || []).map((p) => (
                         <label
                           key={p.idPermiso}
-                          className="flex items-center gap-2 text-sm"
+                          className="flex items-center gap-2 text-sm cursor-pointer"
                         >
                           <Checkbox
                             checked={selectedPerms.includes(p.idPermiso)}
@@ -203,9 +354,10 @@ export default function UserFormDrawer({
                           />
                           <span>{p.permiso}</span>
                           {p.descripcion && (
-                              <p className="text-xs text-muted-foreground p-1">
-                                {p.descripcion}
-                              </p>)}
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({p.descripcion})
+                            </span>
+                          )}
                         </label>
                       ))}
                     </CardContent>
@@ -215,23 +367,35 @@ export default function UserFormDrawer({
             </ScrollArea>
           </div>
 
-          {/* Footer botones */}
-          <div className="lg:col-span-2 flex justify-end gap-3">
+          {/* Mensaje de error de la API */}
+          {apiError && (
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md">
+              <p className="text-sm font-medium">{apiError}</p>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="flex justify-end gap-4 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={submitting}
             >
               Cancelar
             </Button>
-            <Button type="submit">
-              {isEdit ? "Guardar cambios" : "Crear usuario"}
+            <Button type="submit" disabled={submitting}>
+              {submitting
+                ? isEdit
+                  ? "Actualizando..."
+                  : "Guardando..."
+                : isEdit
+                ? "Actualizar Usuario"
+                : "Crear Usuario"}
             </Button>
           </div>
         </form>
-
-        <DrawerFooter />
-      </DrawerContent>
-    </Drawer>
+      </CardContent>
+    </Card>
   );
 }

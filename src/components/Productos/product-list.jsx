@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -57,7 +56,7 @@ export default function ProductList({ productos, onEditar, onEliminar, onToggleE
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={() => onEditar(producto)} className="flex-1 gap-2"><Edit className="h-4 w-4"/>Editar</Button>
                 {producto.activo ? (
-                  <Button variant="outline" size="sm" onClick={() => onEliminar(producto.id)} className="gap-2 text-destructive"><Trash2 className="h-4 w-4"/>Eliminar</Button>
+                  <Button variant="outline" size="sm" onClick={() => onEliminar(producto)} className="gap-2 text-destructive"><Trash2 className="h-4 w-4"/>Eliminar</Button>
                 ) : (
                   <Button variant="outline" size="sm" onClick={() => onToggleEstado(producto.id)} className="gap-2 text-green-600">Reactivar</Button>
                 )}

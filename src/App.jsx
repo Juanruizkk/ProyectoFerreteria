@@ -10,6 +10,7 @@ import ClientesPage from "./components/Clientes/ClientesPage";
 import ClientDetailsPage from "./components/Clientes/ClientDetailsPage";
 import AccountConfigPage from "./components/AccountConfig/AccountConfigPage";
 import CategoryManager from "./components/Category/CategoryManager";
+import AuditPage from "./components/Audit/AuditPage";
 import { isAuthenticated } from "@/services/AuthService";
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
                   <Route path="/clientes/:id" element={<ClientDetailsPage />} />
                   <Route path="/configuracion-cc" element={<AccountConfigPage />} />
                   <Route path="/categorias" element={<CategoryManager />} />
+                  <Route path="/auditoria" element={<AuditPage />} />
                 </Routes>
               </Layout>
             </ProtectedRoute>
