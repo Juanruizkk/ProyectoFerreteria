@@ -1,0 +1,160 @@
+Necesito la pagina de ventas:
+1. Dos tabs principales:
+   - "Todas las Ventas" (accesible para todos)
+   - "Ventas Pendientes" (solo administradores con PERM:SALE_AUTHORIZE)
+     - Si el usuario no es admin, mostrar tab deshabilitado con tooltip
+
+2. Botón flotante "Nueva Venta" (+ icono):
+   - Posición: Esquina inferior derecha
+   - Color: Morado (#5B4DA3)
+   - Click: Abre modal de crear venta
+   - Solo visible si tiene permiso PERM:SALE_CREATE
+
+3. Tab "Todas las Ventas":
+   - Mostrar componente <SalesTable />
+   - Filtros: fecha desde/hasta, cliente, medio de pago
+   - Paginación
+
+4. Tab "Ventas Pendientes":
+   - Mostrar componente <PendingSalesTable />
+   - Filtros: fecha, cliente
+   - Badge con count de pendientes
+
+5. Hooks necesarios:
+   - useAuth() para verificar permisos
+   - useState para tab activo
+   - useState para modal abierto/cerrado
+
+Tabla de ventas:
+
+
+1. Tabla responsive:
+   Columnas:
+   - Código Venta
+   - Fecha (formato: DD/MM/YYYY HH:mm)
+   - Cliente
+   - Medio de Pago (badge con color)
+   - Total (formato: $X,XXX.XX)
+   - Estado (badge: verde=Completada)
+   - Items
+   - Acciones (botón "Ver")
+
+2. Filtros en header:
+   - Fecha desde / Fecha hasta (date inputs)
+   - Cliente (text input con búsqueda)
+   - Medio de pago (select)
+   - Botón "Filtrar" y "Limpiar"
+
+3. Paginación:
+   - Mostrar 10 filas por página
+   - Botones: Anterior, números, Siguiente
+   - Mostrar "Mostrando X-Y de Z resultados"
+
+4. Loading state:
+   - Skeleton loader mientras carga
+
+5. Empty state:
+   - Mensaje cuando no hay resultados
+   - Icono ilustrativo
+
+6. Click en fila o botón "Ver":
+   - Abre modal <SaleDetailModal />
+
+Modal de ventas:
+Crea el modal para crear una nueva venta, siguiendo EXACTAMENTE el diseño de la imagen adjunta:
+
+Archivo: src/components/sales/CreateSaleModal.tsx
+
+Estructura (3 columnas):
+
+┌─────────────────────────────────────────────────────────┐
+│  [← Ferretería El Constructor]                          │
+│  Sistema de Punto de Venta                              │
+├───────────────────────┬─────────────────┬───────────────┤
+│ CLIENTE               │ PRODUCTOS       │ CARRITO       │
+│ [+ Agregar Cliente]   │ [🔍 Buscar...] │ 0 productos   │
+│                       │                 │               │
+│ No hay cliente        │ • Destornillador│ (vacío)       │
+│ seleccionado          │   Set $180 [+]  │               │
+│                       │ • Taladro       │               │
+│                       │   Eléctrico     │               │
+│                       │   $1850 [+]     │               │
+│                       │ • Pintura 1L    │               │
+│                       │   $320 [+]      │               │
+├───────────────────────┴─────────────────┤               │
+│                                         │ FORMA DE PAGO │
+│                                         │ [Efectivo ▼]  │
+│                                         │               │
+│                                         │ Total: $0     │
+│                                         │ [FINALIZAR]   │
+└─────────────────────────────────────────┴───────────────┘
+
+Componentes internos:
+
+1. SECCIÓN CLIENTE (izquierda):
+   - Header: "Cliente" + botón "+ Agregar Cliente"
+   - Si no hay cliente: mensaje "No hay cliente seleccionado"
+   - Si hay cliente: Card con:
+     - Nombre completo
+     - DNI
+     - Teléfono
+     - Si es cuenta corriente: Saldo y límite con barra de progreso
+     - Botón "Cambiar Cliente"
+
+2. SECCIÓN PRODUCTOS (centro):
+   - Header: "Productos"
+   - Input de búsqueda con icono lupa
+   - Lista scrolleable de productos:
+     - Nombre del producto
+     - Categoría (badge pequeño)
+     - Precio (grande, naranja)
+     - Stock disponible (gris)
+     - Botón "+" azul circular
+   - Lazy loading o virtualized list
+
+3. SECCIÓN CARRITO (derecha):
+   - Header: "Carrito de Compra" + contador
+   - Lista de items:
+     - Nombre producto
+     - Precio unitario
+     - Cantidad (con +/- para modificar)
+     - Subtotal
+     - Botón "X" para eliminar
+   - Total al final (grande, bold)
+
+4. SECCIÓN FORMA DE PAGO (debajo del carrito):
+   - Select con opciones:
+     - Efectivo
+     - Tarjeta de Crédito/Débito
+     - Transferencia
+     - Cuenta Corriente (solo si cliente seleccionado tiene CC)
+   - Si es Cuenta Corriente: mostrar alerta si excede límite
+
+5. FOOTER:
+   - Botón "Cancelar" (gris)
+   - Botón "Finalizar Venta" (morado, grande)
+     - Disabled si carrito vacío o sin cliente o sin forma de pago
+
+Lógica:
+
+1. Context para carrito:
+   - addItem(product, quantity)
+   - removeItem(productId)
+   - updateQuantity(productId, quantity)
+   - clearCart()
+   - total
+
+2. Al finalizar venta:
+   - Validar campos obligatorios
+   - POST a /api/Sale/create-sale
+   - Si responde con venta normal: Mostrar éxito y cerrar
+   - Si responde con ventaPendiente: Mostrar alert "Venta PENDIENTE, excede límite en $X"
+   - Limpiar carrito
+   - Recargar lista de ventas
+
+3. Modal de selección de cliente:
+   - Buscar clientes
+   - Mostrar lista con radio buttons
+   - Botón "Seleccionar"
+
+

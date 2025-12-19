@@ -1,4 +1,4 @@
-import { Users, UserCircle, Package, Home, Settings, Layers } from "lucide-react"
+import { Users, UserCircle, Package, Home, Settings, Layers, ShoppingCart } from "lucide-react"
 import { Link } from "react-router-dom"
 import PermissionGuard from "@/components/PermissionGuard"
 import { PermissionGroups } from "@/config/permissions"
@@ -55,6 +55,20 @@ export function AppSidebar() {
                     <Link to="/clientes">
                       <UserCircle />
                       <span>Clientes</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
+              {/* Ventas - solo si tiene algún permiso VEN_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.SALES.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/ventas">
+                      <ShoppingCart />
+                      <span>Ventas</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
