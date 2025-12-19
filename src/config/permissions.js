@@ -54,6 +54,7 @@ export const PermissionGroups = {
   SALES: {
     prefix: "VEN",
     permissions: {
+      VIEW: "VEN_VIEW",
       CREATE: "VEN_CREATE",
       INVOICE: "VEN_INVOICE",
       NO_STOCK: "VEN_NO_STOCK",
