@@ -10,7 +10,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, Calendar, User, FileType, Hash } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Calendar, User, FileType, Hash } from "lucide-react";
 
 // Helper para formatear fechas
 function formatDateTime(isoString) {
@@ -50,22 +58,83 @@ function parseJSON(jsonString) {
   }
 }
 
-// Componente para mostrar valores en formato legible
-function ValueDisplay({ label, value }) {
-  if (value === null || value === undefined) {
+// Componente para mostrar comparación de valores en tabla
+function ComparisonTable({ valoresAnteriores, valoresNuevos, accion }) {
+  // Si no hay datos, mostrar mensaje
+  if (!valoresAnteriores && !valoresNuevos) {
     return (
-      <div className="text-sm text-muted-foreground italic">Sin datos</div>
+      <div className="text-center py-8 text-muted-foreground">
+        <p>No hay datos de cambios disponibles</p>
+      </div>
     );
   }
 
+  // Obtener todas las claves únicas de ambos objetos
+  const allKeys = new Set([
+    ...Object.keys(valoresAnteriores || {}),
+    ...Object.keys(valoresNuevos || {}),
+  ]);
+
+  // Función para formatear valores
+  const formatValue = (value) => {
+    if (value === null || value === undefined) return "-";
+    if (typeof value === "boolean") return value ? "Sí" : "No";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  };
+
+  // Función para detectar si un campo cambió
+  const hasChanged = (key) => {
+    if (accion === "INSERT") return true;
+    if (accion === "DELETE") return true;
+    return JSON.stringify(valoresAnteriores?.[key]) !== JSON.stringify(valoresNuevos?.[key]);
+  };
+
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-muted-foreground uppercase">
-        {label}
-      </div>
-      <pre className="bg-muted p-3 rounded-md text-xs overflow-x-auto">
-        {JSON.stringify(value, null, 2)}
-      </pre>
+    <div className="border rounded-md overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50">
+            <TableHead className="w-[200px] font-semibold">Campo</TableHead>
+            {accion !== "INSERT" && (
+              <TableHead className="font-semibold">Valor Anterior</TableHead>
+            )}
+            {accion !== "DELETE" && (
+              <TableHead className="font-semibold">Valor Nuevo</TableHead>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from(allKeys).map((key) => {
+            const changed = hasChanged(key);
+            return (
+              <TableRow
+                key={key}
+                className={changed ? "bg-yellow-50 dark:bg-yellow-950/20" : ""}
+              >
+                <TableCell className="font-medium">
+                  {key}
+                  {changed && accion === "UPDATE" && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      Modificado
+                    </Badge>
+                  )}
+                </TableCell>
+                {accion !== "INSERT" && (
+                  <TableCell className="text-muted-foreground">
+                    {formatValue(valoresAnteriores?.[key])}
+                  </TableCell>
+                )}
+                {accion !== "DELETE" && (
+                  <TableCell className="font-medium">
+                    {formatValue(valoresNuevos?.[key])}
+                  </TableCell>
+                )}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -175,42 +244,11 @@ export function AuditChangesModal({ item, open, onClose }) {
                 <CardTitle className="text-base">Cambios Realizados</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Valores anteriores */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="h-2 w-2 rounded-full bg-destructive" />
-                      <h4 className="font-semibold text-sm">
-                        Valores Anteriores
-                      </h4>
-                    </div>
-                    <ValueDisplay
-                      label="Datos previos"
-                      value={valoresAnteriores}
-                    />
-                  </div>
-
-                  {/* Flecha indicadora (solo en escritorio) */}
-                  <div className="hidden lg:flex items-center justify-center">
-                    <ArrowRight className="h-8 w-8 text-muted-foreground" />
-                  </div>
-
-                  {/* Valores nuevos */}
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <h4 className="font-semibold text-sm">Valores Nuevos</h4>
-                    </div>
-                    <ValueDisplay label="Datos actuales" value={valoresNuevos} />
-                  </div>
-                </div>
-
-                {/* Mensaje si no hay cambios */}
-                {!valoresAnteriores && !valoresNuevos && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>No hay datos de cambios disponibles</p>
-                  </div>
-                )}
+                <ComparisonTable
+                  valoresAnteriores={valoresAnteriores}
+                  valoresNuevos={valoresNuevos}
+                  accion={item.accion}
+                />
               </CardContent>
             </Card>
           </div>
