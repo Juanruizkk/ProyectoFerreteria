@@ -685,16 +685,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Efectivo">Efectivo</SelectItem>
-                        <SelectItem value="Tarjeta de Crédito">
-                          Tarjeta de Crédito
-                        </SelectItem>
-                        <SelectItem value="Tarjeta de Débito">
-                          Tarjeta de Débito
-                        </SelectItem>
-                        <SelectItem value="Transferencia">
-                          Transferencia
-                        </SelectItem>
-                        {selectedClient?.tipoPago === "Cuenta Corriente" && (
+                        {selectedClient?.tieneCuentaCorriente && (
                           <SelectItem value="Cuenta Corriente">
                             Cuenta Corriente
                           </SelectItem>

@@ -152,22 +152,18 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                         Esta venta excede el límite de crédito del cliente por{" "}
                         <span className="font-bold">{formatCurrency(saleDetail.excedente)}</span>
                       </p>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
                         <div>
                           <span className="text-orange-600">Saldo actual:</span>{" "}
                           <span className="font-medium">{formatCurrency(saleDetail.saldoActual)}</span>
                         </div>
                         <div>
                           <span className="text-orange-600">Límite:</span>{" "}
-                          <span className="font-medium">{formatCurrency(saleDetail.limiteCredito)}</span>
+                          <span className="font-medium">{formatCurrency(saleDetail.limiteCuenta)}</span>
                         </div>
                         <div>
-                          <span className="text-orange-600">Nueva deuda:</span>{" "}
-                          <span className="font-medium">{formatCurrency(saleDetail.nuevoSaldo)}</span>
-                        </div>
-                        <div>
-                          <span className="text-orange-600">Días pendiente:</span>{" "}
-                          <span className="font-medium">{saleDetail.diasPendiente} días</span>
+                          <span className="text-orange-600">Saldo después:</span>{" "}
+                          <span className="font-medium">{formatCurrency(saleDetail.saldoDespuesVenta)}</span>
                         </div>
                       </div>
                     </div>
@@ -182,7 +178,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                     <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Código</p>
-                      <p className="text-lg font-semibold">{saleDetail.codigoVentaPendiente}</p>
+                      <p className="text-lg font-semibold">{saleDetail.codigoVenta}</p>
                     </div>
                   </div>
 
@@ -190,7 +186,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                     <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Fecha de Solicitud</p>
-                      <p className="text-base">{formatDate(saleDetail.fechaSolicitud)}</p>
+                      <p className="text-base">{formatDate(saleDetail.fechaRegistro)}</p>
                     </div>
                   </div>
 
@@ -201,9 +197,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                       <p className="text-base">{saleDetail.cliente}</p>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
@@ -211,7 +205,9 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                       <p className="text-base">{saleDetail.vendedor}</p>
                     </div>
                   </div>
+                </div>
 
+                <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <Package className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
@@ -225,7 +221,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="h-5 w-5 mt-0.5" />
+                    <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Total de la Venta</p>
                       <p className="text-2xl font-bold text-primary">
@@ -289,7 +285,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
               {/* Observaciones */}
               <div>
                 <label className="text-sm font-medium mb-2 block">
-                  Observaciones {saleDetail.estado === "Pendiente" && <span className="text-destructive">(requerido para rechazar)</span>}
+                  Observaciones {saleDetail.estado && saleDetail.estado.toLowerCase().includes("pendiente") && <span className="text-destructive">(requerido para rechazar)</span>}
                 </label>
                 <Textarea
                   placeholder="Ingrese observaciones o motivo de aprobación/rechazo..."
@@ -297,6 +293,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                   onChange={(e) => setObservaciones(e.target.value)}
                   rows={4}
                   className="resize-none"
+                  disabled={!saleDetail.estado || !saleDetail.estado.toLowerCase().includes("pendiente")}
                 />
               </div>
             </div>
@@ -310,7 +307,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
             >
               Cancelar
             </Button>
-            {saleDetail && saleDetail.estado === "Pendiente" && (
+            {saleDetail && saleDetail.estado && saleDetail.estado.toLowerCase().includes("pendiente") && (
               <>
                 <Button
                   variant="destructive"

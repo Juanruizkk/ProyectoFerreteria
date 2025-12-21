@@ -58,6 +58,7 @@ export default function Sales() {
         fechaDesde || null,
         fechaHasta || null
       );
+      console.log("Ventas recibidas:", result.items); // Debug
       setSales(result.items || []);
       setPaginationMetadata({
         pagedIndex: result.pagedIndex,
@@ -142,8 +143,20 @@ export default function Sales() {
     setIsPendingDetailModalOpen(true);
   };
 
+  // Función para manejar el clic en "Ver detalle" según el tipo de venta
+  const handleViewSaleDetail = (sale) => {
+    // Si la venta está rechazada, abrir modal de venta pendiente
+    if (sale.estado && sale.estado.toLowerCase().includes("rechazada")) {
+      handleViewPendingDetail(sale.id || sale.idVenta);
+    } else {
+      // Caso normal: abrir modal de venta completada
+      handleViewDetail(sale.id || sale.idVenta);
+    }
+  };
+
   const handlePendingActionCompleted = () => {
-    loadPendingSales(); // Recargar la lista después de aprobar/rechazar
+    loadPendingSales(); // Recargar la lista de ventas pendientes
+    loadSales(); // Recargar también el tab "Todas" (para mostrar ventas rechazadas)
   };
 
   const formatCurrency = (value) => {
@@ -161,6 +174,31 @@ export default function Sales() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  // Función para obtener el color del badge según el estado
+  const getEstadoBadgeClass = (estado) => {
+    if (!estado) return "bg-gray-100 text-gray-800";
+
+    const estadoLower = estado.toLowerCase();
+
+    // Verde para completadas y aprobadas
+    if (estadoLower.includes("completada") || estadoLower.includes("aprobada")) {
+      return "bg-green-100 text-green-800";
+    }
+
+    // Rojo para rechazadas
+    if (estadoLower.includes("rechazada")) {
+      return "bg-red-100 text-red-800";
+    }
+
+    // Amarillo para pendientes
+    if (estadoLower.includes("pendiente")) {
+      return "bg-yellow-100 text-yellow-800";
+    }
+
+    // Gris por defecto
+    return "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -321,15 +359,9 @@ export default function Sales() {
                           </TableCell>
                           <TableCell>
                             <span
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                sale.estado === "Completada"
-                                  ? "bg-green-100 text-green-800"
-                                  : sale.estado === "Pendiente"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEstadoBadgeClass(sale.estado)}`}
                             >
-                              {sale.estado}
+                              {sale.estado || "Sin estado"}
                             </span>
                           </TableCell>
                           <TableCell className="max-w-[150px] truncate">
@@ -342,7 +374,7 @@ export default function Sales() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleViewDetail(sale.id)}
+                              onClick={() => handleViewSaleDetail(sale)}
                               className="h-8 w-8 p-0"
                             >
                               <Eye className="h-4 w-4" />
@@ -435,10 +467,10 @@ export default function Sales() {
                         pendingSales.map((sale) => (
                           <TableRow key={sale.id}>
                             <TableCell className="font-medium">
-                              {sale.codigoVentaPendiente}
+                              {sale.codigoVenta}
                             </TableCell>
                             <TableCell>
-                              {formatDate(sale.fechaSolicitud)}
+                              {formatDate(sale.fechaRegistro)}
                             </TableCell>
                             <TableCell className="max-w-[200px] truncate">
                               {sale.cliente}
