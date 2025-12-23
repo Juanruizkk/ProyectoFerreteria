@@ -41,10 +41,11 @@ export async function createSale(sale) {
 
   // La respuesta puede contener:
   // - venta normal: { idVenta, ... }
-  // - venta pendiente: { ventaPendiente: true, excesoCredito: 1500, ... }
+  // - venta pendiente: { idVentaPendiente, estado: "Pendiente de Autorización", ... }
   return {
     ...data,
     id: data.idVenta ?? data.saleId ?? data.Id,
+    idVentaPendiente: data.idVentaPendiente,
   };
 }
 
@@ -363,4 +364,106 @@ export async function rejectPendingSale(id, observaciones) {
   }
 
   return await response.json();
+}
+
+/**
+ * Descarga el PDF de una venta
+ * @param {number} id - ID de la venta
+ * @param {string} codigoVenta - Código de la venta para el nombre del archivo
+ */
+export async function downloadSalePdf(id, codigoVenta) {
+  if (!id) {
+    throw new Error("El ID de la venta es requerido");
+  }
+
+  try {
+    const response = await fetchWithAuth(`${API_URL}/${id}/pdf`);
+
+    if (!response.ok) {
+      let errorMessage = "Error al descargar el comprobante";
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorData.title || errorMessage;
+        } else {
+          const textError = await response.text();
+          if (textError && textError.trim()) {
+            errorMessage = textError;
+          }
+        }
+      } catch (e) {
+        // Si falla todo, usar mensaje por defecto
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Obtener el blob del PDF
+    const blob = await response.blob();
+
+    // Crear un enlace temporal para descargar
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Venta_${codigoVenta || id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+
+    // Limpiar
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Descarga el PDF de una venta pendiente
+ * @param {number} id - ID de la venta pendiente
+ * @param {string} codigoVenta - Código de la venta para el nombre del archivo
+ */
+export async function downloadPendingSalePdf(id, codigoVenta) {
+  if (!id) {
+    throw new Error("El ID de la venta pendiente es requerido");
+  }
+
+  try {
+    const response = await fetchWithAuth(`${API_PENDING_URL}/${id}/pdf`);
+
+    if (!response.ok) {
+      let errorMessage = "Error al descargar el comprobante";
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorData.title || errorMessage;
+        } else {
+          const textError = await response.text();
+          if (textError && textError.trim()) {
+            errorMessage = textError;
+          }
+        }
+      } catch (e) {
+        // Si falla todo, usar mensaje por defecto
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Obtener el blob del PDF
+    const blob = await response.blob();
+
+    // Crear un enlace temporal para descargar
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `VentaPendiente_${codigoVenta || id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+
+    // Limpiar
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    throw error;
+  }
 }

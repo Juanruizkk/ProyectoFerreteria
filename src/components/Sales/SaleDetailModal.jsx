@@ -6,15 +6,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, User, CreditCard, Calendar, FileText } from "lucide-react";
-import { fetchSaleById } from "@/services/SaleQueries";
+import { Loader2, Package, User, CreditCard, Calendar, FileText, Download } from "lucide-react";
+import { fetchSaleById, downloadSalePdf } from "@/services/SaleQueries";
 import { toast } from "sonner";
 
 export default function SaleDetailModal({ open, onOpenChange, saleId }) {
   const [saleDetail, setSaleDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (open && saleId) {
@@ -34,6 +36,20 @@ export default function SaleDetailModal({ open, onOpenChange, saleId }) {
       onOpenChange(false);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setIsDownloading(true);
+    try {
+      await downloadSalePdf(saleDetail.idVenta || saleDetail.id || saleId, saleDetail.codigoVenta);
+      toast.success("Comprobante descargado exitosamente");
+    } catch (err) {
+      toast.error("Error al descargar el comprobante", {
+        description: err.message,
+      });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -72,13 +88,37 @@ export default function SaleDetailModal({ open, onOpenChange, saleId }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Detalle de Venta
-          </DialogTitle>
-          <DialogDescription>
-            Información completa de la venta y sus items
-          </DialogDescription>
+          <div className="flex items-start justify-between">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Detalle de Venta
+              </DialogTitle>
+              <DialogDescription>
+                Información completa de la venta y sus items
+              </DialogDescription>
+            </div>
+            {saleDetail && (
+              <Button
+                onClick={handleDownloadPdf}
+                disabled={isDownloading}
+                size="sm"
+                className="shrink-0"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Descargando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar PDF
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {isLoading ? (

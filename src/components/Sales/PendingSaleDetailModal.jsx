@@ -21,8 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, User, CreditCard, Calendar, FileText, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
-import { fetchPendingSaleById, approvePendingSale, rejectPendingSale } from "@/services/SaleQueries";
+import { Loader2, Package, User, CreditCard, Calendar, FileText, AlertTriangle, CheckCircle, XCircle, Download } from "lucide-react";
+import { fetchPendingSaleById, approvePendingSale, rejectPendingSale, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { toast } from "sonner";
 
 export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onActionCompleted }) {
@@ -30,6 +30,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
   const [isLoading, setIsLoading] = useState(false);
   const [observaciones, setObservaciones] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 
@@ -98,6 +99,22 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
       });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!saleId || !saleDetail) return;
+
+    setIsDownloading(true);
+    try {
+      await downloadPendingSalePdf(saleId, saleDetail.codigoVenta);
+      toast.success("Comprobante descargado exitosamente");
+    } catch (err) {
+      toast.error("Error al descargar el comprobante", {
+        description: err.message,
+      });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -303,23 +320,40 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isProcessing}
+              disabled={isProcessing || isDownloading}
             >
               Cancelar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleDownloadPdf}
+              disabled={isProcessing || isDownloading || !saleDetail}
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Descargando...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Descargar Comprobante
+                </>
+              )}
             </Button>
             {saleDetail && saleDetail.estado && saleDetail.estado.toLowerCase().includes("pendiente") && (
               <>
                 <Button
                   variant="destructive"
                   onClick={() => setShowRejectConfirm(true)}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isDownloading}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
                   Rechazar
                 </Button>
                 <Button
                   onClick={() => setShowApproveConfirm(true)}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isDownloading}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {isProcessing ? (

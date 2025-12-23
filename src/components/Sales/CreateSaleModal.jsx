@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +32,12 @@ import {
   UserPlus,
   Package,
   Check,
+  Download,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { createSale, fetchAvailableProducts, fetchAllClients } from "@/services/SaleQueries";
+import { createSale, fetchAvailableProducts, fetchAllClients, downloadSalePdf, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { createCliente } from "@/services/ClienteQueries";
 import ClientForm from "@/components/Clientes/ClientForm";
 import { toast } from "sonner";
@@ -64,6 +68,11 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
 
   // Modal secundario para crear cliente
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
+
+  // Modal de éxito y descarga
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdSale, setCreatedSale] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -295,16 +304,16 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
 
       const result = await createSale(saleData);
 
-      if (result.estado === "Pendiente de Autorización") {
-        toast.warning(
-          `Venta PENDIENTE. Excede límite de crédito.`,
-          { duration: 5000 }
-        );
-      } else {
-        toast.success("Venta realizada exitosamente");
-      }
+      // Guardar la venta creada para el modal de éxito
+      setCreatedSale(result);
 
+      // Mostrar modal de éxito
+      setShowSuccessModal(true);
+
+      // Limpiar el carrito
       clearCart();
+
+      // Notificar al componente padre
       onSaleCreated();
     } catch (error) {
       console.error("Error al crear venta:", error);
@@ -312,6 +321,44 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!createdSale) return;
+
+    setIsDownloading(true);
+    try {
+      // Verificar si es una venta normal o pendiente
+      if (createdSale.estado === "Pendiente de Autorización" || createdSale.idVentaPendiente) {
+        // Usar idVentaPendiente si está disponible, sino id
+        const pendingSaleId = createdSale.idVentaPendiente || createdSale.id;
+        if (!pendingSaleId) {
+          throw new Error("No se pudo obtener el ID de la venta pendiente");
+        }
+        await downloadPendingSalePdf(
+          pendingSaleId,
+          createdSale.codigoVenta
+        );
+      } else {
+        await downloadSalePdf(
+          createdSale.idVenta || createdSale.id,
+          createdSale.codigoVenta
+        );
+      }
+      toast.success("Comprobante descargado exitosamente");
+    } catch (error) {
+      toast.error("Error al descargar el comprobante", {
+        description: error.message,
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    setCreatedSale(null);
+    onOpenChange(false);
   };
 
   const handleCancel = () => {
@@ -745,6 +792,94 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
             onSubmit={handleCreateClient}
             onCancel={() => setIsCreateClientModalOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de éxito con descarga */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex flex-col items-center text-center space-y-2">
+              <div className="rounded-full bg-green-100 p-3">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+              <DialogTitle className="text-2xl">
+                {createdSale?.estado === "Pendiente de Autorización"
+                  ? "Venta Pendiente de Autorización"
+                  : "¡Venta Exitosa!"}
+              </DialogTitle>
+              <DialogDescription>
+                {createdSale?.estado === "Pendiente de Autorización" ? (
+                  <div className="space-y-2">
+                    <p>La venta excede el límite de crédito del cliente.</p>
+                    <p className="text-sm">Requiere autorización del administrador.</p>
+                  </div>
+                ) : (
+                  "La venta se ha registrado correctamente en el sistema."
+                )}
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Información de la venta */}
+            {createdSale && (
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Código:</span>
+                  <span className="font-semibold">{createdSale.codigoVenta}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Total:</span>
+                  <span className="font-bold text-lg">
+                    {formatCurrency(createdSale.total)}
+                  </span>
+                </div>
+                {createdSale.estado && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Estado:</span>
+                    <Badge
+                      className={
+                        createdSale.estado === "Pendiente de Autorización"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-green-100 text-green-800"
+                      }
+                    >
+                      {createdSale.estado}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Botones de acción */}
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={handleDownloadPdf}
+                disabled={isDownloading}
+                className="w-full"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Descargando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar Comprobante PDF
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleCloseSuccessModal}
+                variant="outline"
+                className="w-full"
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
