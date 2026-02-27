@@ -35,7 +35,7 @@ import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
 import { usePermission } from "@/hooks/usePermission";
-
+import { useViewPreference } from "@/hooks/useViewPreference";
 import {
   fetchProductsWithDetails,
   createProduct,
@@ -56,11 +56,11 @@ export default function ProductosPage() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [mostrarImportacion, setMostrarImportacion] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
-  const [vista, setVista] = useState(() => {
-    // Leer preferencia de vista desde localStorage
-    const vistaGuardada = localStorage.getItem("productos-vista-preferencia");
-    return vistaGuardada || "cards";
-  });
+
+  const [vista, setVista] = useViewPreference(
+  "productos-vista-preferencia",
+  "cards"
+);
 
   // filtros
   const [filtroPrincipal, setFiltroPrincipal] = useState("todos"); // "todos" | "eliminados"
@@ -81,11 +81,6 @@ export default function ProductosPage() {
   const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false);
   const [productoAEliminar, setProductoAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
-
-  // guardar preferencia de vista en localStorage cuando cambia
-  useEffect(() => {
-    localStorage.setItem("productos-vista-preferencia", vista);
-  }, [vista]);
 
   // cargar categorías y ubicaciones al montar
   useEffect(() => {
