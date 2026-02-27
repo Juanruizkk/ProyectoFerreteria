@@ -41,6 +41,26 @@ export async function updateUser(payload) {
   return true;
 }
 
+export async function changePassword(payload) {
+  const res = await fetchWithAuth(`${API_BASE}/api/User/change-password`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return true;
+}
+
+export async function activateUser(id) {
+  const res = await fetchWithAuth(`${API_BASE}/api/User/activate/${id}`, {
+    method: "PUT",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return true;
+}
+
 export async function deleteUser(id) {
   const res = await fetchWithAuth(`${API_BASE}/api/User/delete/${id}`, {
     method: "DELETE",

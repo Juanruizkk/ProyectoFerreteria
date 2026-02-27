@@ -134,6 +134,7 @@ export function getCurrentUser() {
     userId: session.userId,
     username: session.username,
     role: session.role,
+    root: session.root || false,
     permissions: session.permissions || [],
   };
 }

@@ -20,7 +20,7 @@ export const PermissionGroups = {
       READ: "USR_READ",
       UPDATE: "USR_UPDATE",
       DELETE: "USR_DELETE",
-      ROLE_ASSIGN: "USR_ROLE_ASSIGN",
+      PASSWORD_UPDATE: "USR_PASSWORD_UPDATE",
     },
   },
 

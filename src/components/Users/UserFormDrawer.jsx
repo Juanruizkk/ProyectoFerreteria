@@ -9,13 +9,27 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+
+export const USER_ROLES = [
+  "Administracion",
+  "Ventas",
+  "Control de stock y precios",
+];
 
 export default function UserFormDrawer({
   open,
   onOpenChange,
   user,
   permCategories,
+  permissionsLockReason = null,
   onSaved,
 }) {
   const isEdit = !!user?.idUsuario;
@@ -133,7 +147,7 @@ export default function UserFormDrawer({
       newErrors.usuario = "El usuario es requerido";
     }
 
-    if (!form.password.trim()) {
+    if (!isEdit && !form.password.trim()) {
       newErrors.password = "La contraseña es requerida";
     }
 
@@ -174,7 +188,6 @@ export default function UserFormDrawer({
 
     const payloadBase = {
       usuario: form.usuario,
-      password: form.password,
       nombre: form.nombre,
       apellido: form.apellido,
       email: form.email,
@@ -187,7 +200,7 @@ export default function UserFormDrawer({
         await updateUser({ idUsuario: form.idUsuario, ...payloadBase });
         toast.success(`Usuario actualizado correctamente: ${form.nombre} ${form.apellido}`);
       } else {
-        await createUser(payloadBase);
+        await createUser({ ...payloadBase, password: form.password });
         toast.success(`Usuario creado correctamente: ${form.nombre} ${form.apellido}`);
       }
       onOpenChange(false);
@@ -232,25 +245,27 @@ export default function UserFormDrawer({
                   placeholder="Nombre de usuario"
                 />
                 {errors.usuario && (
-                  <p className="text-sm text-destructive">{errors.usuario}</p>
+                  <p className="text-sm font-medium text-red-500">{errors.usuario}</p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">
-                  Contraseña <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => handleChange("password", e.target.value)}
-                  placeholder="Contraseña"
-                />
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password}</p>
-                )}
-              </div>
+              {!isEdit && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">
+                    Contraseña <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    placeholder="Contraseña"
+                  />
+                  {errors.password && (
+                    <p className="text-sm font-medium text-red-500">{errors.password}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -265,7 +280,7 @@ export default function UserFormDrawer({
                   placeholder="Nombre"
                 />
                 {errors.nombre && (
-                  <p className="text-sm text-destructive">{errors.nombre}</p>
+                  <p className="text-sm font-medium text-red-500">{errors.nombre}</p>
                 )}
               </div>
 
@@ -280,7 +295,7 @@ export default function UserFormDrawer({
                   placeholder="Apellido"
                 />
                 {errors.apellido && (
-                  <p className="text-sm text-destructive">{errors.apellido}</p>
+                  <p className="text-sm font-medium text-red-500">{errors.apellido}</p>
                 )}
               </div>
             </div>
@@ -298,7 +313,7 @@ export default function UserFormDrawer({
                   placeholder="usuario@ejemplo.com"
                 />
                 {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email}</p>
+                  <p className="text-sm font-medium text-red-500">{errors.email}</p>
                 )}
               </div>
 
@@ -306,14 +321,24 @@ export default function UserFormDrawer({
                 <Label htmlFor="rol">
                   Rol <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="rol"
+                <Select
+                  key={`rol-${form.idUsuario || "new"}`}
                   value={form.rol}
-                  onChange={(e) => handleChange("rol", e.target.value)}
-                  placeholder="Rol del usuario"
-                />
+                  onValueChange={(value) => handleChange("rol", value)}
+                >
+                  <SelectTrigger id="rol">
+                    <SelectValue placeholder="Seleccionar rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {USER_ROLES.map((rol) => (
+                      <SelectItem key={rol} value={rol}>
+                        {rol}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {errors.rol && (
-                  <p className="text-sm text-destructive">{errors.rol}</p>
+                  <p className="text-sm font-medium text-red-500">{errors.rol}</p>
                 )}
               </div>
             </div>
@@ -322,6 +347,12 @@ export default function UserFormDrawer({
           {/* Permisos */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Permisos</h3>
+
+            {permissionsLockReason && (
+              <div className="bg-amber-50 border border-amber-400 text-amber-700 px-4 py-3 rounded-md">
+                <p className="text-sm font-medium">{permissionsLockReason}</p>
+              </div>
+            )}
 
             <ScrollArea className="h-[400px] pr-4">
               <div className="grid gap-3">
@@ -336,6 +367,7 @@ export default function UserFormDrawer({
                           <Checkbox
                             checked={isCategoryFullySelected(cat)}
                             onCheckedChange={() => toggleCategoryPerms(cat)}
+                            disabled={!!permissionsLockReason}
                             className={isCategoryPartiallySelected(cat) ? "data-[state=checked]:bg-primary/50" : ""}
                           />
                           <span className="font-medium text-primary">Seleccionar todo</span>
@@ -346,18 +378,14 @@ export default function UserFormDrawer({
                       {(cat.permissions || []).map((p) => (
                         <label
                           key={p.idPermiso}
-                          className="flex items-center gap-2 text-sm cursor-pointer"
+                          className={`flex items-center gap-2 text-sm ${permissionsLockReason ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                         >
                           <Checkbox
                             checked={selectedPerms.includes(p.idPermiso)}
                             onCheckedChange={() => togglePerm(p.idPermiso)}
+                            disabled={!!permissionsLockReason}
                           />
-                          <span>{p.permiso}</span>
-                          {p.descripcion && (
-                            <span className="text-xs text-muted-foreground ml-1">
-                              ({p.descripcion})
-                            </span>
-                          )}
+                          <span>{p.descripcion || p.permiso}</span>
                         </label>
                       ))}
                     </CardContent>
@@ -369,7 +397,7 @@ export default function UserFormDrawer({
 
           {/* Mensaje de error de la API */}
           {apiError && (
-            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md">
+            <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded-md">
               <p className="text-sm font-medium">{apiError}</p>
             </div>
           )}

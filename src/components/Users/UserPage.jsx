@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   searchUsers,
   getUserById,
+  activateUser,
   deleteUser,
 } from "../../services/UsersQueries";
 import { getPermissionCategories } from "../../services/PermissionsQueries";
+import { getCurrentUser } from "@/services/AuthService";
 import UserFormDrawer from "../Users/UserFormDrawer";
+import UserChangePasswordForm from "../Users/UserChangePasswordForm";
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
@@ -46,7 +49,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, KeyRound, Pencil, Trash2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 function useDebouncedValue(value, delay = 400) {
@@ -60,7 +63,22 @@ function useDebouncedValue(value, delay = 400) {
 
 export default function UsersPage() {
   const { hasPermission } = usePermission();
-  const [estado, setEstado] = useState("activos"); // 🔹 activos | eliminados
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.userId;
+  const isCurrentUserMaster = currentUser?.root === true;
+
+  // Devuelve el motivo por el que no se pueden editar los permisos del target,
+  // o null si el usuario logueado sí puede hacerlo.
+  function getPermissionsLockReason(targetUser) {
+    if (!targetUser || isCurrentUserMaster) return null;
+    if (targetUser.idUsuario === currentUserId)
+      return "No podés modificar tus propios permisos.";
+    if (targetUser.root === true)
+      return "No podés modificar los permisos del administrador maestro.";
+    return null;
+  }
+
+  const [estado, setEstado] = useState("activos");
   const [q, setQ] = useState("");
   const dq = useDebouncedValue(q, 400);
 
@@ -76,10 +94,18 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState(null);
   const [permCategories, setPermCategories] = useState([]);
 
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordUser, setChangePasswordUser] = useState(null);
+
   // Estados para el diálogo de eliminación
   const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false);
   const [usuarioAEliminar, setUsuarioAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+
+  // Estados para el diálogo de activación
+  const [mostrarDialogoActivar, setMostrarDialogoActivar] = useState(false);
+  const [usuarioAActivar, setUsuarioAActivar] = useState(null);
+  const [activando, setActivando] = useState(false);
 
   // Cargar categorías de permisos una sola vez
   useEffect(() => {
@@ -90,7 +116,7 @@ export default function UsersPage() {
       );
   }, []);
 
-  // 🔹 Cargar usuarios al cambiar página, búsqueda o estado
+  // Cargar usuarios al cambiar página, búsqueda o estado
   useEffect(() => {
     let alive = true;
     async function run() {
@@ -99,7 +125,7 @@ export default function UsersPage() {
         const data = await searchUsers({
           pageIndex,
           searchTerm: dq,
-          estado, // 👈 enviamos el filtro de estado
+          estado,
         });
         if (!alive) return;
         setPaged(data);
@@ -113,12 +139,14 @@ export default function UsersPage() {
     return () => {
       alive = false;
     };
-  }, [pageIndex, dq, estado]); // 👈 importante incluir 'estado'
+  }, [pageIndex, dq, estado]);
 
   const visibleItems = useMemo(() => paged.items ?? [], [paged]);
 
   function openCreate() {
     setEditingUser(null);
+    setShowChangePassword(false);
+    setChangePasswordUser(null);
     setShowForm(true);
   }
 
@@ -126,15 +154,19 @@ export default function UsersPage() {
     try {
       const full = await getUserById(userLite.idUsuario);
       setEditingUser(full);
+      setShowChangePassword(false);
+      setChangePasswordUser(null);
       setShowForm(true);
     } catch (err) {
       toast.error("No se pudo abrir el usuario: " + err.message);
     }
   }
 
-  function handleCancel() {
+  function openChangePassword(u) {
     setShowForm(false);
     setEditingUser(null);
+    setChangePasswordUser(u);
+    setShowChangePassword(true);
   }
 
   function handleSolicitarEliminar(userLite) {
@@ -167,6 +199,36 @@ export default function UsersPage() {
     setUsuarioAEliminar(null);
   }
 
+  function handleSolicitarActivar(userLite) {
+    setUsuarioAActivar(userLite);
+    setMostrarDialogoActivar(true);
+  }
+
+  async function handleConfirmarActivar() {
+    if (!usuarioAActivar) return;
+
+    try {
+      setActivando(true);
+      await activateUser(usuarioAActivar.idUsuario);
+      toast.success(`Usuario activado: ${usuarioAActivar.nombre} ${usuarioAActivar.apellido}`);
+      const data = await searchUsers({ pageIndex, searchTerm: dq, estado });
+      setPaged(data);
+      setMostrarDialogoActivar(false);
+      setUsuarioAActivar(null);
+    } catch (err) {
+      toast.error(`Error al activar usuario: ${err.message || "Ocurrió un error inesperado"}`);
+      setMostrarDialogoActivar(false);
+      setUsuarioAActivar(null);
+    } finally {
+      setActivando(false);
+    }
+  }
+
+  function handleCancelarActivar() {
+    setMostrarDialogoActivar(false);
+    setUsuarioAActivar(null);
+  }
+
   return (
     <PermissionGuard
       anyOf={Object.values(PermissionGroups.USERS.permissions)}
@@ -182,7 +244,7 @@ export default function UsersPage() {
             </PermissionGuard>
           </div>
 
-          {/* Form */}
+          {/* Form crear/editar */}
           <PermissionGuard anyOf={["USR_CREATE", "USR_UPDATE"]}>
             {showForm && (
               <UserFormDrawer
@@ -190,6 +252,7 @@ export default function UsersPage() {
                 onOpenChange={setShowForm}
                 user={editingUser}
                 permCategories={permCategories}
+                permissionsLockReason={getPermissionsLockReason(editingUser)}
                 onSaved={async () => {
                   const data = await searchUsers({ pageIndex, searchTerm: dq, estado });
                   setPaged(data);
@@ -198,183 +261,246 @@ export default function UsersPage() {
             )}
           </PermissionGuard>
 
+          {/* Form cambiar contraseña */}
+          <PermissionGuard permission="USR_PASSWORD_UPDATE">
+            {showChangePassword && (
+              <UserChangePasswordForm
+                open={showChangePassword}
+                onOpenChange={setShowChangePassword}
+                user={changePasswordUser}
+                onSaved={() => {}}
+              />
+            )}
+          </PermissionGuard>
+
           {/* Tabs de filtro */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 gap-6 justify-center">
-            <Card
-              className={`cursor-pointer hover:shadow transition ${
-                estado === "activos" ? "ring-2 ring-primary" : ""
-              }`}
-              onClick={() => {
-                setEstado("activos");
-                setPageIndex(1);
-              }}
-            >
-              <CardHeader className="text-center">
-                <CardTitle>Activos</CardTitle>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className={`cursor-pointer hover:shadow transition ${
-                estado === "eliminados" ? "ring-2 ring-primary" : ""
-              }`}
-              onClick={() => {
-                setEstado("eliminados");
-                setPageIndex(1);
-              }}
-            >
-              <CardHeader className="text-center">
-                <CardTitle>Eliminados</CardTitle>
-              </CardHeader>
-            </Card>
-          </div>
-
-          {/* Buscador */}
-          <Card className="mt-2">
-            <CardContent className="flex items-center gap-2 py-4">
-              <Input
-                placeholder="Buscar usuarios..."
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value);
+          {hasPermission("USR_READ") && (
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-6 justify-center">
+              <Card
+                className={`cursor-pointer hover:shadow transition ${
+                  estado === "activos" ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => {
+                  setEstado("activos");
                   setPageIndex(1);
                 }}
-              />
-              <Button variant="outline" onClick={() => setQ("")}>
-                Limpiar
-              </Button>
-            </CardContent>
-          </Card>
+              >
+                <CardHeader className="text-center">
+                  <CardTitle>Activos</CardTitle>
+                </CardHeader>
+              </Card>
 
-          {/* Tabla */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="border rounded-md overflow-hidden">
-                  <div
-                    className={`overflow-y-auto transition-all duration-300`}
-                    style={{
-                      maxHeight:
-                        visibleItems.length > 10
-                          ? "500px"
-                          : `${visibleItems.length * 52 + 60}px`,
-                    }}
-                  >
-                    <Table className="w-full border-collapse">
-                      <TableHeader>
-                        <TableRow className="sticky top-0 bg-muted z-10">
-                          <TableHead>Id</TableHead>
-                          <TableHead>Usuario</TableHead>
-                          <TableHead>Nombre</TableHead>
-                          <TableHead>Apellido</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Rol</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {visibleItems.length === 0 && !loading && (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                              Sin datos
-                            </TableCell>
-                          </TableRow>
-                        )}
+              <Card
+                className={`cursor-pointer hover:shadow transition ${
+                  estado === "eliminados" ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => {
+                  setEstado("eliminados");
+                  setPageIndex(1);
+                }}
+              >
+                <CardHeader className="text-center">
+                  <CardTitle>Eliminados</CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+          )}
 
-                        {visibleItems.map((u) => (
-                          <TableRow key={u.idUsuario} className="hover:bg-muted/40 transition">
-                            <TableCell>{u.idUsuario}</TableCell>
-                            <TableCell>{u.usuario}</TableCell>
-                            <TableCell>{u.nombre}</TableCell>
-                            <TableCell>{u.apellido}</TableCell>
-                            <TableCell>{u.email}</TableCell>
-                            <TableCell>{u.rol}</TableCell>
-                            <TableCell className="text-right">
-                              <TooltipProvider>
-                                <div className="flex gap-2 justify-end">
-                                  <Popover>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <PopoverTrigger asChild>
-                                          <Button size="icon" variant="secondary">
-                                            <Eye className="h-4 w-4" />
-                                          </Button>
-                                        </PopoverTrigger>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Ver permisos</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                    <PopoverContent className="w-80">
-                                      <UserPermissionsPopover userId={u.idUsuario} />
-                                    </PopoverContent>
-                                  </Popover>
-
-                                  {estado === "activos" && (
-                                    <>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="outline"
-                                            onClick={() => openEdit(u)}
-                                          >
-                                            <Pencil className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Editar usuario</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="outline"
-                                            onClick={() => handleSolicitarEliminar(u)}
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Eliminar usuario</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </>
-                                  )}
-                                </div>
-                              </TooltipProvider>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
+          {/* Buscador */}
+          {hasPermission("USR_READ") && (
+            <Card className="mt-2">
+              <CardContent className="flex items-center gap-2 py-4">
+                <Input
+                  placeholder="Buscar usuarios..."
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    setPageIndex(1);
+                  }}
+                />
+                <Button variant="outline" onClick={() => setQ("")}>
+                  Limpiar
+                </Button>
               </CardContent>
             </Card>
+          )}
 
-            {/* Paginación */}
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                variant="outline"
-                disabled={pageIndex <= 1}
-                onClick={() => setPageIndex((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </Button>
-              <div className="text-sm">
-                Página {pageIndex} de {paged.totalPages ?? 1}
+          {/* Tabla + Paginación */}
+          {hasPermission("USR_READ") && (
+            <>
+              <Card>
+                <CardContent className="p-0">
+                  <div className="border rounded-md overflow-hidden">
+                    <div
+                      className={`overflow-y-auto transition-all duration-300`}
+                      style={{
+                        maxHeight:
+                          visibleItems.length > 10
+                            ? "500px"
+                            : `${visibleItems.length * 52 + 60}px`,
+                      }}
+                    >
+                      <Table className="w-full border-collapse">
+                        <TableHeader>
+                          <TableRow className="sticky top-0 bg-muted z-10">
+                            <TableHead>Id</TableHead>
+                            <TableHead>Usuario</TableHead>
+                            <TableHead>Nombre</TableHead>
+                            <TableHead>Apellido</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Rol</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {visibleItems.length === 0 && !loading && (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                Sin datos
+                              </TableCell>
+                            </TableRow>
+                          )}
+
+                          {visibleItems.map((u) => (
+                            <TableRow key={u.idUsuario} className="hover:bg-muted/40 transition">
+                              <TableCell>{u.idUsuario}</TableCell>
+                              <TableCell>{u.usuario}</TableCell>
+                              <TableCell>{u.nombre}</TableCell>
+                              <TableCell>{u.apellido}</TableCell>
+                              <TableCell>{u.email}</TableCell>
+                              <TableCell>{u.rol}</TableCell>
+                              <TableCell className="text-right">
+                                <TooltipProvider>
+                                  <div className="flex gap-2 justify-end">
+                                    {/* Ver permisos — requiere USR_READ (cubierto por el bloque padre) */}
+                                    <Popover>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <PopoverTrigger asChild>
+                                            <Button size="icon" variant="secondary">
+                                              <Eye className="h-4 w-4" />
+                                            </Button>
+                                          </PopoverTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Ver permisos</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                      <PopoverContent className="w-80">
+                                        <UserPermissionsPopover userId={u.idUsuario} />
+                                      </PopoverContent>
+                                    </Popover>
+
+                                    {/* Activar — solo en eliminados, requiere USR_DELETE */}
+                                    {estado === "eliminados" && hasPermission("USR_DELETE") && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="outline"
+                                            onClick={() => handleSolicitarActivar(u)}
+                                          >
+                                            <UserCheck className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Activar usuario</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+
+                                    {/* Acciones sobre activos */}
+                                    {estado === "activos" && (
+                                      <>
+                                        {/* Editar — requiere USR_UPDATE */}
+                                        {hasPermission("USR_UPDATE") && (
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                size="icon"
+                                                variant="outline"
+                                                onClick={() => openEdit(u)}
+                                              >
+                                                <Pencil className="h-4 w-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>Editar usuario</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        )}
+
+                                        {/* Cambiar contraseña — requiere USR_PASSWORD_UPDATE */}
+                                        {hasPermission("USR_PASSWORD_UPDATE") && (
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                size="icon"
+                                                variant="outline"
+                                                onClick={() => openChangePassword(u)}
+                                              >
+                                                <KeyRound className="h-4 w-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>Cambiar contraseña</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        )}
+
+                                        {/* Eliminar — requiere USR_DELETE */}
+                                        {hasPermission("USR_DELETE") && (
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                size="icon"
+                                                variant="outline"
+                                                onClick={() => handleSolicitarEliminar(u)}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>Eliminar usuario</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </TooltipProvider>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Paginación */}
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  disabled={pageIndex <= 1}
+                  onClick={() => setPageIndex((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <div className="text-sm">
+                  Página {pageIndex} de {paged.totalPages ?? 1}
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={pageIndex >= (paged.totalPages ?? 1)}
+                  onClick={() => setPageIndex((p) => p + 1)}
+                >
+                  Siguiente
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                disabled={pageIndex >= (paged.totalPages ?? 1)}
-                onClick={() => setPageIndex((p) => p + 1)}
-              >
-                Siguiente
-              </Button>
-            </div>
-
+            </>
+          )}
         </div>
 
         {/* Diálogo de confirmación para eliminar */}
@@ -405,6 +531,33 @@ export default function UsersPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      {/* Diálogo de confirmación para activar */}
+      <AlertDialog open={mostrarDialogoActivar} onOpenChange={setMostrarDialogoActivar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Activar usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de activar al usuario{" "}
+              <span className="font-semibold text-foreground">
+                "{usuarioAActivar?.nombre} {usuarioAActivar?.apellido}"
+              </span>
+              ? El usuario podrá volver a iniciar sesión en el sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelarActivar} disabled={activando}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarActivar}
+              disabled={activando}
+            >
+              {activando ? "Activando..." : "Activar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PermissionGuard>
   );
 }
@@ -452,7 +605,7 @@ function UserPermissionsPopover({ userId }) {
           <div className="mt-1 flex flex-wrap gap-1">
             {(cat.permissions || []).map((p) => (
               <Badge key={p.idPermiso} variant="outline">
-                {p.permiso}
+                {p.descripcion || p.permiso}
               </Badge>
             ))}
           </div>

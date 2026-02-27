@@ -5,7 +5,9 @@
       "Bash(cat:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nMerge branch ''origin/dev_sale'' into dev_sale\n\nResueltos conflictos manteniendo ambos cambios:\n- Agregada funcionalidad de Ventas \\(del remoto\\)\n- Mantenida funcionalidad de Auditoría \\(local\\)\n- Ambas rutas y componentes ahora coexisten\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(npm install @radix-ui/react-radio-group)"
+      "Bash(npm install @radix-ui/react-radio-group)",
+      "Bash(dotnet build:*)",
+      "Bash(timeout 3 dotnet run:*)"
     ],
     "deny": [],
     "ask": []

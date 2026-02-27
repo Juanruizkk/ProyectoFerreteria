@@ -75,8 +75,7 @@ export default function AccountMovementsTable({ movements }) {
             <TableHead className="text-right">Saldo Actual</TableHead>
             <TableHead className="text-right">Límite Cuenta</TableHead>
             <TableHead>Usuario Registra</TableHead>
-            <TableHead>Fecha Autorización</TableHead>
-            <TableHead>Usuario Autoriza</TableHead>
+            <TableHead>Venta Asociada</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -106,10 +105,22 @@ export default function AccountMovementsTable({ movements }) {
                 {formatCurrency(movement.limiteCuenta)}
               </TableCell>
               <TableCell>{movement.usuarioRegistra || "-"}</TableCell>
-              <TableCell className="whitespace-nowrap">
-                {formatDate(movement.fechaAutorizacion)}
+              <TableCell>
+                {movement.codigoVenta ? (
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="font-mono">
+                      {movement.codigoVenta}
+                    </Badge>
+                    {movement.totalVenta && (
+                      <div className="text-xs text-muted-foreground">
+                        {formatCurrency(movement.totalVenta)}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
               </TableCell>
-              <TableCell>{movement.usuarioAutoriza || "-"}</TableCell>
             </TableRow>
           ))}
         </TableBody>

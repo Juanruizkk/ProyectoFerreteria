@@ -154,3 +154,36 @@ export const registerMovement = async (movementData) => {
     throw error;
   }
 };
+
+/**
+ * Get pending sales for payment for a specific client
+ * @param {number} clientId - Client ID
+ * @returns {Promise<Array>} List of pending sales with payment information
+ */
+export const getPendingSales = async (clientId) => {
+  try {
+    const response = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/pending-sales/${clientId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error fetching pending sales');
+      } else {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Error fetching pending sales');
+      }
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching pending sales:', error);
+    throw error;
+  }
+};
