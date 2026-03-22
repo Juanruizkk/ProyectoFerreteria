@@ -36,8 +36,8 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
 
   useEffect(() => {
     if (open && saleId) {
+      setObservaciones("");
       loadSaleDetail();
-      setObservaciones(""); // Limpiar observaciones al abrir
     }
   }, [open, saleId]);
 
@@ -46,6 +46,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
     try {
       const data = await fetchPendingSaleById(saleId);
       setSaleDetail(data);
+      if (data.observaciones) setObservaciones(data.observaciones);
     } catch (err) {
       toast.error("Error al cargar detalle de venta pendiente", {
         description: err.message,
@@ -125,6 +126,13 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
     }).format(value);
   };
 
+  const getEstadoBadgeClass = (estado) => {
+    const lower = estado?.toLowerCase() ?? "";
+    if (lower.includes("aprobada")) return "bg-green-100 text-green-800";
+    if (lower.includes("rechazada")) return "bg-red-100 text-red-800";
+    return "bg-yellow-100 text-yellow-800";
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("es-AR", {
       day: "2-digit",
@@ -141,11 +149,25 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-              Venta Pendiente de Autorización
+              {saleDetail?.estado?.toLowerCase().includes("aprobada") ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : saleDetail?.estado?.toLowerCase().includes("rechazada") ? (
+                <XCircle className="h-5 w-5 text-red-600" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+              )}
+              {saleDetail?.estado?.toLowerCase().includes("aprobada")
+                ? "Venta Aprobada"
+                : saleDetail?.estado?.toLowerCase().includes("rechazada")
+                ? "Venta Rechazada"
+                : "Venta Pendiente de Autorización"}
             </DialogTitle>
             <DialogDescription>
-              Revise los detalles y apruebe o rechace esta venta que excede el límite de crédito
+              {saleDetail?.estado?.toLowerCase().includes("aprobada")
+                ? "Esta venta fue aprobada y procesada exitosamente."
+                : saleDetail?.estado?.toLowerCase().includes("rechazada")
+                ? "Esta venta fue rechazada y nunca se efectuó."
+                : "Revise los detalles y apruebe o rechace esta venta que excede el límite de crédito"}
             </DialogDescription>
           </DialogHeader>
 
@@ -156,6 +178,26 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
             </div>
           ) : saleDetail ? (
             <div className="space-y-6">
+              {/* Banner de resultado cuando ya fue procesada */}
+              {saleDetail.estado?.toLowerCase().includes("aprobada") && (
+                <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg p-4">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-green-900">Venta Aprobada</p>
+                    <p className="text-sm text-green-700">Esta venta fue aprobada y el crédito del cliente fue actualizado.</p>
+                  </div>
+                </div>
+              )}
+              {saleDetail.estado?.toLowerCase().includes("rechazada") && (
+                <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <XCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-red-900">Venta Rechazada</p>
+                    <p className="text-sm text-red-700">Esta venta fue rechazada. No se realizó ningún cargo al cliente.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Alerta de excedente */}
               {saleDetail.excedente > 0 && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -230,7 +272,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Estado</p>
                       <div className="mt-1">
-                        <Badge className="bg-yellow-100 text-yellow-800">
+                        <Badge className={getEstadoBadgeClass(saleDetail.estado)}>
                           {saleDetail.estado}
                         </Badge>
                       </div>
@@ -299,10 +341,14 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                 </div>
               </div>
 
-              {/* Observaciones */}
+              {/* Observaciones / Motivo */}
               <div>
                 <label className="text-sm font-medium mb-2 block">
-                  Observaciones {saleDetail.estado && saleDetail.estado.toLowerCase().includes("pendiente") && <span className="text-destructive">(requerido para rechazar)</span>}
+                  {saleDetail.estado?.toLowerCase().includes("rechazada")
+                    ? "Motivo del rechazo"
+                    : saleDetail.estado?.toLowerCase().includes("aprobada")
+                    ? "Observaciones de aprobación"
+                    : <>Observaciones <span className="text-destructive">(requerido para rechazar)</span></>}
                 </label>
                 <Textarea
                   placeholder="Ingrese observaciones o motivo de aprobación/rechazo..."
@@ -312,6 +358,9 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                   className="resize-none"
                   disabled={!saleDetail.estado || !saleDetail.estado.toLowerCase().includes("pendiente")}
                 />
+                {!saleDetail.estado?.toLowerCase().includes("pendiente") && !observaciones && (
+                  <p className="text-xs text-muted-foreground mt-1">Sin observaciones registradas.</p>
+                )}
               </div>
             </div>
           ) : null}

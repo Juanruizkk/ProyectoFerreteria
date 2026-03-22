@@ -8,8 +8,9 @@ import ProductosPage from "./components/Productos/ProductosPage";
 import UsersPage from "./components/Users/UserPage";
 import ClientesPage from "./components/Clientes/ClientesPage";
 import ClientDetailsPage from "./components/Clientes/ClientDetailsPage";
+import OverdueClientsPage from "./components/Clientes/OverdueClientsPage";
 import AccountConfigPage from "./components/AccountConfig/AccountConfigPage";
-import CategoryManager from "./components/Category/CategoryManager";
+import CategoryPage from "./components/Category/CategoryPage";
 import AuditPage from "./components/Audit/AuditPage";
 import Sales from "./components/Sales/Sales";
 import { isAuthenticated } from "@/services/AuthService";
@@ -37,9 +38,10 @@ function App() {
                   <Route path="/productos" element={<ProductosPage />} />
                   <Route path="/usuarios" element={<UsersPage />} />
                   <Route path="/clientes" element={<ClientesPage />} />
+                  <Route path="/clientes/morosos" element={<OverdueClientsPage />} />
                   <Route path="/clientes/:id" element={<ClientDetailsPage />} />
                   <Route path="/configuracion-cc" element={<AccountConfigPage />} />
-                  <Route path="/categorias" element={<CategoryManager />} />
+                  <Route path="/categorias" element={<CategoryPage />} />
                   <Route path="/auditoria" element={<AuditPage />} />
                   <Route path="/ventas" element={<Sales />} />
                 </Routes>

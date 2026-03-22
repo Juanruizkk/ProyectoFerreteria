@@ -1,4 +1,5 @@
-import { Users, UserCircle, Package, Home, Settings, Layers, History, ShoppingCart } from "lucide-react"
+import { useState } from "react"
+import { Users, UserCircle, Package, Home, Settings, History, ShoppingCart, ChevronDown, ChevronRight } from "lucide-react"
 import { Link } from "react-router-dom"
 import PermissionGuard from "@/components/PermissionGuard"
 import { PermissionGroups } from "@/config/permissions"
@@ -12,9 +13,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar"
 
 export function AppSidebar() {
+  const [configOpen, setConfigOpen] = useState(false);
+
   return (
     <Sidebar variant="inset">
       <SidebarContent>
@@ -22,7 +28,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Sistema Ferretería</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {/* Home - siempre visible */}
+              {/* Home */}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link to="/">
@@ -32,10 +38,8 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Usuarios - solo si tiene algún permiso USR_* */}
-              <PermissionGuard
-                anyOf={Object.values(PermissionGroups.USERS.permissions)}
-              >
+              {/* Usuarios */}
+              <PermissionGuard anyOf={Object.values(PermissionGroups.USERS.permissions)}>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link to="/usuarios">
@@ -46,10 +50,8 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               </PermissionGuard>
 
-              {/* Clientes - solo si tiene algún permiso CLI_* */}
-              <PermissionGuard
-                anyOf={Object.values(PermissionGroups.CLIENTS.permissions)}
-              >
+              {/* Clientes */}
+              <PermissionGuard anyOf={Object.values(PermissionGroups.CLIENTS.permissions)}>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link to="/clientes">
@@ -60,10 +62,8 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               </PermissionGuard>
 
-              {/* Ventas - solo si tiene algún permiso VEN_* */}
-              <PermissionGuard
-                anyOf={Object.values(PermissionGroups.SALES.permissions)}
-              >
+              {/* Ventas */}
+              <PermissionGuard anyOf={Object.values(PermissionGroups.SALES.permissions)}>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link to="/ventas">
@@ -74,10 +74,8 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               </PermissionGuard>
 
-              {/* Productos - solo si tiene algún permiso PROD_* */}
-              <PermissionGuard
-                anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
-              >
+              {/* Productos */}
+              <PermissionGuard anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link to="/productos">
@@ -88,38 +86,54 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               </PermissionGuard>
 
-              {/* Categorías - solo si tiene algún permiso PROD_* */}
+              {/* Configuración (colapsable) */}
               <PermissionGuard
-                anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
+                anyOf={[
+                  ...Object.values(PermissionGroups.PRODUCTS.permissions),
+                  ...Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions),
+                ]}
               >
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link to="/categorias">
-                      <Layers />
-                      <span>Categorías</span>
-                    </Link>
+                  <SidebarMenuButton
+                    onClick={() => setConfigOpen((prev) => !prev)}
+                    className="w-full"
+                  >
+                    <Settings className="w-5 h-5 shrink-0" />
+                    <span>Configuración</span>
+                    {configOpen
+                      ? <ChevronDown className="ml-auto h-4 w-4 transition-transform" />
+                      : <ChevronRight className="ml-auto h-4 w-4 transition-transform" />
+                    }
                   </SidebarMenuButton>
+
+                  {configOpen && (
+                    <SidebarMenuSub>
+                      <PermissionGuard anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link to="/categorias">
+                              <span>Productos</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </PermissionGuard>
+
+                      <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild>
+                            <Link to="/configuracion-cc">
+                              <span>Cta. Corriente</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </PermissionGuard>
+                    </SidebarMenuSub>
+                  )}
                 </SidebarMenuItem>
               </PermissionGuard>
 
-              {/* Configuración CC - solo si tiene algún permiso CC_* */}
-              <PermissionGuard
-                anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}
-              >
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link to="/configuracion-cc">
-                      <Settings />
-                      <span>Configuración CC</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </PermissionGuard>
-
-              {/* Auditoría - solo si tiene permiso HIS_VIEW */}
-              <PermissionGuard
-                anyOf={Object.values(PermissionGroups.HISTORY.permissions)}
-              >
+              {/* Auditoría */}
+              <PermissionGuard anyOf={Object.values(PermissionGroups.HISTORY.permissions)}>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                     <Link to="/auditoria">

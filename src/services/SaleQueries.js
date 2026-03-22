@@ -124,7 +124,8 @@ export async function fetchSales(
   pageSize = 10,
   clienteFilter = null,
   fechaDesde = null,
-  fechaHasta = null
+  fechaHasta = null,
+  estado = null
 ) {
   let url = `${API_URL}?pageNumber=${pageNumber}&pageSize=${pageSize}`;
 
@@ -138,6 +139,10 @@ export async function fetchSales(
 
   if (fechaHasta) {
     url += `&fechaHasta=${encodeURIComponent(fechaHasta)}`;
+  }
+
+  if (estado) {
+    url += `&estado=${encodeURIComponent(estado)}`;
   }
 
   const response = await fetchWithAuth(url);
@@ -415,6 +420,137 @@ export async function downloadSalePdf(id, codigoVenta) {
   } catch (error) {
     throw error;
   }
+}
+
+/**
+ * Anula una venta y genera una nota de crédito en la CC del cliente
+ * @param {number} idVenta
+ * @param {{ idMotivo: number, detalleAdicional: string|null, idUsuarioRegistra: number }} body
+ * @returns {Promise<{ idVenta, codigoVenta, estado, idMovimientoNc }>}
+ */
+export async function annulSale(idVenta, body) {
+  const response = await fetchWithAuth(`${API_URL}/${idVenta}/annul`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const ct = response.headers.get("content-type");
+    if (ct?.includes("application/json")) {
+      const data = await response.json();
+      throw new Error(data.message || data.error || data.title || "Error al anular la venta");
+    }
+    const text = await response.text();
+    throw new Error(text || "Error al anular la venta");
+  }
+
+  return response.json();
+}
+
+/**
+ * Obtiene motivos de nota de crédito
+ * @param {boolean|undefined} activo - true = activos, false = inactivos, undefined = todos
+ * @returns {Promise<Array>}
+ */
+export async function getCreditNoteReasons(activo) {
+  const params = new URLSearchParams();
+  if (activo !== undefined) params.set("activo", activo);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetchWithAuth(`${API_URL}/credit-note/reasons${query}`);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Error al obtener motivos de nota de crédito");
+  }
+  return response.json();
+}
+
+/**
+ * Crea un motivo de nota de crédito
+ * @param {{ nombre: string }} body
+ */
+export async function createCreditNoteReason(body) {
+  const response = await fetchWithAuth(`${API_URL}/credit-note/reasons`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Error al crear el motivo");
+  }
+  const ct = response.headers.get("content-type");
+  return ct?.includes("application/json") ? response.json() : response.text();
+}
+
+/**
+ * Actualiza un motivo de nota de crédito
+ * @param {{ idMotivo: number, nombre: string }} body
+ */
+export async function updateCreditNoteReason(body) {
+  const response = await fetchWithAuth(`${API_URL}/credit-note/reasons`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Error al actualizar el motivo");
+  }
+  const ct = response.headers.get("content-type");
+  return ct?.includes("application/json") ? response.json() : response.text();
+}
+
+/**
+ * Activa o desactiva un motivo de nota de crédito
+ * @param {number} id
+ * @param {boolean} activo
+ */
+export async function toggleCreditNoteReasonState(id, activo) {
+  const response = await fetchWithAuth(
+    `${API_URL}/credit-note/reasons/toggle-state/${id}/${activo}`,
+    { method: "PATCH" }
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Error al cambiar el estado del motivo");
+  }
+}
+
+/**
+ * Descarga el PDF de la nota de crédito de una venta anulada
+ * @param {number} idVenta
+ * @param {string} codigoVenta - Código para el nombre del archivo
+ */
+export async function downloadCreditNotePdf(idVenta, codigoVenta) {
+  if (!idVenta) throw new Error("El ID de la venta es requerido");
+
+  const response = await fetchWithAuth(`${API_URL}/${idVenta}/credit-note-pdf`);
+
+  if (!response.ok) {
+    let errorMessage = "Error al descargar la nota de crédito";
+    try {
+      const ct = response.headers.get("content-type");
+      if (ct?.includes("application/json")) {
+        const data = await response.json();
+        errorMessage = data.message || data.error || data.title || errorMessage;
+      } else {
+        const text = await response.text();
+        if (text?.trim()) errorMessage = text;
+      }
+    } catch { /* usar mensaje por defecto */ }
+    throw new Error(errorMessage);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `NotaCredito_${codigoVenta || idVenta}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 /**

@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import SearchBar from "../Common/SearchBar";
 import PaginationControls from "../Common/PaginationControls";
@@ -63,6 +63,11 @@ export default function ClientesPage() {
   const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false);
   const [clienteAEliminar, setClienteAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+
+  // Estados para el diálogo de activación
+  const [mostrarDialogoActivar, setMostrarDialogoActivar] = useState(false);
+  const [clienteAActivar, setClienteAActivar] = useState(null);
+  const [activando, setActivando] = useState(false);
 
   const pageSize = 10;
 
@@ -205,20 +210,35 @@ export default function ClientesPage() {
     setClienteAEliminar(null);
   };
 
-  const handleActivate = async (idCliente) => {
-    if (!confirm("¿Está seguro de que desea activar este cliente?")) {
-      return;
-    }
+  const handleSolicitarActivar = (cliente) => {
+    setClienteAActivar(cliente);
+    setMostrarDialogoActivar(true);
+  };
+
+  const handleConfirmarActivar = async () => {
+    if (!clienteAActivar) return;
 
     try {
-      await activateCliente(idCliente);
+      setActivando(true);
+      await activateCliente(clienteAActivar.idCliente);
       toast.success("Cliente activado exitosamente");
       loadClientesInactivos();
-      loadClientesActivos(); // Refrescar ambos
+      loadClientesActivos();
+      setMostrarDialogoActivar(false);
+      setClienteAActivar(null);
     } catch (error) {
       console.error("Error al activar cliente:", error);
       toast.error(error.message || "Error al activar el cliente");
+      setMostrarDialogoActivar(false);
+      setClienteAActivar(null);
+    } finally {
+      setActivando(false);
     }
+  };
+
+  const handleCancelarActivar = () => {
+    setMostrarDialogoActivar(false);
+    setClienteAActivar(null);
   };
 
   const handleCancel = () => {
@@ -240,12 +260,20 @@ export default function ClientesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="text-3xl font-bold">Clientes</h1>
-          <PermissionGuard permission="CLI_CREATE">
-            <Button onClick={handleCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Cliente
-            </Button>
-          </PermissionGuard>
+          <div className="flex items-center gap-2">
+            <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
+              <Button variant="outline" onClick={() => navigate("/clientes/morosos")}>
+                <AlertTriangle className="mr-2 h-4 w-4 text-amber-500" />
+                Clientes en Mora
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard permission="CLI_CREATE">
+              <Button onClick={handleCreate}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo Cliente
+              </Button>
+            </PermissionGuard>
+          </div>
         </div>
 
         {/* Form */}
@@ -345,7 +373,7 @@ export default function ClientesPage() {
               <>
                 <ClientTableInactive
                   clientes={clientesInactivos}
-                  onActivate={handleActivate}
+                  onActivate={handleSolicitarActivar}
                 />
 
                 {/* Pagination */}
@@ -364,6 +392,34 @@ export default function ClientesPage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Diálogo de confirmación para activar */}
+        <AlertDialog open={mostrarDialogoActivar} onOpenChange={setMostrarDialogoActivar}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Activar cliente?</AlertDialogTitle>
+              <AlertDialogDescription>
+                ¿Estás seguro de activar al cliente{" "}
+                <span className="font-semibold text-foreground">
+                  "{clienteAActivar?.razonSocial || `${clienteAActivar?.nombre} ${clienteAActivar?.apellido}`}"
+                </span>
+                ? Volverá a estar disponible en el padrón de clientes activos.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelarActivar} disabled={activando}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmarActivar}
+                disabled={activando}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {activando ? "Activando..." : "Activar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Diálogo de confirmación para eliminar */}
         <AlertDialog open={mostrarDialogoEliminar} onOpenChange={setMostrarDialogoEliminar}>

@@ -39,7 +39,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { createSale, fetchAvailableProducts, fetchAllClients, downloadSalePdf, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { createCliente } from "@/services/ClienteQueries";
-import { getAccountMovements } from "@/services/CurrentAccountQueries";
+import { getCurrentAccountSummary } from "@/services/CurrentAccountQueries";
 import ClientForm from "@/components/Clientes/ClientForm";
 import { toast } from "sonner";
 
@@ -166,18 +166,10 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
   const loadCCData = async (clientId) => {
     try {
       setLoadingCCBalance(true);
-      const movs = await getAccountMovements(clientId);
-      // Mismo orden canónico que en ClientDetailsPage
-      const sorted = [...movs].sort((a, b) => {
-        const diff = new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
-        return diff !== 0 ? diff : a.idMovimiento - b.idMovimiento;
-      });
-      const opening =
-        sorted.find((m) => m.tipoMovimiento === "alta_cliente") ?? sorted[0];
-      const latest = sorted[sorted.length - 1];
+      const summary = await getCurrentAccountSummary(clientId);
       setCCData({
-        saldoActual: latest?.saldoActual ?? 0,
-        limiteCredito: opening?.limiteCuenta ?? 0,
+        saldoActual: summary?.latest?.saldoActual ?? 0,
+        limiteCredito: summary?.opening?.limiteCuenta ?? 0,
       });
     } catch (error) {
       console.error("Error al cargar datos de cuenta corriente:", error);

@@ -67,6 +67,7 @@ export const PermissionGroups = {
     prefix: "CC",
     permissions: {
       VIEW: "CC_VIEW",
+      MANAGE: "CC_MANAGE",
       NOTE_DEBIT: "CC_NOTE_DEBIT",
       NOTE_CREDIT: "CC_NOTE_CREDIT",
     },

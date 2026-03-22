@@ -10,8 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, X, Barcode, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Save, X, Barcode, Plus, Trash2 } from "lucide-react";
 
 export default function ProductForm({
   producto,
@@ -20,6 +20,8 @@ export default function ProductForm({
   onSubmit,
   onCancel,
 }) {
+  const esEdicion = Boolean(producto);
+
   const mapProductoToState = (p) => ({
     nombre: p?.nombre ?? "",
     marca: p?.marca ?? "",
@@ -30,21 +32,25 @@ export default function ProductForm({
     idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion)?.toString() ?? "",
     idCategoria: (p?.idCategoria ?? p?.id_categoria)?.toString() ?? "",
     ventaSinStock: Boolean(p?.ventaSinStock ?? p?.venta_sin_stock ?? false),
-  })
+  });
 
+  const [formData, setFormData] = useState(() => mapProductoToState(producto));
+  const [errores, setErrores] = useState({});
 
-  const [formData, setFormData] = useState(() => mapProductoToState(producto))
+  // Barcodes: en edición se preservan sin mostrarlos; en alta son editables
+  const [codigosBarras, setCodigosBarras] = useState([]);
+  const [agregarCodigosBarras, setAgregarCodigosBarras] = useState(false);
+  const [codigoBarraInput, setCodigoBarraInput] = useState("");
+  const [errorCodigoBarra, setErrorCodigoBarra] = useState("");
 
-  // Rehidratar el formulario si cambian las props (p. ej., editar otro producto sin cerrar)
   useEffect(() => {
-    setFormData(mapProductoToState(producto))
-    setErrores({})
+    setFormData(mapProductoToState(producto));
+    setErrores({});
 
-    // Cargar códigos de barra si el producto los tiene
     if (producto?.codigoBarras && Array.isArray(producto.codigoBarras)) {
-      setCodigosBarras(producto.codigoBarras.map(cb => ({
+      setCodigosBarras(producto.codigoBarras.map((cb) => ({
         idCodigo: cb.idCodigo ?? cb.IdCodigo ?? 0,
-        codigo: cb.codigo ?? cb.Codigo ?? ""
+        codigo: cb.codigo ?? cb.Codigo ?? "",
       })));
       setAgregarCodigosBarras(producto.codigoBarras.length > 0);
     } else {
@@ -53,52 +59,29 @@ export default function ProductForm({
     }
     setCodigoBarraInput("");
     setErrorCodigoBarra("");
-  }, [producto])
-
-  const [errores, setErrores] = useState({});
-
-  // Estados para códigos de barra
-  const [agregarCodigosBarras, setAgregarCodigosBarras] = useState(false);
-  const [codigosBarras, setCodigosBarras] = useState([]);
-  const [codigoBarraInput, setCodigoBarraInput] = useState("");
-  const [errorCodigoBarra, setErrorCodigoBarra] = useState("");
+  }, [producto]);
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    if (errores[field]) {
-      setErrores((prev) => ({ ...prev, [field]: "" }));
-    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errores[field]) setErrores((prev) => ({ ...prev, [field]: "" }));
   };
 
-  // Funciones para manejo de códigos de barra
   const handleAgregarCodigoBarra = () => {
     setErrorCodigoBarra("");
-
-    // Validar que no esté vacío
     if (!codigoBarraInput.trim()) {
       setErrorCodigoBarra("El código de barra no puede estar vacío");
       return;
     }
-
-    // Validar que no sea duplicado
-    if (codigosBarras.some(cb => cb.codigo === codigoBarraInput.trim())) {
+    if (codigosBarras.some((cb) => cb.codigo === codigoBarraInput.trim())) {
       setErrorCodigoBarra("Este código de barra ya fue agregado");
       return;
     }
-
-    // Agregar código a la lista
-    setCodigosBarras(prev => [...prev, {
-      idCodigo: 0,
-      codigo: codigoBarraInput.trim()
-    }]);
+    setCodigosBarras((prev) => [...prev, { idCodigo: 0, codigo: codigoBarraInput.trim() }]);
     setCodigoBarraInput("");
   };
 
-  const handleEliminarCodigoBarra = (codigoAEliminar) => {
-    setCodigosBarras(prev => prev.filter(cb => cb.codigo !== codigoAEliminar));
+  const handleEliminarCodigoBarra = (codigo) => {
+    setCodigosBarras((prev) => prev.filter((cb) => cb.codigo !== codigo));
     setErrorCodigoBarra("");
   };
 
@@ -123,42 +106,18 @@ export default function ProductForm({
 
   const validarFormulario = () => {
     const e = {};
-
-    // nombre: texto requerido (si tu DB realmente lo quiere int, decime y lo cambio)
-    if (!formData.nombre.trim()) {
-      e.nombre = "El nombre es requerido";
-    }
-
-    // marca: varchar(100)
+    if (!formData.nombre.trim()) e.nombre = "El nombre es requerido";
     if (!formData.marca.trim()) e.marca = "La marca es requerida";
     else if (formData.marca.length > 100) e.marca = "Máximo 100 caracteres";
-
-    // descripcion: varchar(100) (opcional)
-    if ((formData.descripcion || "").length > 100) {
-      e.descripcion = "Máximo 100 caracteres";
-    }
-
-    // precio: numeric(10,2) > 0
-    const precioOk =
-      Number.isFinite(parseFloat(formData.precio)) &&
-      toMoney2(formData.precio) > 0;
-    if (!precioOk)
-      e.precio = "El precio debe ser un número mayor a 0 (2 decimales)";
-
-    // stock: int >= 0
+    if ((formData.descripcion || "").length > 100) e.descripcion = "Máximo 100 caracteres";
+    const precioOk = Number.isFinite(parseFloat(formData.precio)) && toMoney2(formData.precio) > 0;
+    if (!precioOk) e.precio = "El precio debe ser un número mayor a 0 (2 decimales)";
     const stockN = toInt(formData.stock, NaN);
-    if (!Number.isFinite(stockN) || stockN < 0)
-      e.stock = "El stock debe ser un entero ≥ 0";
-
-    // stockMinimo: int >= 0
+    if (!Number.isFinite(stockN) || stockN < 0) e.stock = "El stock debe ser un entero ≥ 0";
     const stockMinN = toInt(formData.stockMinimo, NaN);
-    if (!Number.isFinite(stockMinN) || stockMinN < 0)
-      e.stockMinimo = "El stock mínimo debe ser un entero ≥ 0";
-
-    // FK requeridas
+    if (!Number.isFinite(stockMinN) || stockMinN < 0) e.stockMinimo = "El stock mínimo debe ser un entero ≥ 0";
     if (!formData.idCategoria) e.idCategoria = "Debe seleccionar una categoría";
     if (!formData.idUbicacion) e.idUbicacion = "Debe seleccionar una ubicación";
-
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -167,33 +126,35 @@ export default function ProductForm({
     e.preventDefault();
     if (!validarFormulario()) return;
 
-    // Normalizar para API (camelCase típico en .NET)
     const payload = {
       nombre: formData.nombre.trim(),
       marca: formData.marca.trim(),
       descripcion: formData.descripcion?.trim() || "",
-      precio: toMoney2(formData.precio, 0), // number con 2 decimales
-      stock: toInt(formData.stock, 0), // int
-      stockMinimo: toInt(formData.stockMinimo, 0), // int (camelCase)
+      precio: toMoney2(formData.precio, 0),
+      stock: toInt(formData.stock, 0),
+      stockMinimo: toInt(formData.stockMinimo, 0),
       ventaSinStock: Boolean(formData.ventaSinStock),
       idUbicacion: toInt(formData.idUbicacion, 0),
       idCategoria: toInt(formData.idCategoria, 0),
       activo: true,
-      codigoBarras: agregarCodigosBarras ? codigosBarras : [],
+      // En edición: preserva los barcodes existentes sin tocarlos
+      // En alta: envía los barcodes ingresados en el form
+      codigoBarras: esEdicion ? codigosBarras : (agregarCodigosBarras ? codigosBarras : []),
     };
+
     if (producto?.id ?? producto?.id_producto ?? producto?.idProducto) {
       const anyId = producto.id ?? producto.id_producto ?? producto.idProducto;
-      payload.id = anyId; // útil para la UI/state local
-      payload.idProducto = anyId; // útil para la API .NET si espera esta clave
+      payload.id = anyId;
+      payload.idProducto = anyId;
     }
 
     onSubmit(payload);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Nombre + Marca */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Nombre */}
         <div className="space-y-2">
           <Label htmlFor="nombre">Nombre *</Label>
           <Input
@@ -203,12 +164,8 @@ export default function ProductForm({
             placeholder="Nombre del producto"
             className={errores.nombre ? "border-destructive" : ""}
           />
-          {errores.nombre && (
-            <p className="text-sm text-destructive">{errores.nombre}</p>
-          )}
+          {errores.nombre && <p className="text-sm text-destructive">{errores.nombre}</p>}
         </div>
-
-        {/* Marca */}
         <div className="space-y-2">
           <Label htmlFor="marca">Marca *</Label>
           <Input
@@ -219,137 +176,7 @@ export default function ProductForm({
             placeholder="Marca (máx. 100)"
             className={errores.marca ? "border-destructive" : ""}
           />
-          {errores.marca && (
-            <p className="text-sm text-destructive">{errores.marca}</p>
-          )}
-        </div>
-
-        {/* Precio */}
-        <div className="space-y-2">
-          <Label htmlFor="precio">Precio *</Label>
-          <Input
-            id="precio"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.precio}
-            onChange={(e) => handleInputChange("precio", e.target.value)}
-            placeholder="0.00"
-            className={errores.precio ? "border-destructive" : ""}
-          />
-          {errores.precio && (
-            <p className="text-sm text-destructive">{errores.precio}</p>
-          )}
-        </div>
-
-        {/* Stock */}
-        <div className="space-y-2">
-          <Label htmlFor="stock">Stock *</Label>
-          <Input
-            id="stock"
-            type="number"
-            min="0"
-            value={formData.stock}
-            onChange={(e) => handleInputChange("stock", e.target.value)}
-            placeholder="0"
-            className={errores.stock ? "border-destructive" : ""}
-          />
-          {errores.stock && (
-            <p className="text-sm text-destructive">{errores.stock}</p>
-          )}
-        </div>
-
-        {/* Stock Mínimo */}
-        <div className="space-y-2">
-          <Label htmlFor="stockMinimo">Stock Mínimo *</Label>
-          <Input
-            id="stockMinimo"
-            type="number"
-            min="0"
-            value={formData.stockMinimo}
-            onChange={(e) => handleInputChange("stockMinimo", e.target.value)}
-            placeholder="0"
-            className={errores.stockMinimo ? "border-destructive" : ""}
-          />
-          {errores.stockMinimo && (
-            <p className="text-sm text-destructive">{errores.stockMinimo}</p>
-          )}
-        </div>
-
-        {/* Categoría */}
-        <div className="space-y-2">
-          <Label htmlFor="categoria">Categoría *</Label>
-          <Select
-            value={formData.idCategoria || undefined}
-            onValueChange={(v) => handleInputChange("idCategoria", v)}
-          >
-            <SelectTrigger
-              id="categoria"
-              className={errores.idCategoria ? "border-destructive" : ""}
-            >
-              <SelectValue placeholder="Seleccionar categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              {categorias.map((c) => {
-                const cid = c.idCategoria ?? c.id;
-                return (
-                  <SelectItem key={cid} value={String(cid)}>
-                    {c.categoria}
-                  </SelectItem>
-                )
-              })}
-            </SelectContent>
-          </Select>
-          {errores.idCategoria && (
-            <p className="text-sm text-destructive">{errores.idCategoria}</p>
-          )}
-        </div>
-
-        {/* Ubicación */}
-        <div className="space-y-2">
-          <Label htmlFor="ubicacion">Ubicación *</Label>
-          <Select
-            value={formData.idUbicacion || undefined}
-            onValueChange={(v) => handleInputChange("idUbicacion", v)}
-          >
-            <SelectTrigger
-              id="ubicacion"
-              className={errores.idUbicacion ? "border-destructive" : ""}
-            >
-              <SelectValue placeholder="Seleccionar ubicación" />
-            </SelectTrigger>
-            <SelectContent>
-              {ubicaciones.map((u) => {
-                const uid = u.idUbicacion ?? u.id;
-                const label =
-                  [u.fila, u.seccion, u.nivel].some((v) => v !== undefined)
-                    ? `${u.fila ?? ''} ${u.seccion ?? ''} ${u.nivel ?? ''}`.trim()
-                    : u.nombre ?? `Ubicación ${uid}`;
-                return (
-                  <SelectItem key={uid} value={String(uid)}>
-                    {label}
-                  </SelectItem>
-                )
-              })}
-            </SelectContent>
-          </Select>
-          {errores.idUbicacion && (
-            <p className="text-sm text-destructive">{errores.idUbicacion}</p>
-          )}
-        </div>
-
-        {/* Venta sin stock (bool) */}
-         <div className="space-y-2">
-          <Label htmlFor="ventaSinStock">Permitir venta sin stock</Label>
-          <div className="flex items-center gap-2">
-            <input
-              id="ventaSinStock"
-              type="checkbox"
-              checked={formData.ventaSinStock}
-              onChange={(e) => handleInputChange("ventaSinStock", e.target.checked)}
-            />
-            <span className="text-sm text-muted-foreground">Habilita vender con stock 0</span>
-          </div>
+          {errores.marca && <p className="text-sm text-destructive">{errores.marca}</p>}
         </div>
       </div>
 
@@ -362,112 +189,181 @@ export default function ProductForm({
           value={formData.descripcion}
           onChange={(e) => handleInputChange("descripcion", e.target.value)}
           placeholder="Descripción del producto (opcional, máx. 100)"
-          rows={3}
+          rows={2}
           className={errores.descripcion ? "border-destructive" : ""}
         />
-        {errores.descripcion && (
-          <p className="text-sm text-destructive">{errores.descripcion}</p>
-        )}
+        {errores.descripcion && <p className="text-sm text-destructive">{errores.descripcion}</p>}
       </div>
 
-      {/* Códigos de Barra */}
-      <div className="space-y-4 border rounded-lg p-4">
-        <div className="flex items-center gap-2">
-          <input
-            id="agregarCodigosBarras"
-            type="checkbox"
-            checked={agregarCodigosBarras}
-            onChange={(e) => handleToggleCodigosBarras(e.target.checked)}
-            className="h-4 w-4"
-          />
-          <Label htmlFor="agregarCodigosBarras" className="cursor-pointer flex items-center gap-2">
-            <Barcode className="h-4 w-4" />
-            Agregar códigos de barra
-          </Label>
-        </div>
+      {/* Precio */}
+      <div className="space-y-2">
+        <Label htmlFor="precio">Precio *</Label>
+        <Input
+          id="precio"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.precio}
+          onChange={(e) => handleInputChange("precio", e.target.value)}
+          placeholder="0.00"
+          className={errores.precio ? "border-destructive" : ""}
+        />
+        {errores.precio && <p className="text-sm text-destructive">{errores.precio}</p>}
+      </div>
 
-        {agregarCodigosBarras && (
-          <div className="space-y-4 pl-6">
-            <div className="flex gap-2">
-              <div className="flex-1 space-y-2">
-                <Input
-                  type="text"
-                  value={codigoBarraInput}
-                  onChange={(e) => {
-                    setCodigoBarraInput(e.target.value);
-                    setErrorCodigoBarra("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAgregarCodigoBarra();
-                    }
-                  }}
-                  placeholder="Ingrese código de barra"
-                  className={errorCodigoBarra ? "border-destructive" : ""}
-                />
-                {errorCodigoBarra && (
-                  <p className="text-sm text-destructive">{errorCodigoBarra}</p>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleAgregarCodigoBarra}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Añadir código
-              </Button>
+      {/* Stock + Stock Mínimo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="stock">Stock *</Label>
+          <Input
+            id="stock"
+            type="number"
+            min="0"
+            value={formData.stock}
+            onChange={(e) => handleInputChange("stock", e.target.value)}
+            placeholder="0"
+            className={errores.stock ? "border-destructive" : ""}
+          />
+          {errores.stock && <p className="text-sm text-destructive">{errores.stock}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="stockMinimo">Stock Mínimo *</Label>
+          <Input
+            id="stockMinimo"
+            type="number"
+            min="0"
+            value={formData.stockMinimo}
+            onChange={(e) => handleInputChange("stockMinimo", e.target.value)}
+            placeholder="0"
+            className={errores.stockMinimo ? "border-destructive" : ""}
+          />
+          {errores.stockMinimo && <p className="text-sm text-destructive">{errores.stockMinimo}</p>}
+        </div>
+      </div>
+
+      {/* Categoría + Ubicación */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="categoria">Categoría *</Label>
+          <Select
+            value={formData.idCategoria || undefined}
+            onValueChange={(v) => handleInputChange("idCategoria", v)}
+          >
+            <SelectTrigger id="categoria" className={errores.idCategoria ? "border-destructive" : ""}>
+              <SelectValue placeholder="Seleccionar categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              {categorias.map((c) => {
+                const cid = c.idCategoria ?? c.id;
+                return <SelectItem key={cid} value={String(cid)}>{c.categoria}</SelectItem>;
+              })}
+            </SelectContent>
+          </Select>
+          {errores.idCategoria && <p className="text-sm text-destructive">{errores.idCategoria}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ubicacion">Ubicación *</Label>
+          <Select
+            value={formData.idUbicacion || undefined}
+            onValueChange={(v) => handleInputChange("idUbicacion", v)}
+          >
+            <SelectTrigger id="ubicacion" className={errores.idUbicacion ? "border-destructive" : ""}>
+              <SelectValue placeholder="Seleccionar ubicación" />
+            </SelectTrigger>
+            <SelectContent>
+              {ubicaciones.map((u) => {
+                const uid = u.idUbicacion ?? u.id;
+                const label =
+                  [u.fila, u.seccion, u.nivel].some((v) => v !== undefined)
+                    ? `${u.seccion ?? ""}-${u.fila ?? ""}-${u.nivel ?? ""}`.trim()
+                    : u.nombre ?? `Ubicación ${uid}`;
+                return <SelectItem key={uid} value={String(uid)}>{label}</SelectItem>;
+              })}
+            </SelectContent>
+          </Select>
+          {errores.idUbicacion && <p className="text-sm text-destructive">{errores.idUbicacion}</p>}
+        </div>
+      </div>
+
+      {/* Venta sin stock + códigos de barra — solo en alta */}
+      {!esEdicion && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-2">
+            <input
+              id="ventaSinStock"
+              type="checkbox"
+              checked={formData.ventaSinStock}
+              onChange={(e) => handleInputChange("ventaSinStock", e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="ventaSinStock" className="cursor-pointer font-normal">
+              Permitir venta sin stock
+            </Label>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                id="agregarCodigosBarras"
+                type="checkbox"
+                checked={agregarCodigosBarras}
+                onChange={(e) => handleToggleCodigosBarras(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="agregarCodigosBarras" className="cursor-pointer flex items-center gap-2 font-normal">
+                <Barcode className="h-4 w-4" />
+                Agregar códigos de barra
+              </Label>
             </div>
 
-            {codigosBarras.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Códigos agregados ({codigosBarras.length}):</Label>
-                <div className="flex flex-wrap gap-2">
-                  {codigosBarras.map((cb) => (
-                    <Badge
-                      key={cb.codigo}
-                      variant="secondary"
-                      className="pl-3 pr-1 py-1 gap-2 text-sm"
-                    >
-                      <Barcode className="h-3 w-3" />
-                      {cb.codigo}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEliminarCodigoBarra(cb.codigo)}
-                        className="h-5 w-5 p-0 hover:bg-destructive/20"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  ))}
+            {agregarCodigosBarras && (
+              <div className="border rounded-lg p-3 space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={codigoBarraInput}
+                    onChange={(e) => { setCodigoBarraInput(e.target.value); setErrorCodigoBarra(""); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAgregarCodigoBarra(); } }}
+                    placeholder="Código de barra"
+                    className={errorCodigoBarra ? "border-destructive" : ""}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={handleAgregarCodigoBarra}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
+                {errorCodigoBarra && <p className="text-sm text-destructive">{errorCodigoBarra}</p>}
+
+                {codigosBarras.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {codigosBarras.map((cb) => (
+                      <Badge key={cb.codigo} variant="secondary" className="pl-3 pr-1 py-1 gap-2 text-sm">
+                        <Barcode className="h-3 w-3" />
+                        {cb.codigo}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEliminarCodigoBarra(cb.codigo)}
+                          className="h-5 w-5 p-0 hover:bg-destructive/20"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-
-            {codigosBarras.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                Puede añadir más códigos de barra usando el campo de arriba.
-              </p>
-            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-4">
         <Button type="submit" className="gap-2">
           <Save className="h-4 w-4" />
-          {producto ? "Actualizar" : "Crear"} Producto
+          {esEdicion ? "Actualizar" : "Crear"} Producto
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="gap-2 bg-transparent"
-        >
+        <Button type="button" variant="outline" onClick={onCancel} className="gap-2 bg-transparent">
           <X className="h-4 w-4" />
           Cancelar
         </Button>

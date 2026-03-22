@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,493 +16,501 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getMovementTypes, registerMovement, getPendingSales } from "@/services/CurrentAccountQueries";
+import {
+  registerMovement,
+  registerDebitNote,
+  getDebitNoteReasons,
+} from "@/services/CurrentAccountQueries";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import {
+  Loader2,
+  CreditCard,
+  Banknote,
+  TrendingUp,
+  FileMinus,
+  X,
+  AlertCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const MODES = {
+  GLOBAL: "global",
+  PARCIAL: "parcial",
+  FAVOR: "favor",
+  NOTA_DEBITO: "nota_debito",
+};
+
+const formatCurrency = (amount) => {
+  if (amount === null || amount === undefined) return "-";
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+  }).format(amount);
+};
+
+const ACTION_CARDS = [
+  {
+    mode: MODES.GLOBAL,
+    icon: CreditCard,
+    title: "Pago global",
+    description: "Salda el total de la deuda en un solo pago.",
+    activeWhen: (balance) => balance > 0,
+    disabledReason: "El cliente no tiene deuda",
+  },
+  {
+    mode: MODES.PARCIAL,
+    icon: Banknote,
+    title: "Pago parcial",
+    description: "Ingresá el monto que querés abonar.",
+    activeWhen: (balance) => balance > 0,
+    disabledReason: "El cliente no tiene deuda",
+  },
+  {
+    mode: MODES.FAVOR,
+    icon: TrendingUp,
+    title: "Pago a favor",
+    description: "Acreditá saldo a favor del cliente.",
+    activeWhen: (balance) => balance <= 0,
+    disabledReason: "El cliente tiene deuda pendiente",
+  },
+  {
+    mode: MODES.NOTA_DEBITO,
+    icon: FileMinus,
+    title: "Nota de Débito",
+    description: "Aplicá un cargo adicional a la cuenta.",
+    activeWhen: () => true,
+    disabledReason: null,
+  },
+];
 
 export default function ManageAccountMovementForm({
-  onCancel,
+  open,
+  onClose,
   clientId,
   currentBalance,
-  onMovementRegistered
+  onMovementRegistered,
 }) {
-  const [movementTypes, setMovementTypes] = useState([]);
-  const [loadingTypes, setLoadingTypes] = useState(true);
+  const [selectedMode, setSelectedMode] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form state
-  const [selectedType, setSelectedType] = useState(null);
-  const [paymentMode, setPaymentMode] = useState("global"); // "global" or "sale"
-  const [paymentType, setPaymentType] = useState("total"); // "total" or "parcial"
+  // Estado para pagos
   const [amount, setAmount] = useState("");
 
-  // Sales payment state
-  const [pendingSales, setPendingSales] = useState([]);
-  const [selectedSale, setSelectedSale] = useState(null);
-  const [loadingSales, setLoadingSales] = useState(false);
+  // Estado para Nota de Débito
+  const [motivos, setMotivos] = useState([]);
+  const [loadingMotivos, setLoadingMotivos] = useState(false);
+  const [selectedMotivo, setSelectedMotivo] = useState("");
+  const [importeND, setImporteND] = useState("");
+  const [detalleND, setDetalleND] = useState("");
 
+  // Auto-fill amount cuando se selecciona pago global
   useEffect(() => {
-    loadMovementTypes();
-  }, []);
-
-  useEffect(() => {
-    // Load pending sales when mode is "sale"
-    if (paymentMode === "sale") {
-      loadPendingSales();
-    } else {
-      // Reset sale selection when switching to global mode
-      setSelectedSale(null);
-      setPendingSales([]);
-    }
-  }, [paymentMode]);
-
-  useEffect(() => {
-    // Auto-fill amount when payment type is "total"
-    const referenceBalance = paymentMode === "sale" && selectedSale
-      ? selectedSale.saldoPendiente
-      : currentBalance;
-
-    if (paymentType === "total" && referenceBalance && referenceBalance > 0) {
-      setAmount(referenceBalance.toString());
-    } else if (paymentType === "parcial") {
+    if (selectedMode === MODES.GLOBAL) {
+      setAmount(currentBalance.toString());
+    } else if (selectedMode !== MODES.PARCIAL && selectedMode !== MODES.FAVOR) {
       setAmount("");
     }
-  }, [paymentType, currentBalance, selectedSale, paymentMode]);
+  }, [selectedMode]);
 
+  // Cargar motivos cuando se selecciona Nota de Débito (solo categoría "general")
   useEffect(() => {
-    // Reset payment type when changing sale
-    if (paymentMode === "sale" && selectedSale) {
-      setPaymentType("total");
+    if (selectedMode === MODES.NOTA_DEBITO && motivos.length === 0) {
+      const load = async () => {
+        try {
+          setLoadingMotivos(true);
+          const data = await getDebitNoteReasons(true, "general");
+          setMotivos(data || []);
+        } catch {
+          toast.error("No se pudieron cargar los motivos de nota de débito.");
+        } finally {
+          setLoadingMotivos(false);
+        }
+      };
+      load();
     }
-  }, [selectedSale, paymentMode]);
-
-  useEffect(() => {
-    // If balance is 0 in global mode, force payment type to "parcial"
-    if (paymentMode === "global" && currentBalance === 0) {
-      setPaymentType("parcial");
-    }
-  }, [currentBalance, paymentMode]);
-
-  const loadMovementTypes = async () => {
-    try {
-      setLoadingTypes(true);
-      const types = await getMovementTypes();
-      setMovementTypes(types);
-
-      // Auto-select "pago_global" if available
-      const pagoGlobal = types.find(t => t.nombre === "pago_global");
-      if (pagoGlobal) {
-        setSelectedType(pagoGlobal);
-      }
-    } catch (error) {
-      toast.error("Error al cargar los tipos de movimiento");
-      console.error("Error loading movement types:", error);
-    } finally {
-      setLoadingTypes(false);
-    }
-  };
-
-  const loadPendingSales = async () => {
-    try {
-      setLoadingSales(true);
-      const sales = await getPendingSales(clientId);
-      setPendingSales(sales);
-
-      if (sales.length === 0) {
-        toast.info("Este cliente no tiene ventas pendientes de pago");
-      }
-    } catch (error) {
-      toast.error("Error al cargar las ventas pendientes");
-      console.error("Error loading pending sales:", error);
-    } finally {
-      setLoadingSales(false);
-    }
-  };
-
-  const getPaymentTypeLabel = () => {
-    return paymentType === "total" ? "Pago Total" : "Pago Parcial";
-  };
+  }, [selectedMode]);
 
   const generateDetail = () => {
-    const formattedAmount = parseFloat(amount).toLocaleString("es-AR", {
+    const parsed = parseFloat(amount);
+    const formatted = parsed.toLocaleString("es-AR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
 
-    if (paymentMode === "sale" && selectedSale) {
-      // Payment for specific sale
-      if (paymentType === "total") {
-        return `Pago total de venta ${selectedSale.codigoVenta} - $${formattedAmount}`;
-      } else {
-        return `Pago parcial de venta ${selectedSale.codigoVenta} - $${formattedAmount}`;
-      }
-    } else {
-      // Global payment
-      if (currentBalance === 0) {
-        return `Pago a favor del cliente - $${formattedAmount}`;
-      } else if (paymentType === "total") {
-        return `Pago total de cuenta corriente - $${formattedAmount}`;
-      } else {
-        return `Pago parcial de cuenta corriente - $${formattedAmount}`;
-      }
+    if (selectedMode === MODES.FAVOR) {
+      return `Pago a favor del cliente - $${formatted}`;
     }
+    if (selectedMode === MODES.PARCIAL) {
+      return `Pago parcial de cuenta corriente - $${formatted}`;
+    }
+    if (parsed >= currentBalance) {
+      return `Pago total de cuenta corriente - $${formatted}`;
+    }
+    return `Pago parcial de cuenta corriente - $${formatted}`;
   };
 
-  const validateForm = () => {
-    if (paymentMode === "sale" && !selectedSale) {
-      toast.error("Debe seleccionar una venta para pagar");
-      return false;
-    }
+  const getGlobalAmountHint = () => {
+    const parsed = parseFloat(amount);
+    if (!parsed || parsed <= 0) return null;
 
-    if (!amount || parseFloat(amount) <= 0) {
+    if (parsed > currentBalance) {
+      const aFavor = parsed - currentBalance;
+      return {
+        text: `Salda la deuda completa y deja ${formatCurrency(aFavor)} a favor`,
+        color: "text-green-600",
+      };
+    }
+    if (parsed === currentBalance) {
+      return { text: "Salda la deuda completa", color: "text-primary" };
+    }
+    const resta = currentBalance - parsed;
+    return {
+      text: `Pago parcial — quedará una deuda de ${formatCurrency(resta)}`,
+      color: "text-yellow-600",
+    };
+  };
+
+  const validatePayment = () => {
+    const parsed = parseFloat(amount);
+    if (!amount || parsed <= 0) {
       toast.error("El monto debe ser mayor a 0");
       return false;
     }
-
-    // Validate against the appropriate balance
-    if (paymentMode === "sale" && selectedSale) {
-      if (parseFloat(amount) > selectedSale.saldoPendiente) {
-        toast.error(`El monto no puede ser mayor al saldo pendiente de la venta ($${selectedSale.saldoPendiente.toLocaleString("es-AR")})`);
-        return false;
-      }
-    } else if (paymentMode === "global") {
-      // Only validate against balance if balance > 0
-      if (currentBalance > 0 && parseFloat(amount) > currentBalance) {
-        toast.error(`El monto no puede ser mayor al saldo actual ($${currentBalance.toLocaleString("es-AR")})`);
-        return false;
-      }
+    if (selectedMode === MODES.PARCIAL && parsed >= currentBalance) {
+      toast.error(
+        `El monto parcial debe ser menor al saldo actual (${formatCurrency(currentBalance)})`
+      );
+      return false;
     }
+    return true;
+  };
 
+  const validateND = () => {
+    if (!selectedMotivo) {
+      toast.error("Seleccioná un motivo para la nota de débito.");
+      return false;
+    }
+    const parsed = parseFloat(importeND);
+    if (!importeND || parsed <= 0) {
+      toast.error("El importe debe ser mayor que 0.");
+      return false;
+    }
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (selectedMode === MODES.NOTA_DEBITO) {
+      if (!validateND()) return;
+      try {
+        setSubmitting(true);
+        await registerDebitNote({
+          idCliente: clientId,
+          importe: parseFloat(importeND),
+          idMotivo: parseInt(selectedMotivo),
+          detalleAdicional: detalleND.trim() || null,
+          idVenta: null,
+          idUsuarioRegistra: 1, // TODO: reemplazar con auth real
+        });
+        toast.success("Nota de débito registrada exitosamente.");
+        onMovementRegistered?.();
+        onClose();
+      } catch (error) {
+        toast.error(error.message || "Error al registrar la nota de débito.");
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
+    if (!validatePayment()) return;
     try {
       setSubmitting(true);
-
-      // Determine the movement type ID
-      // 6 = PAGO_GLOBAL (global payment)
-      // 8 = PAGO_FACTURA (sale-specific payment)
-      const tipoMovimiento = paymentMode === "sale" ? 8 : 6;
-
-      const movementData = {
+      await registerMovement({
         idCliente: clientId,
         importe: parseFloat(amount),
         detalle: generateDetail(),
-        idTipoMovimiento: tipoMovimiento,
-        idVenta: paymentMode === "sale" && selectedSale ? selectedSale.idVenta : null,
-        idUsuarioRegistra: 1, // TODO: Get from user context
-      };
-
-      await registerMovement(movementData);
-
+        idTipoMovimiento: selectedMode === MODES.PARCIAL ? 11 : 6, // 11 = PAGO_PARCIAL, 6 = PAGO_GLOBAL / PAGO_A_FAVOR
+        idVenta: 0,
+        idUsuarioRegistra: 1, // TODO: reemplazar con auth real
+      });
       toast.success("Movimiento registrado exitosamente");
-
-      // Call callback to refresh movements
-      if (onMovementRegistered) {
-        onMovementRegistered();
-      }
-
-      // Reset form and close
-      setPaymentMode("global");
-      setPaymentType("total");
-      setAmount("");
-      setSelectedSale(null);
-      onCancel();
+      onMovementRegistered?.();
+      onClose();
     } catch (error) {
       toast.error(error.message || "Error al registrar el movimiento");
-      console.error("Error registering movement:", error);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatCurrency = (value) => {
-    if (!value) return "$0,00";
-    return `$${parseFloat(value).toLocaleString("es-AR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+  const handleSelectMode = (mode) => {
+    setSelectedMode((prev) => (prev === mode ? null : mode));
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Gestionar Cuenta Corriente</CardTitle>
-        <CardDescription>
-          Registre movimientos en la cuenta corriente del cliente
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loadingTypes ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Current Balance Info */}
-            <Card className="bg-muted/50">
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Saldo Actual:
-                  </span>
-                  <span className="text-2xl font-bold">
-                    {formatCurrency(currentBalance)}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+  const handleCancelForm = useCallback(() => {
+    setSelectedMode(null);
+    setAmount("");
+    setSelectedMotivo("");
+    setImporteND("");
+    setDetalleND("");
+  }, []);
 
-            {/* Payment Mode Selector */}
-            <div className="space-y-3">
-              <Label>Modo de Pago</Label>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="mode-global"
-                    name="payment-mode"
-                    value="global"
-                    checked={paymentMode === "global"}
-                    onChange={(e) => setPaymentMode(e.target.value)}
-                    disabled={submitting}
-                    className="h-4 w-4"
+  // Cerrar con Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !submitting) onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [submitting, onClose]);
+
+  const handleOpenChange = (isOpen) => {
+    if (!isOpen && !submitting) {
+      handleCancelForm();
+      onClose();
+    }
+  };
+
+  const globalHint = selectedMode === MODES.GLOBAL ? getGlobalAmountHint() : null;
+  const nuevoSaldoEstimadoND = currentBalance + parseFloat(importeND || 0);
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Gestionar Cuenta Corriente</DialogTitle>
+          <DialogDescription>Seleccioná el tipo de movimiento a registrar</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+        {/* Saldo actual */}
+        <div className="flex justify-between items-center rounded-lg border bg-muted/40 px-4 py-3">
+          <span className="text-sm font-medium text-muted-foreground">Saldo actual</span>
+          <span
+            className={cn(
+              "text-xl font-bold",
+              currentBalance > 0
+                ? "text-destructive"
+                : currentBalance < 0
+                ? "text-green-600"
+                : "text-muted-foreground"
+            )}
+          >
+            {formatCurrency(currentBalance)}
+          </span>
+        </div>
+
+        {/* Cards de acción */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {ACTION_CARDS.map(({ mode, icon: Icon, title, description, activeWhen, disabledReason }) => {
+            const disabled = !activeWhen(currentBalance);
+            const isSelected = selectedMode === mode;
+
+            return (
+              <button
+                key={mode}
+                type="button"
+                disabled={disabled}
+                onClick={() => handleSelectMode(mode)}
+                className={cn(
+                  "text-left rounded-lg border p-4 transition-all",
+                  disabled
+                    ? "cursor-not-allowed opacity-40 bg-muted/20"
+                    : "cursor-pointer hover:border-primary/50 hover:bg-muted/30",
+                  isSelected && !disabled
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-border"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      isSelected ? "text-primary" : "text-muted-foreground"
+                    )}
                   />
-                  <Label
-                    htmlFor="mode-global"
-                    className="font-normal cursor-pointer"
+                  <span
+                    className={cn(
+                      "text-sm font-semibold",
+                      isSelected ? "text-primary" : ""
+                    )}
                   >
-                    Pago Global - Saldar toda la deuda del cliente
-                  </Label>
+                    {title}
+                  </span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="mode-sale"
-                    name="payment-mode"
-                    value="sale"
-                    checked={paymentMode === "sale"}
-                    onChange={(e) => setPaymentMode(e.target.value)}
-                    disabled={submitting}
-                    className="h-4 w-4"
-                  />
-                  <Label
-                    htmlFor="mode-sale"
-                    className="font-normal cursor-pointer"
-                  >
-                    Pago de Venta Específica - Pagar una factura en particular
-                  </Label>
-                </div>
-              </div>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  {disabled ? disabledReason : description}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Formulario: pago */}
+        {selectedMode && selectedMode !== MODES.NOTA_DEBITO && (
+          <form onSubmit={handleSubmit} className="space-y-4 border-t pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">
+                {selectedMode === MODES.GLOBAL
+                  ? "Monto (saldo total)"
+                  : selectedMode === MODES.PARCIAL
+                  ? "Monto a pagar"
+                  : "Monto a acreditar a favor"}
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                disabled={submitting || selectedMode === MODES.GLOBAL}
+                placeholder="Ingrese el monto"
+                required
+                autoFocus={selectedMode !== MODES.GLOBAL}
+              />
+
+              {globalHint && (
+                <p className={cn("text-xs font-medium", globalHint.color)}>
+                  {globalHint.text}
+                </p>
+              )}
+
+              {selectedMode === MODES.PARCIAL && (
+                <p className="text-xs text-muted-foreground">
+                  Máximo: {formatCurrency(currentBalance)}
+                </p>
+              )}
             </div>
 
-            {/* Sale Selector - Only for sale mode */}
-            {paymentMode === "sale" && (
-              <div className="space-y-2">
-                <Label htmlFor="sale-selector">Seleccionar Venta</Label>
-                {loadingSales ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    <span className="text-sm text-muted-foreground">Cargando ventas...</span>
-                  </div>
-                ) : pendingSales.length === 0 ? (
-                  <Card className="bg-yellow-50 border-yellow-200">
-                    <CardContent className="pt-6">
-                      <p className="text-sm text-yellow-900">
-                        No hay ventas pendientes de pago para este cliente.
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <>
-                    <Select
-                      value={selectedSale?.idVenta.toString()}
-                      onValueChange={(value) => {
-                        const sale = pendingSales.find(
-                          (s) => s.idVenta.toString() === value
-                        );
-                        setSelectedSale(sale);
-                      }}
-                      disabled={submitting}
-                    >
-                      <SelectTrigger id="sale-selector">
-                        <SelectValue placeholder="Seleccione una venta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pendingSales.map((sale) => (
-                          <SelectItem
-                            key={sale.idVenta}
-                            value={sale.idVenta.toString()}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="font-mono">
-                                {sale.codigoVenta}
-                              </Badge>
-                              <span className="text-sm">
-                                Total: {formatCurrency(sale.totalVenta)} -
-                                Pendiente: {formatCurrency(sale.saldoPendiente)}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {/* Selected Sale Info */}
-                    {selectedSale && (
-                      <Card className="border-primary/20 bg-primary/5">
-                        <CardContent className="pt-6 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Venta:</span>
-                            <Badge variant="outline" className="font-mono">
-                              {selectedSale.codigoVenta}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Total Venta:</span>
-                            <span className="text-sm font-semibold">
-                              {formatCurrency(selectedSale.totalVenta)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Total Pagado:</span>
-                            <span className="text-sm">
-                              {formatCurrency(selectedSale.totalPagado)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center border-t pt-2">
-                            <span className="text-sm font-medium">Saldo Pendiente:</span>
-                            <span className="text-lg font-bold text-primary">
-                              {formatCurrency(selectedSale.saldoPendiente)}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </>
-                )}
+            {amount && parseFloat(amount) > 0 && (
+              <div className="rounded-md bg-muted/30 px-3 py-2 text-sm">
+                <span className="font-medium">Detalle: </span>
+                <span className="text-muted-foreground">{generateDetail()}</span>
               </div>
             )}
 
-            {/* Payment Type Selection */}
-            {((paymentMode === "global") || (paymentMode === "sale" && selectedSale)) && (
-              <>
-                {paymentMode === "global" && currentBalance === 0 ? (
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="pt-6">
-                      <p className="text-sm text-blue-900">
-                        <span className="font-semibold">Nota: </span>
-                        El cliente no tiene deuda. Cualquier pago quedará a favor del cliente y aumentará su límite de cuenta corriente.
-                      </p>
-                    </CardContent>
-                  </Card>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Registrando...
+                  </>
                 ) : (
-                  <div className="space-y-3">
-                    <Label>Tipo de Pago</Label>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          id="pago-total"
-                          name="payment-type"
-                          value="total"
-                          checked={paymentType === "total"}
-                          onChange={(e) => setPaymentType(e.target.value)}
-                          disabled={submitting}
-                          className="h-4 w-4"
-                        />
-                        <Label
-                          htmlFor="pago-total"
-                          className="font-normal cursor-pointer"
-                        >
-                          Pago Total - Saldar {paymentMode === "sale" ? "venta completa" : "deuda completa"} (
-                          {formatCurrency(paymentMode === "sale" ? selectedSale?.saldoPendiente : currentBalance)})
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          id="pago-parcial"
-                          name="payment-type"
-                          value="parcial"
-                          checked={paymentType === "parcial"}
-                          onChange={(e) => setPaymentType(e.target.value)}
-                          disabled={submitting}
-                          className="h-4 w-4"
-                        />
-                        <Label
-                          htmlFor="pago-parcial"
-                          className="font-normal cursor-pointer"
-                        >
-                          Pago Parcial - Ingresar monto específico
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
+                  "Registrar"
                 )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelForm}
+                disabled={submitting}
+              >
+                Volver
+              </Button>
+            </div>
+          </form>
+        )}
 
-                {/* Amount Input */}
-                <div className="space-y-2">
-                  <Label htmlFor="amount">
-                    {paymentMode === "global" && currentBalance === 0
-                      ? "Monto a Pagar (a favor del cliente)"
-                      : `Monto ${paymentType === "parcial" ? "a Pagar" : "(Auto-calculado)"}`
-                    }
-                  </Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={paymentMode === "sale" ? selectedSale?.saldoPendiente : (currentBalance > 0 ? currentBalance : undefined)}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    disabled={submitting || (paymentType === "total")}
-                    placeholder="Ingrese el monto"
-                    required
-                  />
-                  {paymentMode === "global" && currentBalance === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Este monto aumentará el límite de cuenta corriente del cliente
-                    </p>
-                  ) : (
-                    paymentType === "parcial" && (
-                      <p className="text-xs text-muted-foreground">
-                        Monto máximo: {formatCurrency(paymentMode === "sale" ? selectedSale?.saldoPendiente : currentBalance)}
-                      </p>
-                    )
-                  )}
-                </div>
-
-                {/* Preview of generated detail */}
-                {amount && parseFloat(amount) > 0 && (
-                  <Card className="bg-muted/30">
-                    <CardContent className="pt-6">
-                      <p className="text-sm">
-                        <span className="font-semibold">Detalle que se registrará: </span>
-                        <span className="text-muted-foreground">
-                          {generateDetail()}
-                        </span>
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
+        {/* Formulario: Nota de Débito */}
+        {selectedMode === MODES.NOTA_DEBITO && (
+          <form onSubmit={handleSubmit} className="space-y-4 border-t pt-4">
+            {currentBalance <= 0 && (
+              <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 px-3 py-2 text-sm text-blue-700 dark:text-blue-300">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  El cliente no tiene deuda activa. La nota de débito generará una nueva deuda.
+                </span>
+              </div>
             )}
 
-            {/* Botones de acción */}
+            <div className="space-y-2">
+              <Label htmlFor="nd-motivo">Motivo</Label>
+              {loadingMotivos ? (
+                <p className="text-sm text-muted-foreground">Cargando motivos...</p>
+              ) : motivos.length === 0 ? (
+                <p className="text-sm text-destructive">
+                  No hay motivos activos disponibles. Configurá uno en la sección de Configuración de CC.
+                </p>
+              ) : (
+                <Select
+                  value={selectedMotivo}
+                  onValueChange={setSelectedMotivo}
+                  disabled={submitting}
+                >
+                  <SelectTrigger id="nd-motivo">
+                    <SelectValue placeholder="Seleccionar motivo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {motivos.map((m) => (
+                      <SelectItem key={m.idMotivo} value={String(m.idMotivo)}>
+                        {m.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nd-importe">Importe</Label>
+              <Input
+                id="nd-importe"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={importeND}
+                onChange={(e) => setImporteND(e.target.value)}
+                disabled={submitting}
+                placeholder="Ingresá el importe"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nd-detalle">Detalle adicional (opcional)</Label>
+              <Input
+                id="nd-detalle"
+                type="text"
+                value={detalleND}
+                onChange={(e) => setDetalleND(e.target.value)}
+                disabled={submitting}
+                placeholder="Descripción adicional (opcional)"
+              />
+            </div>
+
+            {importeND && parseFloat(importeND) > 0 && (
+              <div className="rounded-md bg-muted/30 px-3 py-2 text-sm space-y-0.5">
+                <span className="font-medium">Efecto estimado: </span>
+                <span className="text-muted-foreground">
+                  {formatCurrency(currentBalance)}
+                  {" → "}
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      nuevoSaldoEstimadoND > 0 ? "text-destructive" : "text-green-600"
+                    )}
+                  >
+                    {formatCurrency(nuevoSaldoEstimadoND)}
+                  </span>
+                </span>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 type="submit"
-                disabled={submitting || (paymentMode === "sale" && !selectedSale)}
+                disabled={submitting || loadingMotivos || motivos.length === 0}
               >
                 {submitting ? (
                   <>
@@ -510,21 +518,22 @@ export default function ManageAccountMovementForm({
                     Registrando...
                   </>
                 ) : (
-                  "Registrar Movimiento"
+                  "Registrar nota de débito"
                 )}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={onCancel}
+                onClick={handleCancelForm}
                 disabled={submitting}
               >
-                Cancelar
+                Volver
               </Button>
             </div>
           </form>
         )}
-      </CardContent>
-    </Card>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

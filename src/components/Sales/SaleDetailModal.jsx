@@ -9,14 +9,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, User, CreditCard, Calendar, FileText, Download } from "lucide-react";
-import { fetchSaleById, downloadSalePdf } from "@/services/SaleQueries";
+import { Loader2, Package, User, CreditCard, Calendar, FileText, Download, Ban, XCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import { fetchSaleById, downloadSalePdf, downloadCreditNotePdf } from "@/services/SaleQueries";
 import { toast } from "sonner";
+import { usePermission } from "@/hooks/usePermission";
+import AnnulSaleDialog from "./AnnulSaleDialog";
 
-export default function SaleDetailModal({ open, onOpenChange, saleId }) {
+export default function SaleDetailModal({ open, onOpenChange, saleId, onSaleAnnulled }) {
+  const { hasPermission } = usePermission();
   const [saleDetail, setSaleDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showAnnulDialog, setShowAnnulDialog] = useState(false);
 
   useEffect(() => {
     if (open && saleId) {
@@ -42,7 +46,12 @@ export default function SaleDetailModal({ open, onOpenChange, saleId }) {
   const handleDownloadPdf = async () => {
     setIsDownloading(true);
     try {
-      await downloadSalePdf(saleDetail.idVenta || saleDetail.id || saleId, saleDetail.codigoVenta);
+      const id = saleDetail.idVenta || saleDetail.id || saleId;
+      if (isAnulada) {
+        await downloadCreditNotePdf(id, saleDetail.codigoVenta);
+      } else {
+        await downloadSalePdf(id, saleDetail.codigoVenta);
+      }
       toast.success("Comprobante descargado exitosamente");
     } catch (err) {
       toast.error("Error al descargar el comprobante", {
@@ -71,18 +80,28 @@ export default function SaleDetailModal({ open, onOpenChange, saleId }) {
   };
 
   const getEstadoBadge = (estado) => {
-    const variants = {
-      "Completada": "bg-green-100 text-green-800",
-      "Pendiente": "bg-yellow-100 text-yellow-800",
-      "Rechazada": "bg-red-100 text-red-800",
-    };
+    const estadoKey = estado?.toLowerCase() ?? "";
+    let className = "bg-gray-100 text-gray-800";
+    if (estadoKey.startsWith("aprobad") || estadoKey.startsWith("completad")) {
+      className = "bg-green-100 text-green-800";
+    } else if (estadoKey === "pendiente") {
+      className = "bg-yellow-100 text-yellow-800";
+    } else if (estadoKey.startsWith("rechazad") || estadoKey.startsWith("anulad")) {
+      className = "bg-red-100 text-red-800";
+    }
 
     return (
-      <Badge className={variants[estado] || "bg-gray-100 text-gray-800"}>
+      <Badge className={className}>
         {estado}
       </Badge>
     );
   };
+
+  const estadoLower = saleDetail?.estado?.toLowerCase() ?? "";
+  const isAnulada = estadoLower === "anulada";
+  // Maneja tanto "Aprobada"/"Aprobado" como "Completada"/"Completado" (backend puede devolver cualquier forma)
+  const canAnnul = hasPermission("CC_NOTE_CREDIT") && saleDetail &&
+    (estadoLower.startsWith("aprobad") || estadoLower.startsWith("completad"));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,24 +118,36 @@ export default function SaleDetailModal({ open, onOpenChange, saleId }) {
               </DialogDescription>
             </div>
             {saleDetail && (
-              <Button
-                onClick={handleDownloadPdf}
-                disabled={isDownloading}
-                size="sm"
-                className="shrink-0"
-              >
-                {isDownloading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Descargando...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Descargar PDF
-                  </>
+              <div className="flex gap-2 shrink-0 mr-8">
+                {canAnnul && (
+                  <Button
+                    onClick={() => setShowAnnulDialog(true)}
+                    size="sm"
+                    variant="destructive"
+                  >
+                    <Ban className="h-4 w-4 mr-2" />
+                    Anular Venta
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloading}
+                  size="sm"
+                  variant="outline"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Descargando...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      {isAnulada ? "Descargar NC" : "Descargar PDF"}
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </DialogHeader>
@@ -128,6 +159,44 @@ export default function SaleDetailModal({ open, onOpenChange, saleId }) {
           </div>
         ) : saleDetail ? (
           <div className="space-y-6">
+            {/* Banner de estado para ventas finalizadas (no completadas normalmente) */}
+            {isAnulada && (
+              <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                <XCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-red-900">Venta Anulada</p>
+                  <p className="text-sm text-red-700">Esta venta fue anulada. Se generó una nota de crédito correspondiente.</p>
+                </div>
+              </div>
+            )}
+            {estadoLower.startsWith("rechazad") && (
+              <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                <XCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-red-900">Venta Rechazada</p>
+                  <p className="text-sm text-red-700">Esta venta fue rechazada y nunca se efectuó.</p>
+                </div>
+              </div>
+            )}
+            {estadoLower.startsWith("aprobad") && (
+              <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg p-4">
+                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-green-900">Venta Aprobada</p>
+                  <p className="text-sm text-green-700">Esta venta fue aprobada y procesada exitosamente.</p>
+                </div>
+              </div>
+            )}
+            {estadoLower === "pendiente" && (
+              <div className="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-yellow-900">Venta Pendiente de Autorización</p>
+                  <p className="text-sm text-yellow-700">Esta venta está esperando aprobación de un administrador.</p>
+                </div>
+              </div>
+            )}
+
             {/* Información General */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
               <div className="space-y-3">
@@ -251,6 +320,16 @@ export default function SaleDetailModal({ open, onOpenChange, saleId }) {
           </div>
         ) : null}
       </DialogContent>
+
+      <AnnulSaleDialog
+        open={showAnnulDialog}
+        onOpenChange={setShowAnnulDialog}
+        sale={saleDetail}
+        onSuccess={() => {
+          loadSaleDetail();
+          onSaleAnnulled?.();
+        }}
+      />
     </Dialog>
   );
 }
