@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -211,59 +211,77 @@ export default function AccountConfigPage() {
           </Button>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="limite-cc">Límite de CC</TabsTrigger>
-            <TabsTrigger value="motivos-nd">Motivos de Nota de Débito</TabsTrigger>
-            {hasPermission("CC_NOTE_CREDIT") && (
-              <TabsTrigger value="motivos-nc">Motivos de Nota de Crédito</TabsTrigger>
+        {/* Filtros de sección */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { key: "limite-cc",     label: "Límite de CC",               color: "border-primary",    visible: true },
+            { key: "motivos-nd",    label: "Motivos de Nota de Débito",   color: "border-amber-500",  visible: true },
+            { key: "motivos-nc",    label: "Motivos de Nota de Crédito",  color: "border-blue-500",   visible: hasPermission("CC_NOTE_CREDIT") },
+            { key: "config-interes",label: "Configuración de Interés",    color: "border-purple-500", visible: hasPermission("CC_MANAGE") },
+          ].filter((s) => s.visible).map((section) => {
+            const isActive = activeTab === section.key;
+            return (
+              <Card
+                key={section.key}
+                onClick={() => setActiveTab(section.key)}
+                className={`cursor-pointer border ${isActive ? section.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+              >
+                <CardHeader className="p-1">
+                  <CardTitle className="text-base font-medium">{section.label}</CardTitle>
+                </CardHeader>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Límite de CC */}
+        {activeTab === "limite-cc" && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: "activas",   label: `Activas (${configsActivas.length})`,   color: "border-primary" },
+                { key: "inactivas", label: `Inactivas (${configsInactivas.length})`,color: "border-red-500" },
+              ].map((sub) => {
+                const isActive = limiteCCSubTab === sub.key;
+                return (
+                  <Card
+                    key={sub.key}
+                    onClick={() => setLimiteCCSubTab(sub.key)}
+                    className={`cursor-pointer border ${isActive ? sub.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                  >
+                    <CardHeader className="p-1">
+                      <CardTitle className="text-lg font-medium">{sub.label}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
+            </div>
+            {limiteCCSubTab === "activas" && (
+              loadingActivas ? (
+                <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+              ) : (
+                <AccountConfigTable configs={configsActivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={true} />
+              )
             )}
-            {hasPermission("CC_MANAGE") && (
-              <TabsTrigger value="config-interes">Configuración de Interés</TabsTrigger>
+            {limiteCCSubTab === "inactivas" && (
+              loadingInactivas ? (
+                <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+              ) : (
+                <AccountConfigTable configs={configsInactivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={false} />
+              )
             )}
-          </TabsList>
+          </div>
+        )}
 
-          {/* Límite de CC */}
-          <TabsContent value="limite-cc" className="space-y-4">
-            <Tabs value={limiteCCSubTab} onValueChange={setLimiteCCSubTab}>
-              <TabsList className="grid w-full max-w-xs grid-cols-2">
-                <TabsTrigger value="activas">Activas ({configsActivas.length})</TabsTrigger>
-                <TabsTrigger value="inactivas">Inactivas ({configsInactivas.length})</TabsTrigger>
-              </TabsList>
-              <TabsContent value="activas" className="mt-4">
-                {loadingActivas ? (
-                  <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-                ) : (
-                  <AccountConfigTable configs={configsActivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={true} />
-                )}
-              </TabsContent>
-              <TabsContent value="inactivas" className="mt-4">
-                {loadingInactivas ? (
-                  <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-                ) : (
-                  <AccountConfigTable configs={configsInactivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={false} />
-                )}
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
+        {activeTab === "motivos-nd" && <DebitNoteReasonManager ref={ndRef} />}
 
-          <TabsContent value="motivos-nd" className="space-y-4">
-            <DebitNoteReasonManager ref={ndRef} />
-          </TabsContent>
+        {activeTab === "motivos-nc" && hasPermission("CC_NOTE_CREDIT") && (
+          <CreditNoteReasonManager ref={ncRef} />
+        )}
 
-          {hasPermission("CC_NOTE_CREDIT") && (
-            <TabsContent value="motivos-nc" className="space-y-4">
-              <CreditNoteReasonManager ref={ncRef} />
-            </TabsContent>
-          )}
-
-          {hasPermission("CC_MANAGE") && (
-            <TabsContent value="config-interes" className="space-y-4">
-              <InterestConfigManager ref={intRef} />
-            </TabsContent>
-          )}
-        </Tabs>
+        {activeTab === "config-interes" && hasPermission("CC_MANAGE") && (
+          <InterestConfigManager ref={intRef} />
+        )}
 
         {/* Dialog crear / editar Límite CC */}
         <Dialog open={modalOpen} onOpenChange={(open) => { if (!open) handleCloseModal(); }}>

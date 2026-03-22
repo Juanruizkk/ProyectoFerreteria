@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Layers, Plus } from "lucide-react"
 import PermissionGuard from "@/components/PermissionGuard"
@@ -46,19 +46,29 @@ export default function CategoryPage() {
           </Button>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="categorias">Categorías</TabsTrigger>
-            <TabsTrigger value="ubicaciones">Ubicaciones</TabsTrigger>
-          </TabsList>
-          <TabsContent value="categorias" className="mt-4">
-            <CategoryManager ref={catRef} />
-          </TabsContent>
-          <TabsContent value="ubicaciones" className="mt-4">
-            <LocationManager ref={locRef} />
-          </TabsContent>
-        </Tabs>
+        {/* Filtros */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { key: "categorias",  label: "Categorías",  color: "border-primary" },
+            { key: "ubicaciones", label: "Ubicaciones", color: "border-amber-500" },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key
+            return (
+              <Card
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`cursor-pointer border ${isActive ? tab.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+              >
+                <CardHeader className="p-1">
+                  <CardTitle className="text-lg font-medium">{tab.label}</CardTitle>
+                </CardHeader>
+              </Card>
+            )
+          })}
+        </div>
+
+        {activeTab === "categorias" && <CategoryManager ref={catRef} />}
+        {activeTab === "ubicaciones" && <LocationManager ref={locRef} />}
       </div>
     </PermissionGuard>
   )

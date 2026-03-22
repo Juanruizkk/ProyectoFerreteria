@@ -39,7 +39,7 @@ import {
   Truck,
 } from "lucide-react";
 import SearchBar from "../Common/SearchBar";
-import PaginationControls from "../Common/PaginationControls";
+import { AuditPagination } from "@/components/Audit/AuditPagination";
 
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
@@ -77,6 +77,7 @@ export default function ProveedoresPage() {
   const [proveedoresActivos, setProveedoresActivos] = useState([]);
   const [loadingActivos, setLoadingActivos] = useState(false);
   const [searchActivos, setSearchActivos] = useState("");
+  const [pageSize, setPageSize] = useState(10);
   const [pageActivos, setPageActivos] = useState(1);
   const [totalPagesActivos, setTotalPagesActivos] = useState(1);
   const [totalCountActivos, setTotalCountActivos] = useState(0);
@@ -126,7 +127,7 @@ export default function ProveedoresPage() {
   const loadActivos = async () => {
     try {
       setLoadingActivos(true);
-      const data = await fetchProveedores(pageActivos, 10, dqActivos, "activos");
+      const data = await fetchProveedores(pageActivos, pageSize, dqActivos, "activos");
       setProveedoresActivos(data.items ?? []);
       setTotalPagesActivos(data.totalPages ?? 1);
       setTotalCountActivos(data.totalCount ?? 0);
@@ -140,7 +141,7 @@ export default function ProveedoresPage() {
   const loadEliminados = async () => {
     try {
       setLoadingEliminados(true);
-      const data = await fetchProveedores(pageEliminados, 10, dqEliminados, "eliminados");
+      const data = await fetchProveedores(pageEliminados, pageSize, dqEliminados, "eliminados");
       setProveedoresEliminados(data.items ?? []);
       setTotalPagesEliminados(data.totalPages ?? 1);
       setTotalCountEliminados(data.totalCount ?? 0);
@@ -153,11 +154,11 @@ export default function ProveedoresPage() {
 
   useEffect(() => {
     if (activeTab === "activos") loadActivos();
-  }, [activeTab, pageActivos, dqActivos]);
+  }, [activeTab, pageActivos, dqActivos, pageSize]);
 
   useEffect(() => {
     if (activeTab === "eliminados") loadEliminados();
-  }, [activeTab, pageEliminados, dqEliminados]);
+  }, [activeTab, pageEliminados, dqEliminados, pageSize]);
 
   // Reset page on search
   useEffect(() => { setPageActivos(1); }, [dqActivos]);
@@ -202,7 +203,7 @@ export default function ProveedoresPage() {
         <div className="flex flex-col gap-6">
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Truck className="h-8 w-8 text-primary" />
               <div>
@@ -254,11 +255,15 @@ export default function ProveedoresPage() {
           {/* Contenido Activos */}
           {activeTab === "activos" && (
             <div className="space-y-4">
-              <SearchBar
-                value={searchActivos}
-                onChange={setSearchActivos}
-                placeholder="Buscar por nombre, teléfono o dirección..."
-              />
+              <Card>
+                <CardContent className="py-4">
+                  <SearchBar
+                    value={searchActivos}
+                    onChange={setSearchActivos}
+                    placeholder="Buscar por nombre, teléfono o dirección..."
+                  />
+                </CardContent>
+              </Card>
 
               {loadingActivos ? (
                 <Card>
@@ -410,16 +415,20 @@ export default function ProveedoresPage() {
                   </Card>
 
                   {/* Paginación activos */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Página {pageActivos} de {totalPagesActivos} • Total: {totalCountActivos} proveedores
-                    </div>
-                    <PaginationControls
-                      currentPage={pageActivos}
-                      totalPages={totalPagesActivos}
+                  <Card className="border-border/50 shadow-sm">
+                    <AuditPagination
+                      metadata={{
+                        pagedIndex: pageActivos,
+                        totalPages: totalPagesActivos,
+                        totalCount: totalCountActivos,
+                        hasPreviousPage: pageActivos > 1,
+                        hasNextPage: pageActivos < totalPagesActivos,
+                      }}
+                      pageSize={pageSize}
                       onPageChange={setPageActivos}
+                      onPageSizeChange={(size) => { setPageSize(size); setPageActivos(1); setPageEliminados(1); }}
                     />
-                  </div>
+                  </Card>
                 </>
               )}
             </div>
@@ -428,11 +437,15 @@ export default function ProveedoresPage() {
           {/* Contenido Eliminados */}
           {activeTab === "eliminados" && (
             <div className="space-y-4">
-              <SearchBar
-                value={searchEliminados}
-                onChange={setSearchEliminados}
-                placeholder="Buscar por nombre, teléfono o dirección..."
-              />
+              <Card>
+                <CardContent className="py-4">
+                  <SearchBar
+                    value={searchEliminados}
+                    onChange={setSearchEliminados}
+                    placeholder="Buscar por nombre, teléfono o dirección..."
+                  />
+                </CardContent>
+              </Card>
 
               {loadingEliminados ? (
                 <Card>
@@ -522,16 +535,20 @@ export default function ProveedoresPage() {
                   </Card>
 
                   {/* Paginación eliminados */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Página {pageEliminados} de {totalPagesEliminados} • Total: {totalCountEliminados} proveedores
-                    </div>
-                    <PaginationControls
-                      currentPage={pageEliminados}
-                      totalPages={totalPagesEliminados}
+                  <Card className="border-border/50 shadow-sm">
+                    <AuditPagination
+                      metadata={{
+                        pagedIndex: pageEliminados,
+                        totalPages: totalPagesEliminados,
+                        totalCount: totalCountEliminados,
+                        hasPreviousPage: pageEliminados > 1,
+                        hasNextPage: pageEliminados < totalPagesEliminados,
+                      }}
+                      pageSize={pageSize}
                       onPageChange={setPageEliminados}
+                      onPageSizeChange={(size) => { setPageSize(size); setPageActivos(1); setPageEliminados(1); }}
                     />
-                  </div>
+                  </Card>
                 </>
               )}
             </div>

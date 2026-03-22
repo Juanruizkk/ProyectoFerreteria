@@ -117,14 +117,9 @@ export function AuditTable({ data, isLoading = false, onViewChanges }) {
                       {formatDateTime(item.fechaHora)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">
-                          {item.usuarioNombre || "Desconocido"}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ID: {item.idUsuario}
-                        </span>
-                      </div>
+                      <span className="font-medium">
+                        {item.usuarioNombre || "Desconocido"}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Badge variant={getActionBadgeVariant(item.accion)}>

@@ -211,7 +211,7 @@ export default function ComprasPage() {
         <div className="flex flex-col gap-6">
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ClipboardList className="h-8 w-8 text-primary" />
               <div>
@@ -270,11 +270,15 @@ export default function ComprasPage() {
           {/* Contenido Activas */}
           {activeTab === "activas" && (
             <div className="space-y-4">
-              <SearchBar
-                value={searchActivas}
-                onChange={setSearchActivas}
-                placeholder="Buscar por proveedor, comprobante o fecha..."
-              />
+              <Card>
+                <CardContent className="py-4">
+                  <SearchBar
+                    value={searchActivas}
+                    onChange={setSearchActivas}
+                    placeholder="Buscar por proveedor, comprobante o fecha..."
+                  />
+                </CardContent>
+              </Card>
 
               {loading ? (
                 <Card>
@@ -446,11 +450,15 @@ export default function ComprasPage() {
           {/* Contenido Inactivas */}
           {activeTab === "inactivas" && (
             <div className="space-y-4">
-              <SearchBar
-                value={searchInactivas}
-                onChange={setSearchInactivas}
-                placeholder="Buscar por proveedor, comprobante o fecha..."
-              />
+              <Card>
+                <CardContent className="py-4">
+                  <SearchBar
+                    value={searchInactivas}
+                    onChange={setSearchInactivas}
+                    placeholder="Buscar por proveedor, comprobante o fecha..."
+                  />
+                </CardContent>
+              </Card>
 
               {loading ? (
                 <Card>

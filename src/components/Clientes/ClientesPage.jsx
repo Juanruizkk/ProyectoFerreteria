@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +15,7 @@ import {
 import { Plus, AlertTriangle, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import SearchBar from "../Common/SearchBar";
-import PaginationControls from "../Common/PaginationControls";
+import { AuditPagination } from "@/components/Audit/AuditPagination";
 import ClientTable from "./ClientTable";
 import ClientTableInactive from "./ClientTableInactive";
 import ClientForm from "./ClientForm";
@@ -69,7 +69,13 @@ export default function ClientesPage() {
   const [clienteAActivar, setClienteAActivar] = useState(null);
   const [activando, setActivando] = useState(false);
 
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
+
+  const handlePageSizeChange = (size) => {
+    setPageSize(size);
+    setCurrentPageActivos(1);
+    setCurrentPageInactivos(1);
+  };
 
   // Debounce for search activos
   useEffect(() => {
@@ -258,7 +264,7 @@ export default function ClientesPage() {
       <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col gap-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <UserCircle className="h-8 w-8 text-primary" />
             <div>
@@ -319,11 +325,15 @@ export default function ClientesPage() {
         {activeTab === "activos" && (
           <div className="space-y-4">
             {/* Search */}
-            <SearchBar
-              value={searchTermActivos}
-              onChange={setSearchTermActivos}
-              placeholder="Buscar por nombre, apellido, DNI, CUIT, correo o teléfono..."
-            />
+            <Card>
+              <CardContent className="py-4">
+                <SearchBar
+                  value={searchTermActivos}
+                  onChange={setSearchTermActivos}
+                  placeholder="Buscar por nombre, apellido, DNI, CUIT, correo o teléfono..."
+                />
+              </CardContent>
+            </Card>
 
             {/* Table */}
             <ClientTable
@@ -336,17 +346,20 @@ export default function ClientesPage() {
 
             {/* Pagination */}
             {!loadingActivos && clientesActivos.length > 0 && (
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Página {currentPageActivos} de {totalPagesActivos} • Total:{" "}
-                  {totalCountActivos} clientes activos
-                </div>
-                <PaginationControls
-                  currentPage={currentPageActivos}
-                  totalPages={totalPagesActivos}
+              <Card className="border-border/50 shadow-sm">
+                <AuditPagination
+                  metadata={{
+                    pagedIndex: currentPageActivos,
+                    totalPages: totalPagesActivos,
+                    totalCount: totalCountActivos,
+                    hasPreviousPage: currentPageActivos > 1,
+                    hasNextPage: currentPageActivos < totalPagesActivos,
+                  }}
+                  pageSize={pageSize}
                   onPageChange={setCurrentPageActivos}
+                  onPageSizeChange={handlePageSizeChange}
                 />
-              </div>
+              </Card>
             )}
           </div>
         )}
@@ -355,11 +368,15 @@ export default function ClientesPage() {
         {activeTab === "inactivos" && (
           <div className="space-y-4">
             {/* Search */}
-            <SearchBar
-              value={searchTermInactivos}
-              onChange={setSearchTermInactivos}
-              placeholder="Buscar por nombre, apellido, DNI, CUIT, correo o teléfono..."
-            />
+            <Card>
+              <CardContent className="py-4">
+                <SearchBar
+                  value={searchTermInactivos}
+                  onChange={setSearchTermInactivos}
+                  placeholder="Buscar por nombre, apellido, DNI, CUIT, correo o teléfono..."
+                />
+              </CardContent>
+            </Card>
 
             {/* Table */}
             {loadingInactivos ? (
@@ -386,17 +403,20 @@ export default function ClientesPage() {
 
             {/* Pagination */}
             {!loadingInactivos && clientesInactivos.length > 0 && (
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-sm text-muted-foreground">
-                  Página {currentPageInactivos} de {totalPagesInactivos} •
-                  Total: {totalCountInactivos} clientes inactivos
-                </div>
-                <PaginationControls
-                  currentPage={currentPageInactivos}
-                  totalPages={totalPagesInactivos}
+              <Card className="border-border/50 shadow-sm">
+                <AuditPagination
+                  metadata={{
+                    pagedIndex: currentPageInactivos,
+                    totalPages: totalPagesInactivos,
+                    totalCount: totalCountInactivos,
+                    hasPreviousPage: currentPageInactivos > 1,
+                    hasNextPage: currentPageInactivos < totalPagesInactivos,
+                  }}
+                  pageSize={pageSize}
                   onPageChange={setCurrentPageInactivos}
+                  onPageSizeChange={handlePageSizeChange}
                 />
-              </div>
+              </Card>
             )}
           </div>
         )}

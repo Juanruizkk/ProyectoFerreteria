@@ -17,7 +17,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SearchBar from "../Common/SearchBar";
-import PaginationControls from "../Common/PaginationControls";
+import { AuditPagination } from "@/components/Audit/AuditPagination";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -84,6 +84,7 @@ export default function UsersPage() {
   const dq = useDebouncedValue(q, 400);
 
   const [pageIndex, setPageIndex] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [paged, setPaged] = useState({
     items: [],
     totalPages: 1,
@@ -125,6 +126,7 @@ export default function UsersPage() {
       try {
         const data = await searchUsers({
           pageIndex,
+          pageSize,
           searchTerm: dq,
           estado,
         });
@@ -239,7 +241,7 @@ export default function UsersPage() {
       <div className="container mx-auto py-6 px-4">
         <div className="flex flex-col gap-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Users className="h-8 w-8 text-primary" />
               <div>
@@ -312,11 +314,15 @@ export default function UsersPage() {
 
           {/* Buscador */}
           {hasPermission("USR_READ") && (
-            <SearchBar
-              value={q}
-              onChange={(v) => { setQ(v); setPageIndex(1); }}
-              placeholder="Buscar usuarios..."
-            />
+            <Card>
+              <CardContent className="py-4">
+                <SearchBar
+                  value={q}
+                  onChange={(v) => { setQ(v); setPageIndex(1); }}
+                  placeholder="Buscar usuarios..."
+                />
+              </CardContent>
+            </Card>
           )}
 
           {/* Tabla + Paginación */}
@@ -329,7 +335,6 @@ export default function UsersPage() {
                       <Table className="w-full border-collapse">
                         <TableHeader>
                           <TableRow className="sticky top-0 bg-muted z-10">
-                            <TableHead>Id</TableHead>
                             <TableHead>Usuario</TableHead>
                             <TableHead>Nombre</TableHead>
                             <TableHead>Apellido</TableHead>
@@ -342,7 +347,6 @@ export default function UsersPage() {
                           {loading ? (
                             [1, 2, 3, 4, 5].map((i) => (
                               <TableRow key={i}>
-                                <TableCell><div className="h-4 w-8 bg-muted animate-pulse rounded" /></TableCell>
                                 <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
                                 <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
                                 <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
@@ -355,14 +359,13 @@ export default function UsersPage() {
                             <>
                               {visibleItems.length === 0 && (
                                 <TableRow>
-                                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                     Sin datos
                                   </TableCell>
                                 </TableRow>
                               )}
                           {visibleItems.map((u) => (
                             <TableRow key={u.idUsuario} className="hover:bg-muted/40 transition">
-                              <TableCell>{u.idUsuario}</TableCell>
                               <TableCell>{u.usuario}</TableCell>
                               <TableCell>{u.nombre}</TableCell>
                               <TableCell>{u.apellido}</TableCell>
@@ -482,16 +485,20 @@ export default function UsersPage() {
 
               {/* Paginación */}
               {!loading && (
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Página {pageIndex} de {paged.totalPages ?? 1} • Total: {paged.totalCount ?? 0} usuarios
-                  </div>
-                  <PaginationControls
-                    currentPage={pageIndex}
-                    totalPages={paged.totalPages ?? 1}
+                <Card className="border-border/50 shadow-sm">
+                  <AuditPagination
+                    metadata={{
+                      pagedIndex: pageIndex,
+                      totalPages: paged.totalPages ?? 1,
+                      totalCount: paged.totalCount ?? 0,
+                      hasPreviousPage: pageIndex > 1,
+                      hasNextPage: pageIndex < (paged.totalPages ?? 1),
+                    }}
+                    pageSize={pageSize}
                     onPageChange={setPageIndex}
+                    onPageSizeChange={(size) => { setPageSize(size); setPageIndex(1); }}
                   />
-                </div>
+                </Card>
               )}
             </>
           )}

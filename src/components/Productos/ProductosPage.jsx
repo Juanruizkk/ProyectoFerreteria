@@ -28,7 +28,7 @@ import ProductForm from "@/components/Productos/product-form";
 import ProductList from "@/components/Productos/product-list";
 import ProductTable from "./product-table";
 import ProductImport from "@/components/Productos/ProductImport";
-import PaginationControls from "../Common/PaginationControls";
+import { AuditPagination } from "@/components/Audit/AuditPagination";
 import { toast } from "sonner";
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
@@ -78,8 +78,9 @@ export default function ProductosPage() {
 
   // paginado
   const [pageIndex, setPageIndex] = useState(1);
-  const [pageSize] = useState(9);
+  const [pageSize, setPageSize] = useState(9);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [hasPrev, setHasPrev] = useState(false);
   const [hasNext, setHasNext] = useState(false);
 
@@ -174,6 +175,7 @@ export default function ProductosPage() {
 
           setProductos(data.items);
           setTotalPages(data.totalPages);
+          setTotalCount(data.totalCount ?? 0);
           setHasPrev(data.hasPrevioPage);
           setHasNext(data.hasNextPage);
         }
@@ -591,13 +593,20 @@ export default function ProductosPage() {
 
         {/* Paginación */}
         {productos.length > 0 && (
-          <div className="flex justify-end mt-6">
-            <PaginationControls
-              currentPage={pageIndex}
-              totalPages={totalPages}
+          <Card className="border-border/50 shadow-sm mt-4">
+            <AuditPagination
+              metadata={{
+                pagedIndex: pageIndex,
+                totalPages,
+                totalCount,
+                hasPreviousPage: hasPrev,
+                hasNextPage: hasNext,
+              }}
+              pageSize={pageSize}
               onPageChange={setPageIndex}
+              onPageSizeChange={(size) => { setPageSize(size); setPageIndex(1); }}
             />
-          </div>
+          </Card>
         )}
 
         {/* Diálogo eliminar */}

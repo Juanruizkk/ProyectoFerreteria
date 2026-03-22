@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ShoppingCart, Plus, AlertCircle, Search, Calendar, Eye } from "lucide-react";
@@ -15,11 +16,11 @@ import { AuditPagination } from "@/components/Audit/AuditPagination";
 import { toast } from "sonner";
 
 const ESTADO_FILTERS = [
-  { label: "Todas", estadoValue: "", tab: "todas" },
-  { label: "Pendientes", estadoValue: "", tab: "pendientes" },
-  { label: "Aprobadas", estadoValue: "aprobado", tab: "todas" },
-  { label: "Rechazadas", estadoValue: "rechazado", tab: "todas" },
-  { label: "Anuladas", estadoValue: "Anulada", tab: "todas" },
+  { label: "Todas",      estadoValue: "",         tab: "todas",      color: "border-primary" },
+  { label: "Pendientes", estadoValue: "",         tab: "pendientes", color: "border-orange-500" },
+  { label: "Aprobadas",  estadoValue: "aprobado", tab: "todas",      color: "border-green-500" },
+  { label: "Rechazadas", estadoValue: "rechazado",tab: "todas",      color: "border-red-500" },
+  { label: "Anuladas",   estadoValue: "Anulada",  tab: "todas",      color: "border-gray-400" },
 ];
 
 export default function Sales() {
@@ -205,22 +206,28 @@ export default function Sales() {
           </div>
 
           {/* Barra de filtros unificada */}
-          <div className="flex flex-wrap gap-2">
-            {ESTADO_FILTERS.map((filter) => (
-              <Button
-                key={filter.tab + filter.estadoValue}
-                size="sm"
-                variant={isFilterActive(filter) ? "default" : "outline"}
-                onClick={() => handleFilterClick(filter)}
-              >
-                {filter.label}
-                {filter.tab === "pendientes" && pendingSales.length > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center bg-orange-500 text-white text-xs font-bold rounded-full h-4 min-w-[1rem] px-1">
-                    {pendingSales.length}
-                  </span>
-                )}
-              </Button>
-            ))}
+          <div className="grid grid-cols-5 gap-3">
+            {ESTADO_FILTERS.map((filter) => {
+              const isActive = isFilterActive(filter);
+              return (
+                <Card
+                  key={filter.tab + filter.estadoValue}
+                  onClick={() => handleFilterClick(filter)}
+                  className={`cursor-pointer border ${isActive ? filter.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                >
+                  <CardHeader className="p-1">
+                    <CardTitle className="text-lg font-medium flex items-center justify-center gap-1.5">
+                      {filter.label}
+                      {filter.tab === "pendientes" && pendingSales.length > 0 && (
+                        <span className="inline-flex items-center justify-center bg-orange-500 text-white text-xs font-bold rounded-full h-4 min-w-[1rem] px-1">
+                          {pendingSales.length}
+                        </span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              );
+            })}
           </div>
 
           {/* Filtros de texto/fecha — solo en tab todas */}
@@ -366,12 +373,14 @@ export default function Sales() {
               </div>
 
               {!isLoading && paginationMetadata && (
-                <AuditPagination
-                  metadata={paginationMetadata}
-                  pageSize={pageSize}
-                  onPageChange={handlePageChange}
-                  onPageSizeChange={handlePageSizeChange}
-                />
+                <Card className="border-border/50 shadow-sm">
+                  <AuditPagination
+                    metadata={paginationMetadata}
+                    pageSize={pageSize}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={handlePageSizeChange}
+                  />
+                </Card>
               )}
             </>
           )}
