@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -23,7 +23,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -230,15 +229,31 @@ export default function ProveedoresPage() {
             )}
           </PermissionGuard>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="activos">Activos</TabsTrigger>
-              <TabsTrigger value="eliminados">Eliminados</TabsTrigger>
-            </TabsList>
+          {/* Filtros */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { key: "activos",    label: "Activos",    color: "border-primary" },
+              { key: "eliminados", label: "Eliminados", color: "border-red-500" },
+            ].map((card) => {
+              const isActive = activeTab === card.key;
+              const border = isActive ? card.color : "border-muted";
+              return (
+                <Card
+                  key={card.key}
+                  onClick={() => setActiveTab(card.key)}
+                  className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                >
+                  <CardHeader className="p-1">
+                    <CardTitle className="text-lg font-medium">{card.label}</CardTitle>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </div>
 
-            {/* ── TAB ACTIVOS ─────────────────────────────────────────── */}
-            <TabsContent value="activos" className="space-y-4">
+          {/* Contenido Activos */}
+          {activeTab === "activos" && (
+            <div className="space-y-4">
               <SearchBar
                 value={searchActivos}
                 onChange={setSearchActivos}
@@ -407,10 +422,12 @@ export default function ProveedoresPage() {
                   </div>
                 </>
               )}
-            </TabsContent>
+            </div>
+          )}
 
-            {/* ── TAB ELIMINADOS ───────────────────────────────────────── */}
-            <TabsContent value="eliminados" className="space-y-4">
+          {/* Contenido Eliminados */}
+          {activeTab === "eliminados" && (
+            <div className="space-y-4">
               <SearchBar
                 value={searchEliminados}
                 onChange={setSearchEliminados}
@@ -517,8 +534,8 @@ export default function ProveedoresPage() {
                   </div>
                 </>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
       </div>
 

@@ -14,7 +14,7 @@ import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
 import { usePermission } from "@/hooks/usePermission";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SearchBar from "../Common/SearchBar";
 import PaginationControls from "../Common/PaginationControls";
@@ -286,20 +286,27 @@ export default function UsersPage() {
 
           {/* Filtro de estado */}
           {hasPermission("USR_READ") && (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "Activos", value: "activos" },
-                { label: "Eliminados", value: "eliminados" },
-              ].map(({ label, value }) => (
-                <Button
-                  key={value}
-                  size="sm"
-                  variant={estado === value ? "default" : "outline"}
-                  onClick={() => { setEstado(value); setPageIndex(1); }}
-                >
-                  {label}
-                </Button>
-              ))}
+                { key: "activos",    label: "Activos",    color: "border-primary" },
+                { key: "eliminados", label: "Eliminados", color: "border-red-500" },
+              ].map((card) => {
+                const isActive = estado === card.key;
+                const border = isActive ? card.color : "border-muted";
+                return (
+                  <Card
+                    key={card.key}
+                    onClick={() => { setEstado(card.key); setPageIndex(1); }}
+                    className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                  >
+                    <CardHeader className="p-1">
+                      <CardTitle className="text-lg font-medium">
+                        {card.label}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
             </div>
           )}
 

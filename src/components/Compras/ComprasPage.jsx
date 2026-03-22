@@ -13,7 +13,7 @@ import SearchBar from "../Common/SearchBar";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -32,7 +32,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -239,22 +238,38 @@ export default function ComprasPage() {
             )}
           </PermissionGuard>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-xs grid-cols-2">
-              <TabsTrigger value="activas">
-                Activas
-                {comprasActivas.length > 0 && (
-                  <span className="ml-2 text-xs bg-primary text-primary-foreground rounded-full px-1.5">
-                    {comprasActivas.length}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="inactivas">Inactivas</TabsTrigger>
-            </TabsList>
+          {/* Filtros */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { key: "activas",   label: "Activas",   color: "border-primary" },
+              { key: "inactivas", label: "Inactivas", color: "border-red-500" },
+            ].map((card) => {
+              const isActive = activeTab === card.key;
+              const border = isActive ? card.color : "border-muted";
+              return (
+                <Card
+                  key={card.key}
+                  onClick={() => setActiveTab(card.key)}
+                  className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                >
+                  <CardHeader className="p-1">
+                    <CardTitle className="text-lg font-medium">
+                      {card.label}
+                      {card.key === "activas" && comprasActivas.length > 0 && (
+                        <span className="ml-2 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                          {comprasActivas.length}
+                        </span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </div>
 
-            {/* ── TAB ACTIVAS ──────────────────────────────────────────── */}
-            <TabsContent value="activas" className="space-y-4">
+          {/* Contenido Activas */}
+          {activeTab === "activas" && (
+            <div className="space-y-4">
               <SearchBar
                 value={searchActivas}
                 onChange={setSearchActivas}
@@ -425,10 +440,12 @@ export default function ComprasPage() {
                   </CardContent>
                 </Card>
               )}
-            </TabsContent>
+            </div>
+          )}
 
-            {/* ── TAB INACTIVAS ─────────────────────────────────────────── */}
-            <TabsContent value="inactivas" className="space-y-4">
+          {/* Contenido Inactivas */}
+          {activeTab === "inactivas" && (
+            <div className="space-y-4">
               <SearchBar
                 value={searchInactivas}
                 onChange={setSearchInactivas}
@@ -555,8 +572,8 @@ export default function ComprasPage() {
                   </CardContent>
                 </Card>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
       </div>
 

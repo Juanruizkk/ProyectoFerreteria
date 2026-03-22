@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -293,15 +293,31 @@ export default function ClientesPage() {
           )}
         </PermissionGuard>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="activos">Activos</TabsTrigger>
-            <TabsTrigger value="inactivos">Inactivos</TabsTrigger>
-          </TabsList>
+        {/* Filtros */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { key: "activos",   label: "Activos",   color: "border-primary" },
+            { key: "inactivos", label: "Inactivos", color: "border-red-500" },
+          ].map((card) => {
+            const isActive = activeTab === card.key;
+            const border = isActive ? card.color : "border-muted";
+            return (
+              <Card
+                key={card.key}
+                onClick={() => setActiveTab(card.key)}
+                className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+              >
+                <CardHeader className="p-1">
+                  <CardTitle className="text-lg font-medium">{card.label}</CardTitle>
+                </CardHeader>
+              </Card>
+            );
+          })}
+        </div>
 
-          {/* Tab Activos */}
-          <TabsContent value="activos" className="space-y-4">
+        {/* Contenido Activos */}
+        {activeTab === "activos" && (
+          <div className="space-y-4">
             {/* Search */}
             <SearchBar
               value={searchTermActivos}
@@ -332,10 +348,12 @@ export default function ClientesPage() {
                 />
               </div>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          {/* Tab Inactivos */}
-          <TabsContent value="inactivos" className="space-y-4">
+        {/* Contenido Inactivos */}
+        {activeTab === "inactivos" && (
+          <div className="space-y-4">
             {/* Search */}
             <SearchBar
               value={searchTermInactivos}
@@ -380,8 +398,8 @@ export default function ClientesPage() {
                 />
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
 
         {/* Diálogo de confirmación para activar */}
         <AlertDialog open={mostrarDialogoActivar} onOpenChange={setMostrarDialogoActivar}>
