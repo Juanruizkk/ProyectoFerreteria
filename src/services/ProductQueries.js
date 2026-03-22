@@ -6,12 +6,17 @@ export async function fetchProductsWithDetails(
   activo = true,
   pageIndex = 1,
   pageSize = 9,
-  search = ""
+  search = "",
+  idCategoria = null
 ) {
   let url = `${API_URL}/with-details-paged?activo=${activo}&pageIndex=${pageIndex}&pageSize=${pageSize}`
 
   if (search && search.trim() !== "") {
     url += `&search=${encodeURIComponent(search)}`
+  }
+
+  if (idCategoria) {
+    url += `&idCategoria=${idCategoria}`
   }
 
   const response = await fetchWithAuth(url)

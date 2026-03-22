@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Search } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,10 +12,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Plus, Search, CheckCircle, XCircle, Layers } from "lucide-react"
-import PermissionGuard from "@/components/PermissionGuard"
-import AccessDenied from "@/components/Common/AccessDenied"
-import { PermissionGroups } from "@/config/permissions"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Card, CardContent } from "@/components/ui/card"
+import { toast } from "sonner"
 import CategoryForm from "./CategoryForm"
 import CategoryList from "./CategoryList"
 import {
@@ -26,37 +30,32 @@ import {
   errorMessages
 } from "@/services/CategoryQueries"
 
-export default function CategoryManager() {
+const CategoryManager = forwardRef(function CategoryManager(_, ref) {
   const [categorias, setCategorias] = useState([])
   const [categoriasFiltradas, setCategoriasFiltradas] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [categoriaEditando, setCategoriaEditando] = useState(null)
   const [busqueda, setBusqueda] = useState("")
 
-  // Estados para el diálogo de confirmación
+  const [modalOpen, setModalOpen] = useState(false)
+  const [categoriaEditando, setCategoriaEditando] = useState(null)
+
   const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false)
   const [categoriaAEliminar, setCategoriaAEliminar] = useState(null)
   const [eliminando, setEliminando] = useState(false)
 
-  // Estados para mensajes/alertas
-  const [alerta, setAlerta] = useState({ mostrar: false, tipo: "", mensaje: "" })
+  useImperativeHandle(ref, () => ({ openCreate }))
 
-  // Cargar categorías al montar el componente
-  useEffect(() => {
-    cargarCategorias()
-  }, [])
+  useEffect(() => { cargarCategorias() }, [])
 
-  // Filtrar categorías cuando cambia la búsqueda
   useEffect(() => {
     if (busqueda.trim() === "") {
       setCategoriasFiltradas(categorias)
     } else {
-      const busquedaLower = busqueda.toLowerCase()
+      const lower = busqueda.toLowerCase()
       setCategoriasFiltradas(
         categorias.filter(cat =>
-          cat.categoria.toLowerCase().includes(busquedaLower) ||
-          cat.descripcion?.toLowerCase().includes(busquedaLower)
+          cat.categoria.toLowerCase().includes(lower) ||
+          cat.descripcion?.toLowerCase().includes(lower)
         )
       )
     }
@@ -68,51 +67,42 @@ export default function CategoryManager() {
       const data = await fetchCategorias()
       setCategorias(data)
       setCategoriasFiltradas(data)
-    } catch (error) {
-      mostrarAlerta("error", "Error al cargar las categorías")
+    } catch {
+      toast.error("Error al cargar las categorías")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const mostrarAlerta = (tipo, mensaje) => {
-    setAlerta({ mostrar: true, tipo, mensaje })
-    setTimeout(() => {
-      setAlerta({ mostrar: false, tipo: "", mensaje: "" })
-    }, 4000)
-  }
-
-  const handleNuevaCategoria = () => {
+  const openCreate = () => {
     setCategoriaEditando(null)
-    setMostrarFormulario(true)
+    setModalOpen(true)
   }
 
   const handleEditar = (categoria) => {
     setCategoriaEditando(categoria)
-    setMostrarFormulario(true)
+    setModalOpen(true)
   }
 
-  const handleCancelar = () => {
-    setMostrarFormulario(false)
+  const handleCancelarModal = () => {
+    setModalOpen(false)
     setCategoriaEditando(null)
   }
 
   const handleSubmitFormulario = async (data) => {
     try {
       if (categoriaEditando) {
-        // Actualizar
         await updateCategoria(categoriaEditando.idCategoria ?? categoriaEditando.id, data)
-        mostrarAlerta("success", "Categoría actualizada exitosamente")
+        toast.success("Categoría actualizada exitosamente")
       } else {
-        // Crear
         await createCategoria(data)
-        mostrarAlerta("success", "Categoría creada exitosamente")
+        toast.success("Categoría creada exitosamente")
       }
+      setModalOpen(false)
+      setCategoriaEditando(null)
       await cargarCategorias()
-      handleCancelar()
     } catch (error) {
-      const mensajeError = errorMessages[error.message] || error.message || "Error al guardar la categoría"
-      mostrarAlerta("error", mensajeError)
+      toast.error(errorMessages[error.message] || error.message || "Error al guardar la categoría")
     }
   }
 
@@ -123,17 +113,15 @@ export default function CategoryManager() {
 
   const handleConfirmarEliminar = async () => {
     if (!categoriaAEliminar) return
-
     try {
       setEliminando(true)
       await deleteCategoria(categoriaAEliminar.idCategoria ?? categoriaAEliminar.id)
-      mostrarAlerta("success", "Categoría eliminada exitosamente")
+      toast.success("Categoría eliminada exitosamente")
       await cargarCategorias()
       setMostrarDialogoEliminar(false)
       setCategoriaAEliminar(null)
     } catch (error) {
-      const mensajeError = errorMessages[error.message] || error.message || "Error al eliminar la categoría"
-      mostrarAlerta("error", mensajeError)
+      toast.error(errorMessages[error.message] || error.message || "Error al eliminar la categoría")
       setMostrarDialogoEliminar(false)
       setCategoriaAEliminar(null)
     } finally {
@@ -141,80 +129,12 @@ export default function CategoryManager() {
     }
   }
 
-  const handleCancelarEliminar = () => {
-    setMostrarDialogoEliminar(false)
-    setCategoriaAEliminar(null)
-  }
-
   return (
-    <PermissionGuard
-      anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
-      fallback={<AccessDenied moduleName="la gestión de categorías" />}
-    >
-      <div className="container mx-auto p-6 space-y-6">
-      {/* Alerta de notificaciones */}
-      {alerta.mostrar && (
-        <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-top-5 ${
-            alerta.tipo === "success"
-              ? "bg-green-50 border border-green-200 text-green-800"
-              : "bg-red-50 border border-red-200 text-red-800"
-          }`}
-        >
-          {alerta.tipo === "success" ? (
-            <CheckCircle className="h-5 w-5 text-green-600" />
-          ) : (
-            <XCircle className="h-5 w-5 text-red-600" />
-          )}
-          <p className="font-medium">{alerta.mensaje}</p>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Layers className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">Gestión de Categorías</h1>
-            <p className="text-muted-foreground">
-              Administra las categorías de productos
-            </p>
-          </div>
-        </div>
-        <Button onClick={handleNuevaCategoria} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nueva Categoría
-        </Button>
-      </div>
-
-      {/* Formulario (cuando está abierto) */}
-      {mostrarFormulario && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {categoriaEditando ? "Editar Categoría" : "Nueva Categoría"}
-            </CardTitle>
-            <CardDescription>
-              {categoriaEditando
-                ? "Modifica los datos de la categoría"
-                : "Completa los datos para crear una nueva categoría"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CategoryForm
-              categoria={categoriaEditando}
-              onSubmit={handleSubmitFormulario}
-              onCancel={handleCancelar}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Barra de búsqueda */}
+    <div className="space-y-4">
       <Card>
         <CardContent className="pt-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Buscar categorías por nombre o descripción..."
@@ -226,26 +146,29 @@ export default function CategoryManager() {
         </CardContent>
       </Card>
 
-      {/* Lista de categorías */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Categorías Registradas</CardTitle>
-          <CardDescription>
-            {categoriasFiltradas.length} categoría(s)
-            {busqueda && ` encontrada(s) para "${busqueda}"`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CategoryList
-            categorias={categoriasFiltradas}
-            onEditar={handleEditar}
-            onEliminar={handleSolicitarEliminar}
-            isLoading={isLoading}
-          />
-        </CardContent>
-      </Card>
+      <CategoryList
+        categorias={categoriasFiltradas}
+        onEditar={handleEditar}
+        onEliminar={handleSolicitarEliminar}
+        isLoading={isLoading}
+        busqueda={busqueda}
+      />
 
-      {/* Diálogo de confirmación para eliminar */}
+      <Dialog open={modalOpen} onOpenChange={(open) => { if (!open) handleCancelarModal() }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {categoriaEditando ? "Editar Categoría" : "Nueva Categoría"}
+            </DialogTitle>
+          </DialogHeader>
+          <CategoryForm
+            categoria={categoriaEditando}
+            onSubmit={handleSubmitFormulario}
+            onCancel={handleCancelarModal}
+          />
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={mostrarDialogoEliminar} onOpenChange={setMostrarDialogoEliminar}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -259,7 +182,10 @@ export default function CategoryManager() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelarEliminar} disabled={eliminando}>
+            <AlertDialogCancel
+              onClick={() => { setMostrarDialogoEliminar(false); setCategoriaAEliminar(null) }}
+              disabled={eliminando}
+            >
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
@@ -273,6 +199,7 @@ export default function CategoryManager() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-    </PermissionGuard>
   )
-}
+})
+
+export default CategoryManager

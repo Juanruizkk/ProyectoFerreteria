@@ -39,6 +39,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { createSale, fetchAvailableProducts, fetchAllClients, downloadSalePdf, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { createCliente } from "@/services/ClienteQueries";
+import { getCurrentAccountSummary } from "@/services/CurrentAccountQueries";
 import ClientForm from "@/components/Clientes/ClientForm";
 import { toast } from "sonner";
 
@@ -65,6 +66,9 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
+  const [loadingCCBalance, setLoadingCCBalance] = useState(false);
+  // Datos reales de la CC del cliente seleccionado (cargados desde movements)
+  const [ccData, setCCData] = useState({ saldoActual: 0, limiteCredito: 0 });
 
   // Modal secundario para crear cliente
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
@@ -80,6 +84,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
       loadClients();
       setSelectedClient(null);
       setPaymentMethod("");
+      setCCData({ saldoActual: 0, limiteCredito: 0 });
       clearCart();
     }
   }, [open]);
@@ -158,10 +163,30 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     }
   };
 
+  const loadCCData = async (clientId) => {
+    try {
+      setLoadingCCBalance(true);
+      const summary = await getCurrentAccountSummary(clientId);
+      setCCData({
+        saldoActual: summary?.latest?.saldoActual ?? 0,
+        limiteCredito: summary?.opening?.limiteCuenta ?? 0,
+      });
+    } catch (error) {
+      console.error("Error al cargar datos de cuenta corriente:", error);
+      setCCData({ saldoActual: 0, limiteCredito: 0 });
+    } finally {
+      setLoadingCCBalance(false);
+    }
+  };
+
   const handleClientSelect = (clientId) => {
     const client = clients.find(c => (c.id || c.idCliente).toString() === clientId);
     setSelectedClient(client);
     setSearchClient("");
+    setCCData({ saldoActual: 0, limiteCredito: 0 });
+    if (client?.tieneCuentaCorriente) {
+      loadCCData(client.id || client.idCliente);
+    }
   };
 
   const handleCreateClient = async (clientData) => {
@@ -265,9 +290,9 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     if (!selectedClient || paymentMethod !== "Cuenta Corriente") {
       return { exceeds: false, excess: 0 };
     }
-
-    const clientLimit = selectedClient.limiteCredito || 0;
-    const currentBalance = selectedClient.saldoActual || 0;
+    // Usar los valores reales cargados desde los movimientos de CC
+    const clientLimit = ccData.limiteCredito;
+    const currentBalance = ccData.saldoActual;
     const newBalance = currentBalance + total;
 
     if (newBalance > clientLimit) {
@@ -474,20 +499,34 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                               </p>
                             </div>
 
-                            {selectedClient.tipoPago === "Cuenta Corriente" && (
+                            {selectedClient.tieneCuentaCorriente && (
                               <div className="flex gap-4 text-sm">
-                                <div>
-                                  <span className="text-muted-foreground">Saldo: </span>
-                                  <span className="font-bold text-orange-600">
-                                    {formatCurrency(selectedClient.saldoActual || 0)}
+                                {loadingCCBalance ? (
+                                  <span className="text-muted-foreground text-xs">
+                                    Cargando datos de CC...
                                   </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Límite: </span>
-                                  <span className="font-medium">
-                                    {formatCurrency(selectedClient.limiteCredito || 0)}
-                                  </span>
-                                </div>
+                                ) : (
+                                  <>
+                                    <div>
+                                      <span className="text-muted-foreground">Deuda: </span>
+                                      <span className="font-bold text-orange-600">
+                                        {formatCurrency(ccData.saldoActual)}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Disponible: </span>
+                                      <span className="font-medium text-green-700">
+                                        {formatCurrency(ccData.limiteCredito - ccData.saldoActual)}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Límite: </span>
+                                      <span className="font-medium">
+                                        {formatCurrency(ccData.limiteCredito)}
+                                      </span>
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
@@ -726,9 +765,19 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                     <label className="text-xs font-semibold mb-2 block">
                       Forma de Pago
                     </label>
-                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={setPaymentMethod}
+                      disabled={loadingCCBalance}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar método" />
+                        <SelectValue
+                          placeholder={
+                            loadingCCBalance
+                              ? "Cargando cuenta corriente..."
+                              : "Seleccionar método"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Efectivo">Efectivo</SelectItem>

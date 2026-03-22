@@ -14,7 +14,7 @@ import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
 import { usePermission } from "@/hooks/usePermission";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -274,36 +274,22 @@ export default function UsersPage() {
             )}
           </PermissionGuard>
 
-          {/* Tabs de filtro */}
+          {/* Filtro de estado */}
           {hasPermission("USR_READ") && (
-            <div className="grid grid-cols-2 sm:grid-cols-2 gap-6 justify-center">
-              <Card
-                className={`cursor-pointer hover:shadow transition ${
-                  estado === "activos" ? "ring-2 ring-primary" : ""
-                }`}
-                onClick={() => {
-                  setEstado("activos");
-                  setPageIndex(1);
-                }}
-              >
-                <CardHeader className="text-center">
-                  <CardTitle>Activos</CardTitle>
-                </CardHeader>
-              </Card>
-
-              <Card
-                className={`cursor-pointer hover:shadow transition ${
-                  estado === "eliminados" ? "ring-2 ring-primary" : ""
-                }`}
-                onClick={() => {
-                  setEstado("eliminados");
-                  setPageIndex(1);
-                }}
-              >
-                <CardHeader className="text-center">
-                  <CardTitle>Eliminados</CardTitle>
-                </CardHeader>
-              </Card>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "Activos", value: "activos" },
+                { label: "Eliminados", value: "eliminados" },
+              ].map(({ label, value }) => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={estado === value ? "default" : "outline"}
+                  onClick={() => { setEstado(value); setPageIndex(1); }}
+                >
+                  {label}
+                </Button>
+              ))}
             </div>
           )}
 

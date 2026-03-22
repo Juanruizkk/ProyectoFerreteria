@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { fetchAccountConfigs } from "@/services/AccountConfigQueries";
 
-export default function CreateAccountForm({ onSubmit, onCancel }) {
+export default function CreateAccountForm({ open, onClose, onSubmit }) {
   const [formData, setFormData] = useState({
     detalle: "Creación inicial de cuenta corriente",
     limiteCuenta: 0,
@@ -93,16 +93,23 @@ export default function CreateAccountForm({ onSubmit, onCancel }) {
     });
   };
 
+  const handleOpenChange = (isOpen) => {
+    if (!isOpen && !loading) {
+      onClose();
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Crear Cuenta Corriente</CardTitle>
-        <CardDescription>
-          Complete los datos para crear una nueva cuenta corriente para este cliente.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Crear Cuenta Corriente</DialogTitle>
+          <DialogDescription>
+            Complete los datos para crear una nueva cuenta corriente para este cliente.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-6 py-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
           {/* Detalle */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Información de la Cuenta</h3>
@@ -219,12 +226,13 @@ export default function CreateAccountForm({ onSubmit, onCancel }) {
             <Button type="submit" disabled={loading}>
               {loading ? "Creando..." : "Crear Cuenta Corriente"}
             </Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancelar
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
