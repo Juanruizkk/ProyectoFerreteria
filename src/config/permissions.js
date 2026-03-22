@@ -89,6 +89,43 @@ export const PermissionGroups = {
     },
   },
 
+  // Módulo de Proveedores
+  SUPPLIERS: {
+    prefix: "PROV",
+    permissions: {
+      CREATE: "PROV_CREATE",
+      READ: "PROV_READ",
+      UPDATE: "PROV_UPDATE",
+      DELETE: "PROV_DELETE",
+    },
+  },
+
+  // Módulo de Listas de Precios
+  PRICE_LISTS: {
+    prefix: "LP",
+    permissions: {
+      CREATE: "LP_CREATE",
+      READ: "LP_READ",
+      UPDATE: "LP_UPDATE",
+      DELETE: "LP_DELETE",
+      TOGGLE: "LP_TOGGLE",
+      ITEM_ADD: "LP_ITEM_ADD",
+      ITEM_UPDATE: "LP_ITEM_UPDATE",
+      ITEM_DELETE: "LP_ITEM_DELETE",
+    },
+  },
+
+  // Módulo de Compras a Proveedores
+  PURCHASES: {
+    prefix: "COMP",
+    permissions: {
+      CREATE: "COMP_CREATE",
+      READ: "COMP_READ",
+      UPDATE: "COMP_UPDATE",
+      DELETE: "COMP_DELETE",
+    },
+  },
+
   // Búsquedas
   SEARCH: {
     prefix: "SEARCH",
@@ -138,6 +175,21 @@ export const RoutePermissions = {
   "/ventas": {
     module: "Ventas",
     permissionGroup: PermissionGroups.SALES,
+    requireAny: true,
+  },
+  "/proveedores": {
+    module: "Proveedores",
+    permissionGroup: PermissionGroups.SUPPLIERS,
+    requireAny: true,
+  },
+  "/proveedores/:id": {
+    module: "Proveedores",
+    permissionGroup: PermissionGroups.SUPPLIERS,
+    requireAny: true,
+  },
+  "/compras": {
+    module: "Compras",
+    permissionGroup: PermissionGroups.PURCHASES,
     requireAny: true,
   },
   "/reportes": {

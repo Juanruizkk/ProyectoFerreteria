@@ -129,9 +129,10 @@ export default function UsersPage() {
         });
         if (!alive) return;
         setPaged(data);
+        setLoading(false);
       } catch (err) {
+        if (!alive) return;
         toast.error("Error al listar usuarios: " + err.message);
-      } finally {
         setLoading(false);
       }
     }
@@ -331,15 +332,7 @@ export default function UsersPage() {
               <Card>
                 <CardContent className="p-0">
                   <div className="border rounded-md overflow-hidden">
-                    <div
-                      className={`overflow-y-auto transition-all duration-300`}
-                      style={{
-                        maxHeight:
-                          visibleItems.length > 10
-                            ? "500px"
-                            : `${visibleItems.length * 52 + 60}px`,
-                      }}
-                    >
+                    <div className="overflow-y-auto" style={{ maxHeight: "500px" }}>
                       <Table className="w-full border-collapse">
                         <TableHeader>
                           <TableRow className="sticky top-0 bg-muted z-10">
@@ -353,14 +346,27 @@ export default function UsersPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {visibleItems.length === 0 && !loading && (
-                            <TableRow>
-                              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                Sin datos
-                              </TableCell>
-                            </TableRow>
-                          )}
-
+                          {loading ? (
+                            [1, 2, 3, 4, 5].map((i) => (
+                              <TableRow key={i}>
+                                <TableCell><div className="h-4 w-8 bg-muted animate-pulse rounded" /></TableCell>
+                                <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
+                                <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                                <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                                <TableCell><div className="h-4 w-40 bg-muted animate-pulse rounded" /></TableCell>
+                                <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                                <TableCell><div className="h-8 w-24 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <>
+                              {visibleItems.length === 0 && (
+                                <TableRow>
+                                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                    Sin datos
+                                  </TableCell>
+                                </TableRow>
+                              )}
                           {visibleItems.map((u) => (
                             <TableRow key={u.idUsuario} className="hover:bg-muted/40 transition">
                               <TableCell>{u.idUsuario}</TableCell>
@@ -472,6 +478,8 @@ export default function UsersPage() {
                               </TableCell>
                             </TableRow>
                           ))}
+                            </>
+                          )}
                         </TableBody>
                       </Table>
                     </div>
@@ -480,25 +488,27 @@ export default function UsersPage() {
               </Card>
 
               {/* Paginación */}
-              <div className="flex items-center justify-between gap-2">
-                <Button
-                  variant="outline"
-                  disabled={pageIndex <= 1}
-                  onClick={() => setPageIndex((p) => Math.max(1, p - 1))}
-                >
-                  Anterior
-                </Button>
-                <div className="text-sm">
-                  Página {pageIndex} de {paged.totalPages ?? 1}
+              {!loading && (
+                <div className="flex items-center justify-between gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={pageIndex <= 1}
+                    onClick={() => setPageIndex((p) => Math.max(1, p - 1))}
+                  >
+                    Anterior
+                  </Button>
+                  <div className="text-sm">
+                    Página {pageIndex} de {paged.totalPages ?? 1}
+                  </div>
+                  <Button
+                    variant="outline"
+                    disabled={pageIndex >= (paged.totalPages ?? 1)}
+                    onClick={() => setPageIndex((p) => p + 1)}
+                  >
+                    Siguiente
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  disabled={pageIndex >= (paged.totalPages ?? 1)}
-                  onClick={() => setPageIndex((p) => p + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
+              )}
             </>
           )}
         </div>

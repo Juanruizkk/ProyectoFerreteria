@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, CheckCircle, XCircle, RefreshCw } from "lucide-react"
 
-export default function ProductTable({ productos, onEditar, onEliminar, onToggleEstado }) {
+export default function ProductTable({ productos, onEditar, onEliminar, onToggleEstado, isLoading }) {
   return (
     <div className="rounded-md border">
       <Table>
@@ -22,7 +22,22 @@ export default function ProductTable({ productos, onEditar, onEliminar, onToggle
           </TableRow>
         </TableHeader>
         <TableBody>
-          {productos.length === 0 ? (
+          {isLoading ? (
+            [1, 2, 3, 4, 5].map((i) => (
+              <TableRow key={i}>
+                <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-10 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-10 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-5 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-5 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-8 w-16 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+              </TableRow>
+            ))
+          ) : productos.length === 0 ? (
             <TableRow><TableCell colSpan={10} className="text-center py-6 text-muted-foreground">No hay productos</TableCell></TableRow>
           ) : (
             productos.map((producto) => (

@@ -276,43 +276,27 @@ export default function ClientesPage() {
             />
 
             {/* Table */}
-            {loadingActivos ? (
-              <div className="flex justify-center items-center py-12">
-                <span className="text-muted-foreground">
-                  Cargando clientes activos...
-                </span>
-              </div>
-            ) : clientesActivos.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">No se encontraron clientes activos</p>
-                {searchTermActivos && (
-                  <p className="text-sm mt-2">
-                    Intenta con otro término de búsqueda
-                  </p>
-                )}
-              </div>
-            ) : (
-              <>
-                <ClientTable
-                  clientes={clientesActivos}
-                  onEdit={handleEdit}
-                  onDelete={handleSolicitarEliminar}
-                  onViewDetails={handleViewDetails}
-                />
+            <ClientTable
+              clientes={clientesActivos}
+              onEdit={handleEdit}
+              onDelete={handleSolicitarEliminar}
+              onViewDetails={handleViewDetails}
+              isLoading={loadingActivos}
+            />
 
-                {/* Pagination */}
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-sm text-muted-foreground">
-                    Página {currentPageActivos} de {totalPagesActivos} • Total:{" "}
-                    {totalCountActivos} clientes activos
-                  </div>
-                  <PaginationControls
-                    currentPage={currentPageActivos}
-                    totalPages={totalPagesActivos}
-                    onPageChange={setCurrentPageActivos}
-                  />
+            {/* Pagination */}
+            {!loadingActivos && clientesActivos.length > 0 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Página {currentPageActivos} de {totalPagesActivos} • Total:{" "}
+                  {totalCountActivos} clientes activos
                 </div>
-              </>
+                <PaginationControls
+                  currentPage={currentPageActivos}
+                  totalPages={totalPagesActivos}
+                  onPageChange={setCurrentPageActivos}
+                />
+              </div>
             )}
           </TabsContent>
 
@@ -326,41 +310,25 @@ export default function ClientesPage() {
             />
 
             {/* Table */}
-            {loadingInactivos ? (
-              <div className="flex justify-center items-center py-12">
-                <span className="text-muted-foreground">
-                  Cargando clientes inactivos...
-                </span>
-              </div>
-            ) : clientesInactivos.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">No se encontraron clientes inactivos</p>
-                {searchTermInactivos && (
-                  <p className="text-sm mt-2">
-                    Intenta con otro término de búsqueda
-                  </p>
-                )}
-              </div>
-            ) : (
-              <>
-                <ClientTableInactive
-                  clientes={clientesInactivos}
-                  onActivate={handleActivate}
-                />
+            <ClientTableInactive
+              clientes={clientesInactivos}
+              onActivate={handleActivate}
+              isLoading={loadingInactivos}
+            />
 
-                {/* Pagination */}
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-sm text-muted-foreground">
-                    Página {currentPageInactivos} de {totalPagesInactivos} •
-                    Total: {totalCountInactivos} clientes inactivos
-                  </div>
-                  <PaginationControls
-                    currentPage={currentPageInactivos}
-                    totalPages={totalPagesInactivos}
-                    onPageChange={setCurrentPageInactivos}
-                  />
+            {/* Pagination */}
+            {!loadingInactivos && clientesInactivos.length > 0 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="text-sm text-muted-foreground">
+                  Página {currentPageInactivos} de {totalPagesInactivos} •
+                  Total: {totalCountInactivos} clientes inactivos
                 </div>
-              </>
+                <PaginationControls
+                  currentPage={currentPageInactivos}
+                  totalPages={totalPagesInactivos}
+                  onPageChange={setCurrentPageInactivos}
+                />
+              </div>
             )}
           </TabsContent>
         </Tabs>

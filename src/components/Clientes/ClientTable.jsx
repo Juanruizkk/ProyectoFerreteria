@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import PermissionGuard from "@/components/PermissionGuard";
 
-export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails }) {
+export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails, isLoading }) {
   const getNombreCompleto = (cliente) => {
     if (cliente.razonSocial && cliente.razonSocial.trim() !== "") {
       return cliente.razonSocial;
@@ -43,7 +43,25 @@ export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {clientes.map((cliente) => (
+          {isLoading ? (
+            [1, 2, 3, 4, 5].map((i) => (
+              <TableRow key={i}>
+                <TableCell><div className="h-4 w-40 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-4 w-36 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-5 w-10 bg-muted animate-pulse rounded" /></TableCell>
+                <TableCell><div className="h-8 w-20 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+              </TableRow>
+            ))
+          ) : clientes.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                No se encontraron clientes
+              </TableCell>
+            </TableRow>
+          ) : (
+          clientes.map((cliente) => (
             <TableRow key={cliente.idCliente}>
               <TableCell className="font-medium">
                 {getNombreCompleto(cliente)}
@@ -97,7 +115,7 @@ export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails 
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+          )))}
         </TableBody>
       </Table>
     </div>

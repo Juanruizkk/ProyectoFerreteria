@@ -1,4 +1,4 @@
-import { Users, UserCircle, Package, Home, Settings, Layers, History, ShoppingCart } from "lucide-react"
+import { Users, UserCircle, Package, Home, Settings, Layers, History, ShoppingCart, Truck, ClipboardList, BarChart2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import PermissionGuard from "@/components/PermissionGuard"
 import { PermissionGroups } from "@/config/permissions"
@@ -88,6 +88,34 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               </PermissionGuard>
 
+              {/* Compras - solo si tiene algún permiso COMP_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.PURCHASES.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/compras">
+                      <ClipboardList />
+                      <span>Compras</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
+              {/* Proveedores - solo si tiene algún permiso PROV_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.SUPPLIERS.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/proveedores">
+                      <Truck />
+                      <span>Proveedores</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
               {/* Categorías - solo si tiene algún permiso PROD_* */}
               <PermissionGuard
                 anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}
@@ -111,6 +139,20 @@ export function AppSidebar() {
                     <Link to="/configuracion-cc">
                       <Settings />
                       <span>Configuración CC</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </PermissionGuard>
+
+              {/* Reportes - solo si tiene permiso REP_* */}
+              <PermissionGuard
+                anyOf={Object.values(PermissionGroups.REPORTS.permissions)}
+              >
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/reportes">
+                      <BarChart2 />
+                      <span>Reportes</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

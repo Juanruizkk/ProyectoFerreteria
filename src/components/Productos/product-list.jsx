@@ -3,7 +3,37 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Package, AlertTriangle, MapPin, Tag, CheckCircle, XCircle } from "lucide-react"
 
-export default function ProductList({ productos, onEditar, onEliminar, onToggleEstado }) {
+export default function ProductList({ productos, onEditar, onEliminar, onToggleEstado, isLoading }) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Card key={i}>
+            <CardHeader className="pb-3">
+              <div className="h-5 w-40 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-24 bg-muted animate-pulse rounded mt-1" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="h-8 w-28 bg-muted animate-pulse rounded" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-28 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <div className="h-8 flex-1 bg-muted animate-pulse rounded" />
+                <div className="h-8 w-20 bg-muted animate-pulse rounded" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
   if (productos.length === 0) {
     return (
       <Card>
