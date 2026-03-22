@@ -82,7 +82,7 @@ export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails,
                 <div className="flex justify-end gap-2">
                   <PermissionGuard permission="CLI_READ">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => onViewDetails(cliente.idCliente)}
                       title="Ver detalles"
@@ -93,7 +93,7 @@ export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails,
 
                   <PermissionGuard permission="CLI_UPDATE">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => onEdit(cliente)}
                       title="Editar"
@@ -104,7 +104,7 @@ export default function ClientTable({ clientes, onEdit, onDelete, onViewDetails,
 
                   <PermissionGuard permission="CLI_DELETE">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => onDelete(cliente)}
                       title="Eliminar"

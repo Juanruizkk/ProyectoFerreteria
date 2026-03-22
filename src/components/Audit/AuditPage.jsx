@@ -89,9 +89,7 @@ export default function AuditPage() {
       <div className="mx-auto max-w-7xl w-full flex flex-col gap-6 px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary/10 p-3">
-            <History className="h-6 w-6 text-primary" />
-          </div>
+          <History className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Auditoría</h1>
             <p className="text-muted-foreground">
@@ -107,35 +105,21 @@ export default function AuditPage() {
         isLoading={isLoading}
       />
 
-      {/* Loading state */}
-      {isLoading && (
-        <Card className="p-12">
-          <div className="flex flex-col items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-sm text-muted-foreground">
-              Cargando registros de auditoría...
-            </p>
-          </div>
-        </Card>
-      )}
-
       {/* Tabla y paginación */}
-      {!isLoading && (
-        <div className="space-y-4">
-          <AuditTable data={data} onViewChanges={handleViewChanges} />
+      <div className="space-y-4">
+        <AuditTable data={data} isLoading={isLoading} onViewChanges={handleViewChanges} />
 
-          {metadata && metadata.totalCount > 0 && (
-            <Card className="border-border/50 shadow-sm">
-              <AuditPagination
-                metadata={metadata}
-                pageSize={pageSize}
-                onPageChange={handlePageChange}
-                onPageSizeChange={handlePageSizeChange}
-              />
-            </Card>
-          )}
-        </div>
-      )}
+        {!isLoading && metadata && metadata.totalCount > 0 && (
+          <Card className="border-border/50 shadow-sm">
+            <AuditPagination
+              metadata={metadata}
+              pageSize={pageSize}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          </Card>
+        )}
+      </div>
 
         {/* Modal de cambios */}
         <AuditChangesModal

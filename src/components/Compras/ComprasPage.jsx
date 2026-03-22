@@ -3,15 +3,16 @@ import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   Pencil,
   Plus,
   Power,
   Trash2,
 } from "lucide-react";
+import SearchBar from "../Common/SearchBar";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -211,11 +212,17 @@ export default function ComprasPage() {
         <div className="flex flex-col gap-6">
 
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-3xl font-bold">Compras a Proveedores</h1>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <ClipboardList className="h-8 w-8 text-primary" />
+              <div>
+                <h1 className="text-3xl font-bold">Gestión de Compras</h1>
+                <p className="text-muted-foreground">Registrá y administrá las compras a proveedores</p>
+              </div>
+            </div>
             <PermissionGuard permission="COMP_CREATE">
-              <Button onClick={handleCreate} disabled={showForm}>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button onClick={handleCreate} disabled={showForm} className="gap-2">
+                <Plus className="h-4 w-4" />
                 Nueva Compra
               </Button>
             </PermissionGuard>
@@ -248,18 +255,11 @@ export default function ComprasPage() {
 
             {/* ── TAB ACTIVAS ──────────────────────────────────────────── */}
             <TabsContent value="activas" className="space-y-4">
-              <Card>
-                <CardContent className="flex items-center gap-2 py-4">
-                  <Input
-                    placeholder="Buscar por proveedor, comprobante o fecha..."
-                    value={searchActivas}
-                    onChange={(e) => setSearchActivas(e.target.value)}
-                  />
-                  <Button variant="outline" onClick={() => setSearchActivas("")}>
-                    Limpiar
-                  </Button>
-                </CardContent>
-              </Card>
+              <SearchBar
+                value={searchActivas}
+                onChange={setSearchActivas}
+                placeholder="Buscar por proveedor, comprobante o fecha..."
+              />
 
               {loading ? (
                 <Card>
@@ -364,7 +364,7 @@ export default function ComprasPage() {
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
-                                              size="icon"
+                                              size="sm"
                                               variant="outline"
                                               onClick={() => handleEdit(c)}
                                             >
@@ -378,7 +378,7 @@ export default function ComprasPage() {
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
-                                              size="icon"
+                                              size="sm"
                                               variant="outline"
                                               onClick={() => toggleDialog.openDialog(c)}
                                               disabled={crud.loading.toggle}
@@ -393,7 +393,7 @@ export default function ComprasPage() {
                                         <Tooltip>
                                           <TooltipTrigger asChild>
                                             <Button
-                                              size="icon"
+                                              size="sm"
                                               variant="outline"
                                               onClick={() => deleteDialog.openDialog(c)}
                                               disabled={crud.loading.remove}
@@ -429,18 +429,11 @@ export default function ComprasPage() {
 
             {/* ── TAB INACTIVAS ─────────────────────────────────────────── */}
             <TabsContent value="inactivas" className="space-y-4">
-              <Card>
-                <CardContent className="flex items-center gap-2 py-4">
-                  <Input
-                    placeholder="Buscar por proveedor, comprobante o fecha..."
-                    value={searchInactivas}
-                    onChange={(e) => setSearchInactivas(e.target.value)}
-                  />
-                  <Button variant="outline" onClick={() => setSearchInactivas("")}>
-                    Limpiar
-                  </Button>
-                </CardContent>
-              </Card>
+              <SearchBar
+                value={searchInactivas}
+                onChange={setSearchInactivas}
+                placeholder="Buscar por proveedor, comprobante o fecha..."
+              />
 
               {loading ? (
                 <Card>
@@ -532,7 +525,7 @@ export default function ComprasPage() {
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <Button
-                                            size="icon"
+                                            size="sm"
                                             variant="outline"
                                             onClick={() => toggleDialog.openDialog(c)}
                                             disabled={crud.loading.toggle}

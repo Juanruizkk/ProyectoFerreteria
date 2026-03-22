@@ -4,7 +4,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -38,7 +37,10 @@ import {
   Pencil,
   Plus,
   Power,
+  Truck,
 } from "lucide-react";
+import SearchBar from "../Common/SearchBar";
+import PaginationControls from "../Common/PaginationControls";
 
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
@@ -201,11 +203,17 @@ export default function ProveedoresPage() {
         <div className="flex flex-col gap-6">
 
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-3xl font-bold">Proveedores</h1>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Truck className="h-8 w-8 text-primary" />
+              <div>
+                <h1 className="text-3xl font-bold">Gestión de Proveedores</h1>
+                <p className="text-muted-foreground">Administrá tus proveedores y sus listas de precios</p>
+              </div>
+            </div>
             <PermissionGuard permission="PROV_CREATE">
-              <Button onClick={handleCreate}>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button onClick={handleCreate} className="gap-2">
+                <Plus className="h-4 w-4" />
                 Nuevo Proveedor
               </Button>
             </PermissionGuard>
@@ -231,18 +239,11 @@ export default function ProveedoresPage() {
 
             {/* ── TAB ACTIVOS ─────────────────────────────────────────── */}
             <TabsContent value="activos" className="space-y-4">
-              <Card>
-                <CardContent className="flex items-center gap-2 py-4">
-                  <Input
-                    placeholder="Buscar por nombre, teléfono o dirección..."
-                    value={searchActivos}
-                    onChange={(e) => setSearchActivos(e.target.value)}
-                  />
-                  <Button variant="outline" onClick={() => setSearchActivos("")}>
-                    Limpiar
-                  </Button>
-                </CardContent>
-              </Card>
+              <SearchBar
+                value={searchActivos}
+                onChange={setSearchActivos}
+                placeholder="Buscar por nombre, teléfono o dirección..."
+              />
 
               {loadingActivos ? (
                 <Card>
@@ -335,7 +336,7 @@ export default function ProveedoresPage() {
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <Button
-                                                size="icon"
+                                                size="sm"
                                                 variant="outline"
                                                 onClick={() => handleEdit(p)}
                                               >
@@ -350,7 +351,7 @@ export default function ProveedoresPage() {
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <Button
-                                                size="icon"
+                                                size="sm"
                                                 variant="outline"
                                                 onClick={() => toggleDialog.openDialog(p)}
                                                 disabled={crud.loading.toggle}
@@ -394,26 +395,15 @@ export default function ProveedoresPage() {
                   </Card>
 
                   {/* Paginación activos */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Página {pageActivos} de {totalPagesActivos} · {totalCountActivos} proveedores
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        disabled={pageActivos <= 1}
-                        onClick={() => setPageActivos((p) => p - 1)}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={pageActivos >= totalPagesActivos}
-                        onClick={() => setPageActivos((p) => p + 1)}
-                      >
-                        Siguiente
-                      </Button>
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Página {pageActivos} de {totalPagesActivos} • Total: {totalCountActivos} proveedores
                     </div>
+                    <PaginationControls
+                      currentPage={pageActivos}
+                      totalPages={totalPagesActivos}
+                      onPageChange={setPageActivos}
+                    />
                   </div>
                 </>
               )}
@@ -421,18 +411,11 @@ export default function ProveedoresPage() {
 
             {/* ── TAB ELIMINADOS ───────────────────────────────────────── */}
             <TabsContent value="eliminados" className="space-y-4">
-              <Card>
-                <CardContent className="flex items-center gap-2 py-4">
-                  <Input
-                    placeholder="Buscar por nombre, teléfono o dirección..."
-                    value={searchEliminados}
-                    onChange={(e) => setSearchEliminados(e.target.value)}
-                  />
-                  <Button variant="outline" onClick={() => setSearchEliminados("")}>
-                    Limpiar
-                  </Button>
-                </CardContent>
-              </Card>
+              <SearchBar
+                value={searchEliminados}
+                onChange={setSearchEliminados}
+                placeholder="Buscar por nombre, teléfono o dirección..."
+              />
 
               {loadingEliminados ? (
                 <Card>
@@ -500,7 +483,7 @@ export default function ProveedoresPage() {
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <Button
-                                            size="icon"
+                                            size="sm"
                                             variant="outline"
                                             onClick={() => toggleDialog.openDialog(p)}
                                             disabled={crud.loading.toggle}
@@ -522,26 +505,15 @@ export default function ProveedoresPage() {
                   </Card>
 
                   {/* Paginación eliminados */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Página {pageEliminados} de {totalPagesEliminados} · {totalCountEliminados} proveedores
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        disabled={pageEliminados <= 1}
-                        onClick={() => setPageEliminados((p) => p - 1)}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={pageEliminados >= totalPagesEliminados}
-                        onClick={() => setPageEliminados((p) => p + 1)}
-                      >
-                        Siguiente
-                      </Button>
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Página {pageEliminados} de {totalPagesEliminados} • Total: {totalCountEliminados} proveedores
                     </div>
+                    <PaginationControls
+                      currentPage={pageEliminados}
+                      totalPages={totalPagesEliminados}
+                      onPageChange={setPageEliminados}
+                    />
                   </div>
                 </>
               )}

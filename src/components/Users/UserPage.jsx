@@ -16,7 +16,8 @@ import { usePermission } from "@/hooks/usePermission";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import SearchBar from "../Common/SearchBar";
+import PaginationControls from "../Common/PaginationControls";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -49,7 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Eye, KeyRound, Pencil, Trash2, UserCheck } from "lucide-react";
+import { Eye, KeyRound, Pencil, Plus, Trash2, UserCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 
 function useDebouncedValue(value, delay = 400) {
@@ -238,10 +239,19 @@ export default function UsersPage() {
       <div className="container mx-auto py-6 px-4">
         <div className="flex flex-col gap-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Users className="h-8 w-8 text-primary" />
+              <div>
+                <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
+                <p className="text-muted-foreground">Administrá los usuarios y sus permisos</p>
+              </div>
+            </div>
             <PermissionGuard permission="USR_CREATE">
-              <Button onClick={openCreate}>+ Nuevo Usuario</Button>
+              <Button onClick={openCreate} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nuevo Usuario
+              </Button>
             </PermissionGuard>
           </div>
 
@@ -295,21 +305,11 @@ export default function UsersPage() {
 
           {/* Buscador */}
           {hasPermission("USR_READ") && (
-            <Card className="mt-2">
-              <CardContent className="flex items-center gap-2 py-4">
-                <Input
-                  placeholder="Buscar usuarios..."
-                  value={q}
-                  onChange={(e) => {
-                    setQ(e.target.value);
-                    setPageIndex(1);
-                  }}
-                />
-                <Button variant="outline" onClick={() => setQ("")}>
-                  Limpiar
-                </Button>
-              </CardContent>
-            </Card>
+            <SearchBar
+              value={q}
+              onChange={(v) => { setQ(v); setPageIndex(1); }}
+              placeholder="Buscar usuarios..."
+            />
           )}
 
           {/* Tabla + Paginación */}
@@ -369,7 +369,7 @@ export default function UsersPage() {
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <PopoverTrigger asChild>
-                                            <Button size="icon" variant="secondary">
+                                            <Button size="sm" variant="outline">
                                               <Eye className="h-4 w-4" />
                                             </Button>
                                           </PopoverTrigger>
@@ -388,7 +388,7 @@ export default function UsersPage() {
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <Button
-                                            size="icon"
+                                            size="sm"
                                             variant="outline"
                                             onClick={() => handleSolicitarActivar(u)}
                                           >
@@ -409,7 +409,7 @@ export default function UsersPage() {
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <Button
-                                                size="icon"
+                                                size="sm"
                                                 variant="outline"
                                                 onClick={() => openEdit(u)}
                                               >
@@ -427,7 +427,7 @@ export default function UsersPage() {
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <Button
-                                                size="icon"
+                                                size="sm"
                                                 variant="outline"
                                                 onClick={() => openChangePassword(u)}
                                               >
@@ -445,7 +445,7 @@ export default function UsersPage() {
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <Button
-                                                size="icon"
+                                                size="sm"
                                                 variant="outline"
                                                 onClick={() => handleSolicitarEliminar(u)}
                                               >
@@ -475,24 +475,15 @@ export default function UsersPage() {
 
               {/* Paginación */}
               {!loading && (
-                <div className="flex items-center justify-between gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={pageIndex <= 1}
-                    onClick={() => setPageIndex((p) => Math.max(1, p - 1))}
-                  >
-                    Anterior
-                  </Button>
-                  <div className="text-sm">
-                    Página {pageIndex} de {paged.totalPages ?? 1}
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Página {pageIndex} de {paged.totalPages ?? 1} • Total: {paged.totalCount ?? 0} usuarios
                   </div>
-                  <Button
-                    variant="outline"
-                    disabled={pageIndex >= (paged.totalPages ?? 1)}
-                    onClick={() => setPageIndex((p) => p + 1)}
-                  >
-                    Siguiente
-                  </Button>
+                  <PaginationControls
+                    currentPage={pageIndex}
+                    totalPages={paged.totalPages ?? 1}
+                    onPageChange={setPageIndex}
+                  />
                 </div>
               )}
             </>

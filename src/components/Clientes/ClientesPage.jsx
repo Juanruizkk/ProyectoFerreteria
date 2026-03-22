@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import SearchBar from "../Common/SearchBar";
 import PaginationControls from "../Common/PaginationControls";
@@ -258,8 +258,14 @@ export default function ClientesPage() {
       <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col gap-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h1 className="text-3xl font-bold">Clientes</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <UserCircle className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-3xl font-bold">Clientes</h1>
+              <p className="text-muted-foreground">Administrá tus clientes activos e inactivos</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
               <Button variant="outline" onClick={() => navigate("/clientes/morosos")}>

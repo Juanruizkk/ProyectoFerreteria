@@ -58,8 +58,8 @@ function translateAction(accion) {
   }
 }
 
-export function AuditTable({ data, onViewChanges }) {
-  if (!data || data.length === 0) {
+export function AuditTable({ data, isLoading = false, onViewChanges }) {
+  if (!isLoading && (!data || data.length === 0)) {
     return (
       <Card className="border-border/50 shadow-sm">
         <CardContent className="p-12">
@@ -82,7 +82,7 @@ export function AuditTable({ data, onViewChanges }) {
           <div
             className="overflow-y-auto transition-all duration-300"
             style={{
-              maxHeight: data.length > 10 ? "600px" : `${data.length * 60 + 60}px`,
+              maxHeight: isLoading ? "360px" : data.length > 10 ? "600px" : `${data.length * 60 + 60}px`,
             }}
           >
             <Table className="w-full border-collapse">
@@ -97,7 +97,18 @@ export function AuditTable({ data, onViewChanges }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((item) => (
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-5 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-40 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-8 w-8 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : data.map((item) => (
                   <TableRow
                     key={item.idAuditoria}
                     className="hover:bg-muted/40 transition"
@@ -131,8 +142,8 @@ export function AuditTable({ data, onViewChanges }) {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
-                              size="icon"
-                              variant="ghost"
+                              size="sm"
+                              variant="outline"
                               onClick={() => onViewChanges(item)}
                             >
                               <Eye className="h-4 w-4" />
