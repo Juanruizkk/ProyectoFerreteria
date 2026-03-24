@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import PageHeader from "@/components/Common/PageHeader";
+import EmptyState from "@/components/Common/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ShoppingCart, Plus, AlertCircle, Search, Calendar, Eye } from "lucide-react";
-import { usePermission } from "@/hooks/usePermission";
-import { PermissionGroups } from "@/config/permissions";
 import { CartProvider } from "@/contexts/CartContext";
 import CreateSaleModal from "./CreateSaleModal";
 import SaleDetailModal from "./SaleDetailModal";
@@ -24,7 +24,6 @@ const ESTADO_FILTERS = [
 ];
 
 export default function Sales() {
-  const { hasPermission } = usePermission();
   const [activeTab, setActiveTab] = useState("todas");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -34,8 +33,6 @@ export default function Sales() {
 
   const [sales, setSales] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
   const [pendingSales, setPendingSales] = useState([]);
   const [isPendingLoading, setIsPendingLoading] = useState(false);
 
@@ -43,19 +40,15 @@ export default function Sales() {
   const [pageSize, setPageSize] = useState(10);
   const [paginationMetadata, setPaginationMetadata] = useState(null);
 
-  const [clienteFilter, setClienteFilter] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFilter, setEstadoFilter] = useState("");
 
-  const canCreate = hasPermission(PermissionGroups.SALES.permissions.CREATE);
-
   const isFirstFilterRender = useRef(true);
 
   const loadSales = async () => {
     setIsLoading(true);
-    setError(null);
     try {
       const result = await fetchSales(
         pageNumber,
@@ -75,7 +68,6 @@ export default function Sales() {
         hasNextPage: pageNumber < totalPages,
       });
     } catch (err) {
-      setError(err.message);
       toast.error("Error al cargar ventas", { description: err.message });
     } finally {
       setIsLoading(false);
@@ -189,21 +181,18 @@ export default function Sales() {
         <div className="flex flex-col gap-6">
 
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <ShoppingCart className="h-8 w-8 text-primary" />
-              <div>
-                <h1 className="text-3xl font-bold">Ventas</h1>
-                <p className="text-muted-foreground">Gestión de ventas y punto de venta</p>
-              </div>
-            </div>
+          <PageHeader
+            icon={<ShoppingCart className="h-8 w-8 text-primary" />}
+            title="Ventas"
+            description="Gestión de ventas y punto de venta"
+          >
             <PermissionGuard permission="VEN_CREATE">
               <Button onClick={() => setIsCreateModalOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nueva Venta
               </Button>
             </PermissionGuard>
-          </div>
+          </PageHeader>
 
           {/* Barra de filtros unificada */}
           <div className="grid grid-cols-5 gap-3">
@@ -213,7 +202,7 @@ export default function Sales() {
                 <Card
                   key={filter.tab + filter.estadoValue}
                   onClick={() => handleFilterClick(filter)}
-                  className={`cursor-pointer border ${isActive ? filter.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                  className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${filter.color} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
                 >
                   <CardHeader className="p-1">
                     <CardTitle className="text-lg font-medium flex items-center justify-center gap-1.5">
@@ -302,10 +291,10 @@ export default function Sales() {
           {/* Tabla ventas (todas / filtradas) */}
           {activeTab === "todas" && (
             <>
-              <div className="rounded-md border bg-card">
+              <div className="rounded-md border bg-card shadow-sm">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
                       <TableHead className="w-[120px]">Código</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Cliente</TableHead>
@@ -332,18 +321,21 @@ export default function Sales() {
                       ))
                     ) : sales.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
-                          <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-muted-foreground">
-                            {searchTerm || fechaDesde || fechaHasta || estadoFilter
+                        <TableCell colSpan={8}>
+                          <EmptyState
+                            icon={ShoppingCart}
+                            title={searchTerm || fechaDesde || fechaHasta || estadoFilter
                               ? "No se encontraron ventas con los filtros aplicados"
                               : "No hay ventas registradas"}
-                          </p>
+                            description={searchTerm || fechaDesde || fechaHasta || estadoFilter
+                              ? "Probá ajustando los filtros de búsqueda"
+                              : undefined}
+                          />
                         </TableCell>
                       </TableRow>
                     ) : (
                       sales.map((sale) => (
-                        <TableRow key={sale.id}>
+                        <TableRow key={sale.id} className="hover:bg-muted/30 transition-colors">
                           <TableCell className="font-medium">{sale.codigoVenta}</TableCell>
                           <TableCell>{formatDate(sale.fecha)}</TableCell>
                           <TableCell className="max-w-[200px] truncate">{sale.cliente}</TableCell>
@@ -388,10 +380,10 @@ export default function Sales() {
           {/* Tabla ventas pendientes */}
           {activeTab === "pendientes" && (
             <PermissionGuard permission="SALE_AUTHORIZE">
-              <div className="rounded-md border bg-card">
+              <div className="rounded-md border bg-card shadow-sm">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
                       <TableHead className="w-[120px]">Código</TableHead>
                       <TableHead>Fecha Solicitud</TableHead>
                       <TableHead>Cliente</TableHead>
@@ -420,17 +412,17 @@ export default function Sales() {
                       ))
                     ) : pendingSales.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
-                          <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-muted-foreground font-medium">No hay ventas pendientes de autorización</p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Las ventas que excedan el límite de crédito aparecerán aquí
-                          </p>
+                        <TableCell colSpan={9}>
+                          <EmptyState
+                            icon={ShoppingCart}
+                            title="No hay ventas pendientes de autorización"
+                            description="Las ventas que excedan el límite de crédito aparecerán aquí"
+                          />
                         </TableCell>
                       </TableRow>
                     ) : (
                       pendingSales.map((sale) => (
-                        <TableRow key={sale.id}>
+                        <TableRow key={sale.id} className="hover:bg-muted/30 transition-colors">
                           <TableCell className="font-medium">{sale.codigoVenta}</TableCell>
                           <TableCell>{formatDate(sale.fechaRegistro)}</TableCell>
                           <TableCell className="max-w-[200px] truncate">{sale.cliente}</TableCell>

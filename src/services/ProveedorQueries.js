@@ -3,6 +3,7 @@ import { fetchWithAuth } from "@/lib/fetchWithAuth";
 const API_BASE = "http://localhost:5019";
 const API_URL = `${API_BASE}/Proveedor`;
 const LP_URL = `${API_BASE}/ListaPrecio`;
+const LP_ITEMS_URL = `${API_BASE}/ProductoListaPrecioProveedor`;
 
 async function parseError(response, defaultMessage) {
   try {
@@ -138,4 +139,40 @@ export async function updateItem(idLista, idProducto, data) {
 export async function deleteItem(idLista, idProducto) {
   const res = await fetchWithAuth(`${LP_URL}/${idLista}/items/${idProducto}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await parseError(res, "Error al quitar el producto"));
+}
+
+// ── Importación Excel de lista ────────────────────────────────────────────────
+
+export async function importarListaExcel(idLista, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetchWithAuth(`${LP_ITEMS_URL}/${idLista}/import`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await parseError(res, "Error al importar el archivo"));
+  return res.json();
+}
+
+// ── Exportación ───────────────────────────────────────────────────────────────
+
+function triggerDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportarProveedoresExcel() {
+  const res = await fetchWithAuth(`${API_URL}/export/excel`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar proveedores"));
+  triggerDownload(await res.blob(), "proveedores.xlsx");
+}
+
+export async function exportarProveedoresPdf() {
+  const res = await fetchWithAuth(`${API_URL}/export/pdf`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar proveedores"));
+  triggerDownload(await res.blob(), "proveedores.pdf");
 }

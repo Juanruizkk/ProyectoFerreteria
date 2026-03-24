@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Barcode, Plus, Trash2 } from "lucide-react";
+import { UNIDADES_MEDIDA } from "@/utils/unidadesMedida";
 
 export default function ProductForm({
   producto,
@@ -31,6 +32,7 @@ export default function ProductForm({
     stockMinimo: (p?.stockMinimo ?? p?.stock_minimo)?.toString() ?? "",
     idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion)?.toString() ?? "",
     idCategoria: (p?.idCategoria ?? p?.id_categoria)?.toString() ?? "",
+    idUnidadMedida: String(p?.idUnidadMedida ?? 1),
     ventaSinStock: Boolean(p?.ventaSinStock ?? p?.venta_sin_stock ?? false),
   });
 
@@ -60,6 +62,10 @@ export default function ProductForm({
     setCodigoBarraInput("");
     setErrorCodigoBarra("");
   }, [producto]);
+
+  // ¿La unidad elegida permite decimales?
+  const esDecimal = formData.idUnidadMedida !== "1";
+  const stepCantidad = esDecimal ? "0.01" : "1";
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -103,6 +109,8 @@ export default function ProductForm({
     if (!Number.isFinite(n)) return def;
     return Math.round(n * 100) / 100;
   };
+  // Para stock/stockMinimo cuando la unidad es decimal
+  const toCantidad = (v, def = 0) => esDecimal ? toMoney2(v, def) : toInt(v, def);
 
   const validarFormulario = () => {
     const e = {};
@@ -112,10 +120,14 @@ export default function ProductForm({
     if ((formData.descripcion || "").length > 100) e.descripcion = "Máximo 100 caracteres";
     const precioOk = Number.isFinite(parseFloat(formData.precio)) && toMoney2(formData.precio) > 0;
     if (!precioOk) e.precio = "El precio debe ser un número mayor a 0 (2 decimales)";
-    const stockN = toInt(formData.stock, NaN);
-    if (!Number.isFinite(stockN) || stockN < 0) e.stock = "El stock debe ser un entero ≥ 0";
-    const stockMinN = toInt(formData.stockMinimo, NaN);
-    if (!Number.isFinite(stockMinN) || stockMinN < 0) e.stockMinimo = "El stock mínimo debe ser un entero ≥ 0";
+    if (!esEdicion) {
+      const stockN = esDecimal ? parseFloat(formData.stock) : toInt(formData.stock, NaN);
+      if (!Number.isFinite(stockN) || stockN < 0)
+        e.stock = esDecimal ? "El stock debe ser un número ≥ 0" : "El stock debe ser un entero ≥ 0";
+    }
+    const stockMinN = esDecimal ? parseFloat(formData.stockMinimo) : toInt(formData.stockMinimo, NaN);
+    if (!Number.isFinite(stockMinN) || stockMinN < 0)
+      e.stockMinimo = esDecimal ? "El stock mínimo debe ser un número ≥ 0" : "El stock mínimo debe ser un entero ≥ 0";
     if (!formData.idCategoria) e.idCategoria = "Debe seleccionar una categoría";
     if (!formData.idUbicacion) e.idUbicacion = "Debe seleccionar una ubicación";
     setErrores(e);
@@ -126,20 +138,28 @@ export default function ProductForm({
     e.preventDefault();
     if (!validarFormulario()) return;
 
+    // Si el usuario escribió un código pero no lo confirmó con +, agregarlo automáticamente
+    let codigosFinales = codigosBarras;
+    if (!esEdicion && agregarCodigosBarras && codigoBarraInput.trim()) {
+      const codigoPendiente = codigoBarraInput.trim();
+      if (!codigosFinales.some((cb) => cb.codigo === codigoPendiente)) {
+        codigosFinales = [...codigosFinales, { idCodigo: 0, codigo: codigoPendiente }];
+      }
+    }
+
     const payload = {
       nombre: formData.nombre.trim(),
       marca: formData.marca.trim(),
       descripcion: formData.descripcion?.trim() || "",
       precio: toMoney2(formData.precio, 0),
-      stock: toInt(formData.stock, 0),
-      stockMinimo: toInt(formData.stockMinimo, 0),
+      stock: toCantidad(formData.stock, 0),
+      stockMinimo: toCantidad(formData.stockMinimo, 0),
       ventaSinStock: Boolean(formData.ventaSinStock),
       idUbicacion: toInt(formData.idUbicacion, 0),
       idCategoria: toInt(formData.idCategoria, 0),
+      idUnidadMedida: toInt(formData.idUnidadMedida, 1),
       activo: true,
-      // En edición: preserva los barcodes existentes sin tocarlos
-      // En alta: envía los barcodes ingresados en el form
-      codigoBarras: esEdicion ? codigosBarras : (agregarCodigosBarras ? codigosBarras : []),
+      codigoBarras: esEdicion ? codigosBarras : (agregarCodigosBarras ? codigosFinales : []),
     };
 
     if (producto?.id ?? producto?.id_producto ?? producto?.idProducto) {
@@ -195,43 +215,67 @@ export default function ProductForm({
         {errores.descripcion && <p className="text-sm text-destructive">{errores.descripcion}</p>}
       </div>
 
-      {/* Precio */}
-      <div className="space-y-2">
-        <Label htmlFor="precio">Precio *</Label>
-        <Input
-          id="precio"
-          type="number"
-          step="0.01"
-          min="0"
-          value={formData.precio}
-          onChange={(e) => handleInputChange("precio", e.target.value)}
-          placeholder="0.00"
-          className={errores.precio ? "border-destructive" : ""}
-        />
-        {errores.precio && <p className="text-sm text-destructive">{errores.precio}</p>}
+      {/* Precio + Unidad de Medida */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="precio">Precio *</Label>
+          <Input
+            id="precio"
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.precio}
+            onChange={(e) => handleInputChange("precio", e.target.value)}
+            placeholder="0.00"
+            className={errores.precio ? "border-destructive" : ""}
+          />
+          {errores.precio && <p className="text-sm text-destructive">{errores.precio}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="unidadMedida">Unidad de Medida *</Label>
+          <Select
+            value={formData.idUnidadMedida}
+            onValueChange={(v) => handleInputChange("idUnidadMedida", v)}
+          >
+            <SelectTrigger id="unidadMedida">
+              <SelectValue placeholder="Seleccionar unidad" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(UNIDADES_MEDIDA).map(([id, u]) => (
+                <SelectItem key={id} value={id}>
+                  {u.nombre} ({u.abreviatura})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Stock + Stock Mínimo */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="stock">Stock *</Label>
-          <Input
-            id="stock"
-            type="number"
-            min="0"
-            value={formData.stock}
-            onChange={(e) => handleInputChange("stock", e.target.value)}
-            placeholder="0"
-            className={errores.stock ? "border-destructive" : ""}
-          />
-          {errores.stock && <p className="text-sm text-destructive">{errores.stock}</p>}
-        </div>
+        {!esEdicion && (
+          <div className="space-y-2">
+            <Label htmlFor="stock">Stock inicial *</Label>
+            <Input
+              id="stock"
+              type="number"
+              min="0"
+              step={stepCantidad}
+              value={formData.stock}
+              onChange={(e) => handleInputChange("stock", e.target.value)}
+              placeholder="0"
+              className={errores.stock ? "border-destructive" : ""}
+            />
+            {errores.stock && <p className="text-sm text-destructive">{errores.stock}</p>}
+          </div>
+        )}
         <div className="space-y-2">
           <Label htmlFor="stockMinimo">Stock Mínimo *</Label>
           <Input
             id="stockMinimo"
             type="number"
             min="0"
+            step={stepCantidad}
             value={formData.stockMinimo}
             onChange={(e) => handleInputChange("stockMinimo", e.target.value)}
             placeholder="0"

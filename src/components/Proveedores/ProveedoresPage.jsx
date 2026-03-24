@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -30,15 +30,25 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
+  FileSpreadsheet,
+  FileText,
   Pencil,
   Plus,
   Power,
+  ShoppingCart,
   Truck,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import CompraForm from "@/components/Compras/CompraForm";
+import { createCompra } from "@/services/CompraProveedorQueries";
 import SearchBar from "../Common/SearchBar";
+import PageHeader from "../Common/PageHeader";
 import { AuditPagination } from "@/components/Audit/AuditPagination";
 
 import PermissionGuard from "@/components/PermissionGuard";
@@ -50,7 +60,8 @@ import { useCrud } from "@/hooks/useCrud";
 import ProveedorForm from "./ProveedorForm";
 import {
   createProveedor,
-  fetchListasByProveedor,
+  exportarProveedoresExcel,
+  exportarProveedoresPdf,
   fetchProveedores,
   getProveedorById,
   toggleEstadoProveedor,
@@ -92,14 +103,16 @@ export default function ProveedoresPage() {
   const [totalCountEliminados, setTotalCountEliminados] = useState(0);
   const dqEliminados = useDebouncedValue(searchEliminados);
 
-  // ── Expand rows ────────────────────────────────────────────────────────
-  const [expandedRows, setExpandedRows] = useState({});
-  const toggleExpandRow = (id) =>
-    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
-
   // ── Form inline ────────────────────────────────────────────────────────
   const [showForm, setShowForm] = useState(false);
   const [editingProveedor, setEditingProveedor] = useState(null);
+
+  // ── Dialog: registrar compra desde lista ───────────────────────────────
+  const [compraDialog, setCompraDialog] = useState(false);
+  const [compraProveedor, setCompraProveedor] = useState(null);
+
+  // ── Exportación ────────────────────────────────────────────────────────
+  const [exporting, setExporting] = useState(null); // "excel" | "pdf" | null
 
   // ── useCrud (toggle) ───────────────────────────────────────────────────
   const crud = useCrud({
@@ -193,6 +206,30 @@ export default function ProveedoresPage() {
     loadActivos();
   };
 
+  const handleRegistrarCompra = (proveedor) => {
+    setCompraProveedor(proveedor);
+    setCompraDialog(true);
+  };
+
+  const handleCompraSubmit = async (payload) => {
+    await createCompra(payload);
+    toast.success("Compra registrada exitosamente");
+    setCompraDialog(false);
+    setCompraProveedor(null);
+  };
+
+  const handleExport = async (type) => {
+    try {
+      setExporting(type);
+      if (type === "excel") await exportarProveedoresExcel();
+      else await exportarProveedoresPdf();
+    } catch (err) {
+      toast.error("Error al exportar: " + err.message);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   // ──────────────────────────────────────────────────────────────────────
   return (
     <PermissionGuard
@@ -203,21 +240,42 @@ export default function ProveedoresPage() {
         <div className="flex flex-col gap-6">
 
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Truck className="h-8 w-8 text-primary" />
-              <div>
-                <h1 className="text-3xl font-bold">Gestión de Proveedores</h1>
-                <p className="text-muted-foreground">Administrá tus proveedores y sus listas de precios</p>
-              </div>
-            </div>
+          <PageHeader
+            icon={<Truck className="h-8 w-8 text-primary" />}
+            title="Gestión de Proveedores"
+            description="Administrá tus proveedores y sus listas de precios"
+          >
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => handleExport("excel")}
+                    disabled={exporting !== null}>
+                    <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                    {exporting === "excel" ? "Exportando..." : "Excel"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exportar a Excel</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => handleExport("pdf")}
+                    disabled={exporting !== null}>
+                    <FileText className="h-4 w-4 mr-1.5" />
+                    {exporting === "pdf" ? "Exportando..." : "PDF"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exportar a PDF</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <PermissionGuard permission="PROV_CREATE">
               <Button onClick={handleCreate} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Nuevo Proveedor
               </Button>
             </PermissionGuard>
-          </div>
+          </PageHeader>
 
           {/* Form inline */}
           <PermissionGuard anyOf={["PROV_CREATE", "PROV_UPDATE"]}>
@@ -242,7 +300,7 @@ export default function ProveedoresPage() {
                 <Card
                   key={card.key}
                   onClick={() => setActiveTab(card.key)}
-                  className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                  className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${card.color} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
                 >
                   <CardHeader className="p-1">
                     <CardTitle className="text-lg font-medium">{card.label}</CardTitle>
@@ -304,7 +362,6 @@ export default function ProveedoresPage() {
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-muted">
-                              <TableHead className="w-10" />
                               <TableHead>Nombre</TableHead>
                               <TableHead>Teléfono</TableHead>
                               <TableHead>Dirección</TableHead>
@@ -315,98 +372,58 @@ export default function ProveedoresPage() {
                           <TableBody>
                             {proveedoresActivos.length === 0 && (
                               <TableRow>
-                                <TableCell
-                                  colSpan={6}
-                                  className="text-center py-10 text-muted-foreground"
-                                >
+                                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
                                   No se encontraron proveedores activos
                                 </TableCell>
                               </TableRow>
                             )}
                             {proveedoresActivos.map((p) => (
-                              <Fragment key={p.idProveedor}>
-                                <TableRow className="hover:bg-muted/40 transition">
-                                  {/* Expand toggle */}
-                                  <TableCell>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6"
-                                      onClick={() => toggleExpandRow(p.idProveedor)}
-                                    >
-                                      {expandedRows[p.idProveedor] ? (
-                                        <ChevronDown className="h-4 w-4" />
-                                      ) : (
-                                        <ChevronRight className="h-4 w-4" />
+                              <TableRow key={p.idProveedor} className="hover:bg-muted/40 transition">
+                                <TableCell className="font-medium">{p.nombre}</TableCell>
+                                <TableCell>{p.telefono || "-"}</TableCell>
+                                <TableCell>{p.direccion || "-"}</TableCell>
+                                <TableCell>
+                                  <Badge variant={p.activo ? "default" : "secondary"}>
+                                    {p.activo ? "Activo" : "Inactivo"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <TooltipProvider>
+                                    <div className="flex gap-2 justify-end">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button size="sm" variant="outline" onClick={() => navigate(`/proveedores/${p.idProveedor}`)}>
+                                            <FileText className="h-4 w-4 mr-1" /> Ver detalles
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Ver detalle del proveedor</TooltipContent>
+                                      </Tooltip>
+
+                                      <PermissionGuard permission="COMP_CREATE">
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button size="sm" variant="outline" onClick={() => handleRegistrarCompra(p)}>
+                                              <ShoppingCart className="h-4 w-4 mr-1" /> Registrar compra
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Registrar una compra a este proveedor</TooltipContent>
+                                        </Tooltip>
+                                      </PermissionGuard>
+
+                                      {hasPermission("PROV_UPDATE") && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button size="sm" variant="ghost" onClick={() => toggleDialog.openDialog(p)} disabled={crud.loading.toggle}>
+                                              <Power className="h-4 w-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>{p.activo ? "Desactivar" : "Activar"}</TooltipContent>
+                                        </Tooltip>
                                       )}
-                                    </Button>
-                                  </TableCell>
-                                  <TableCell className="font-medium">{p.nombre}</TableCell>
-                                  <TableCell>{p.telefono || "-"}</TableCell>
-                                  <TableCell>{p.direccion || "-"}</TableCell>
-                                  <TableCell>
-                                    <Badge variant={p.activo ? "default" : "secondary"}>
-                                      {p.activo ? "Activo" : "Inactivo"}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <TooltipProvider>
-                                      <div className="flex gap-2 justify-end">
-                                        {hasPermission("PROV_UPDATE") && (
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => handleEdit(p)}
-                                              >
-                                                <Pencil className="h-4 w-4" />
-                                              </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Editar</TooltipContent>
-                                          </Tooltip>
-                                        )}
-
-                                        {hasPermission("PROV_UPDATE") && (
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => toggleDialog.openDialog(p)}
-                                                disabled={crud.loading.toggle}
-                                              >
-                                                <Power className="h-4 w-4" />
-                                              </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                              {p.activo ? "Desactivar" : "Activar"}
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        )}
-
-                                      </div>
-                                    </TooltipProvider>
-                                  </TableCell>
-                                </TableRow>
-
-                                {/* ── Expand row ── */}
-                                {expandedRows[p.idProveedor] && (
-                                  <TableRow>
-                                    <TableCell
-                                      colSpan={6}
-                                      className="bg-muted/30 px-6 py-4"
-                                    >
-                                      <ProveedorExpandContent
-                                        proveedor={p}
-                                        onNavigate={() =>
-                                          navigate(`/proveedores/${p.idProveedor}`)
-                                        }
-                                      />
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </Fragment>
+                                    </div>
+                                  </TooltipProvider>
+                                </TableCell>
+                              </TableRow>
                             ))}
                           </TableBody>
                         </Table>
@@ -584,77 +601,25 @@ export default function ProveedoresPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Dialog: registrar compra ──────────────────────────────────────── */}
+      <Dialog open={compraDialog} onOpenChange={(v) => { if (!v) { setCompraDialog(false); setCompraProveedor(null); } }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nueva Compra</DialogTitle>
+            <DialogDescription>
+              {compraProveedor ? `Registrando compra para ${compraProveedor.nombre}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {compraProveedor && (
+            <CompraForm
+              proveedorInicial={compraProveedor}
+              onSubmit={handleCompraSubmit}
+              onCancel={() => { setCompraDialog(false); setCompraProveedor(null); }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </PermissionGuard>
-  );
-}
-
-// ── Expand row content ──────────────────────────────────────────────────────
-function ProveedorExpandContent({ proveedor, onNavigate }) {
-  const [listas, setListas] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchListasByProveedor(proveedor.idProveedor)
-      .then(setListas)
-      .catch(() => setListas([]))
-      .finally(() => setLoading(false));
-  }, [proveedor.idProveedor]);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-          Listas de Precios
-        </p>
-        <Button size="sm" variant="outline" onClick={onNavigate}>
-          <ExternalLink className="mr-2 h-3 w-3" />
-          Ir al proveedor
-        </Button>
-      </div>
-      <div className="border rounded-md overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-background">
-              <TableHead className="text-xs">Nombre</TableHead>
-              <TableHead className="text-xs">Fecha</TableHead>
-              <TableHead className="text-xs">Observaciones</TableHead>
-              <TableHead className="text-xs">Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center py-4 text-xs text-muted-foreground">
-                  Cargando listas...
-                </TableCell>
-              </TableRow>
-            ) : !listas || listas.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center py-4 text-xs text-muted-foreground">
-                  Sin listas de precios — ver detalle completo en la página del proveedor
-                </TableCell>
-              </TableRow>
-            ) : (
-              listas.map((l) => (
-                <TableRow key={l.idLista}>
-                  <TableCell className="text-sm font-medium">{l.nombre}</TableCell>
-                  <TableCell className="text-sm">
-                    {l.fechaCreacion
-                      ? new Date(l.fechaCreacion).toLocaleDateString("es-AR")
-                      : "-"}
-                  </TableCell>
-                  <TableCell className="text-sm">{l.observaciones || "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant={l.activo ? "default" : "secondary"} className="text-xs">
-                      {l.activo ? "Activa" : "Inactiva"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
   );
 }

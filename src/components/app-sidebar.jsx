@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Users, UserCircle, Package, Home, Settings, History, ShoppingCart, ChevronDown, ChevronRight, Truck, ClipboardList, BarChart2 } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import PermissionGuard from "@/components/PermissionGuard"
 import { PermissionGroups } from "@/config/permissions"
 
@@ -19,10 +19,20 @@ import {
 } from "@/components/ui/sidebar"
 
 export function AppSidebar() {
-  const [configOpen, setConfigOpen] = useState(false);
+  const { pathname } = useLocation();
+
+  const configRoutes = ["/categorias", "/configuracion-cc"];
+  const isConfigActive = configRoutes.some((r) => pathname.startsWith(r));
+
+  const [configOpen, setConfigOpen] = useState(isConfigActive);
+
+  // Si se navega a una sub-ruta de Configuración, abrir el colapsable
+  useEffect(() => {
+    if (isConfigActive) setConfigOpen(true);
+  }, [isConfigActive]);
 
   return (
-    <Sidebar variant="inset">
+    <Sidebar>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Sistema Ferretería</SidebarGroupLabel>
@@ -30,7 +40,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {/* Home */}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild isActive={pathname === "/"}>
                   <Link to="/">
                     <Home />
                     <span>Inicio</span>
@@ -41,7 +51,7 @@ export function AppSidebar() {
               {/* Usuarios */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.USERS.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/usuarios")}>
                     <Link to="/usuarios">
                       <Users />
                       <span>Usuarios</span>
@@ -53,7 +63,7 @@ export function AppSidebar() {
               {/* Clientes */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.CLIENTS.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/clientes")}>
                     <Link to="/clientes">
                       <UserCircle />
                       <span>Clientes</span>
@@ -65,7 +75,7 @@ export function AppSidebar() {
               {/* Ventas */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.SALES.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/ventas")}>
                     <Link to="/ventas">
                       <ShoppingCart />
                       <span>Ventas</span>
@@ -77,7 +87,7 @@ export function AppSidebar() {
               {/* Productos */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/productos")}>
                     <Link to="/productos">
                       <Package />
                       <span>Productos</span>
@@ -89,7 +99,7 @@ export function AppSidebar() {
               {/* Compras */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.PURCHASES.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/compras")}>
                     <Link to="/compras">
                       <ClipboardList />
                       <span>Compras</span>
@@ -101,7 +111,7 @@ export function AppSidebar() {
               {/* Proveedores */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.SUPPLIERS.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/proveedores")}>
                     <Link to="/proveedores">
                       <Truck />
                       <span>Proveedores</span>
@@ -113,7 +123,7 @@ export function AppSidebar() {
               {/* Reportes */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.REPORTS.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/reportes")}>
                     <Link to="/reportes">
                       <BarChart2 />
                       <span>Reportes</span>
@@ -146,7 +156,7 @@ export function AppSidebar() {
                     <SidebarMenuSub>
                       <PermissionGuard anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}>
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild>
+                          <SidebarMenuSubButton asChild isActive={pathname.startsWith("/categorias")}>
                             <Link to="/categorias">
                               <span>Categorías productos</span>
                             </Link>
@@ -156,7 +166,7 @@ export function AppSidebar() {
 
                       <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
                         <SidebarMenuSubItem>
-                          <SidebarMenuSubButton asChild>
+                          <SidebarMenuSubButton asChild isActive={pathname.startsWith("/configuracion-cc")}>
                             <Link to="/configuracion-cc">
                               <span>Cta. Corriente</span>
                             </Link>
@@ -171,7 +181,7 @@ export function AppSidebar() {
               {/* Auditoría */}
               <PermissionGuard anyOf={Object.values(PermissionGroups.HISTORY.permissions)}>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/auditoria")}>
                     <Link to="/auditoria">
                       <History />
                       <span>Auditoría</span>

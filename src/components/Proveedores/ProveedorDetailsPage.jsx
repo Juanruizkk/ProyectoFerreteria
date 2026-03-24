@@ -1,13 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  FileText,
   Pencil,
   Plus,
   Power,
+  RefreshCw,
+  ShoppingCart,
   Trash2,
-  FileText,
+  Upload,
+  XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -61,56 +68,517 @@ import { usePermission } from "@/hooks/usePermission";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   getProveedorById,
+  updateProveedor,
   fetchListasByProveedor,
   createLista,
   updateLista,
   deleteLista,
   toggleActivoLista,
+  fetchItemsByLista,
+  addItem,
+  updateItem,
+  deleteItem,
 } from "@/services/ProveedorQueries";
+import { fetchAvailableProducts } from "@/services/SaleQueries";
+import { getComprasByProveedor, createCompra } from "@/services/CompraProveedorQueries";
+import CompraForm from "@/components/Compras/CompraForm";
+import AnularCompraDialog from "@/components/Compras/AnularCompraDialog";
+import ProveedorForm from "./ProveedorForm";
+import ImportarListaModal from "./ImportarListaModal";
+import { getCurrentUser } from "@/services/AuthService";
 
-// ── Formulario de lista (create / edit) ────────────────────────────────────
-const EMPTY_FORM = { nombre: "", observaciones: "" };
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt(value) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+  }).format(value || 0);
+}
+
+function fmtFecha(dateStr) {
+  if (!dateStr) return "-";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// ── Buscador de productos para listas ────────────────────────────────────────
+function ProductSearch({ value, onChange, disabled }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleInputChange = (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    onChange(null);
+    if (!q.trim()) { setResults([]); setOpen(false); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        setSearching(true);
+        const data = await fetchAvailableProducts(q);
+        const items = data?.items ?? data ?? [];
+        setResults(items.slice(0, 8));
+        setOpen(items.length > 0);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+  };
+
+  const handleSelect = (producto) => {
+    setQuery(producto.nombre ?? producto.Nombre ?? "");
+    onChange(producto);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <Input
+        placeholder="Buscar producto por nombre..."
+        value={value ? (value.nombre ?? value.Nombre ?? query) : query}
+        onChange={handleInputChange}
+        disabled={disabled}
+        autoComplete="off"
+      />
+      {searching && <p className="text-xs text-muted-foreground mt-1">Buscando...</p>}
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-52 overflow-y-auto">
+          {results.map((p) => {
+            const nombre = p.nombre ?? p.Nombre ?? "";
+            const marca = p.marca ?? p.Marca ?? "";
+            const id = p.idProducto ?? p.IdProducto;
+            return (
+              <button
+                key={id}
+                type="button"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition flex justify-between gap-2"
+                onMouseDown={() => handleSelect(p)}
+              >
+                <span className="font-medium truncate">{nombre}</span>
+                {marca && <span className="text-muted-foreground shrink-0">{marca}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Panel inline de productos de una lista ───────────────────────────────────
+const EMPTY_ITEM_FORM = { producto: null, precio: "", margen: "" };
+
+function ListaItemsPanel({ idLista, listaNombre }) {
+  const { hasPermission } = usePermission();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const [itemDialog, setItemDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
+  const [itemFormError, setItemFormError] = useState("");
+  const [savingItem, setSavingItem] = useState(false);
+
+  const deleteItemDlg = useConfirmDialog(async (item) => {
+    await deleteItem(idLista, item.idProducto);
+    toast.success(`"${item.nombreProducto}" quitado de la lista`);
+    loadItems();
+  });
+
+  useEffect(() => { loadItems(); }, [idLista]);
+
+  const loadItems = async () => {
+    try {
+      setLoading(true);
+      setItems(await fetchItemsByLista(idLista) ?? []);
+    } catch (err) {
+      toast.error("Error al cargar productos: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openAdd = () => {
+    setEditingItem(null);
+    setItemForm(EMPTY_ITEM_FORM);
+    setItemFormError("");
+    setItemDialog(true);
+  };
+
+  const openEdit = (item) => {
+    setEditingItem(item);
+    setItemForm({
+      producto: { idProducto: item.idProducto, nombre: item.nombreProducto, marca: item.marca },
+      precio: String(item.precio ?? ""),
+      margen: item.margen != null ? String(item.margen) : "",
+    });
+    setItemFormError("");
+    setItemDialog(true);
+  };
+
+  const handleItemSubmit = async (e) => {
+    e.preventDefault();
+    const precio = parseFloat(itemForm.precio);
+    const margen = itemForm.margen !== "" ? parseFloat(itemForm.margen) : null;
+    if (!editingItem && !itemForm.producto) { setItemFormError("Seleccioná un producto."); return; }
+    if (isNaN(precio) || precio < 0) { setItemFormError("El precio debe ser mayor o igual a 0."); return; }
+    if (margen !== null && (isNaN(margen) || margen < 0)) { setItemFormError("El margen debe ser mayor o igual a 0."); return; }
+    try {
+      setSavingItem(true);
+      setItemFormError("");
+      if (editingItem) {
+        await updateItem(idLista, editingItem.idProducto, { idProducto: editingItem.idProducto, precio, margen });
+        toast.success("Precio actualizado");
+      } else {
+        const idProducto = itemForm.producto.idProducto ?? itemForm.producto.IdProducto;
+        await addItem(idLista, { idProducto, precio, margen });
+        toast.success(`"${itemForm.producto.nombre ?? itemForm.producto.Nombre}" agregado a la lista`);
+      }
+      setItemDialog(false);
+      loadItems();
+    } catch (err) {
+      setItemFormError(err.message);
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const formatCurrency = (n) =>
+    n != null ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n) : "-";
+  const formatMargen = (n) =>
+    n != null ? `${(n * 100).toFixed(1)}%` : "-";
+
+  return (
+    <div className="space-y-3">
+      {hasPermission("LP_ITEM_ADD") && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="mr-1 h-3 w-3" /> Agregar producto
+          </Button>
+        </div>
+      )}
+
+      <div className="rounded-md border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead>Producto</TableHead>
+              <TableHead>Marca</TableHead>
+              <TableHead className="text-right">Precio</TableHead>
+              <TableHead className="text-right">Margen</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground text-sm">
+                  Cargando productos...
+                </TableCell>
+              </TableRow>
+            ) : items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground text-sm">
+                  Sin productos — usá "Agregar producto" para cargar el primero
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((item) => (
+                <TableRow key={item.idProducto} className="hover:bg-muted/30 transition">
+                  <TableCell className="font-medium text-sm">{item.nombreProducto || `Producto #${item.idProducto}`}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{item.marca || "-"}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{formatCurrency(item.precio)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{formatMargen(item.margen)}</TableCell>
+                  <TableCell className="text-right">
+                    <TooltipProvider>
+                      <div className="flex gap-1.5 justify-end">
+                        {hasPermission("LP_UPDATE") && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar precio</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {hasPermission("LP_DELETE") && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteItemDlg.openDialog(item)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Quitar de la lista</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TooltipProvider>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {items.length > 0 && (
+        <p className="text-xs text-muted-foreground text-right">
+          {items.length} producto{items.length !== 1 ? "s" : ""} en la lista
+        </p>
+      )}
+
+      {/* Dialog agregar/editar item */}
+      <Dialog open={itemDialog} onOpenChange={(v) => { if (!savingItem) setItemDialog(v); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? "Editar precio" : "Agregar producto a la lista"}</DialogTitle>
+            <DialogDescription>
+              {editingItem
+                ? `Modificando precio de "${editingItem.nombreProducto}"`
+                : `Seleccioná un producto y definí su precio en "${listaNombre}"`}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleItemSubmit} className="space-y-4">
+            {!editingItem && (
+              <div className="space-y-1">
+                <Label>Producto <span className="text-destructive">*</span></Label>
+                <ProductSearch
+                  value={itemForm.producto}
+                  onChange={(p) => {
+                    const precioActual = p?.precio ?? p?.Precio;
+                    setItemForm((prev) => ({
+                      ...prev,
+                      producto: p,
+                      precio: precioActual != null ? String(precioActual) : prev.precio,
+                    }));
+                  }}
+                  disabled={savingItem}
+                />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="item-precio">Precio <span className="text-destructive">*</span></Label>
+                <Input id="item-precio" type="number" min="0" step="0.01" placeholder="0.00"
+                  value={itemForm.precio}
+                  onChange={(e) => setItemForm((p) => ({ ...p, precio: e.target.value }))}
+                  disabled={savingItem}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="item-margen">
+                  Margen <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
+                </Label>
+                <Input id="item-margen" type="number" min="0" step="0.01" placeholder="0.25"
+                  value={itemForm.margen}
+                  onChange={(e) => setItemForm((p) => ({ ...p, margen: e.target.value }))}
+                  disabled={savingItem}
+                />
+              </div>
+            </div>
+            {itemFormError && <p className="text-sm text-destructive">{itemFormError}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setItemDialog(false)} disabled={savingItem}>Cancelar</Button>
+              <Button type="submit" disabled={savingItem}>{savingItem ? "Guardando..." : editingItem ? "Actualizar" : "Agregar"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog eliminar item */}
+      <AlertDialog open={deleteItemDlg.open} onOpenChange={deleteItemDlg.closeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Quitar producto de la lista?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se quitará <span className="font-semibold text-foreground">"{deleteItemDlg.item?.nombreProducto}"</span> de la lista "{listaNombre}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteItemDlg.loading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteItemDlg.confirm} disabled={deleteItemDlg.loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteItemDlg.loading ? "Quitando..." : "Quitar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ── Fila expandible de compra ─────────────────────────────────────────────────
+function CompraRow({ compra, onRepetir, onAnular }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <TableRow className="hover:bg-muted/30 transition cursor-pointer" onClick={() => setExpanded((v) => !v)}>
+        <TableCell>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}>
+            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
+        </TableCell>
+        <TableCell className="text-sm">{fmtFecha(compra.fecha)}</TableCell>
+        <TableCell className="text-sm">
+          {compra.tipoComprobante ? (
+            <span>{compra.tipoComprobante}{compra.numeroComprobante ? ` ${compra.numeroComprobante}` : ""}</span>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )}
+        </TableCell>
+        <TableCell className="text-sm font-mono text-right">{fmt(compra.total)}</TableCell>
+        <TableCell>
+          <Badge variant={compra.activo ? "default" : "secondary"} className="text-xs">
+            {compra.activo ? "Activa" : "Anulada"}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+          <TooltipProvider>
+            <div className="flex gap-1.5 justify-end">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onRepetir(compra)}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Repetir compra</TooltipContent>
+              </Tooltip>
+              {compra.activo && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => onAnular(compra)}>
+                      <XCircle className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Anular compra</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </TooltipProvider>
+        </TableCell>
+      </TableRow>
+
+      {expanded && compra.detalles && (
+        <TableRow>
+          <TableCell colSpan={6} className="bg-muted/20 px-6 pb-4 pt-2">
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="text-xs">Producto</TableHead>
+                    <TableHead className="text-xs text-right">Cantidad</TableHead>
+                    <TableHead className="text-xs text-right">Precio unit.</TableHead>
+                    <TableHead className="text-xs text-right">Desc %</TableHead>
+                    <TableHead className="text-xs text-right">IVA %</TableHead>
+                    <TableHead className="text-xs text-right">Total línea</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {compra.detalles.map((d, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{d.nombreProducto}</TableCell>
+                      <TableCell className="text-sm text-right">{d.cantidad}</TableCell>
+                      <TableCell className="text-sm text-right font-mono">{fmt(d.precioUnitario)}</TableCell>
+                      <TableCell className="text-sm text-right">{d.descuentoPorcentaje > 0 ? `${d.descuentoPorcentaje}%` : "-"}</TableCell>
+                      <TableCell className="text-sm text-right">{d.ivaPorcentaje > 0 ? `${d.ivaPorcentaje}%` : "-"}</TableCell>
+                      <TableCell className="text-sm text-right font-mono font-medium">{fmt(d.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-muted/30">
+                    <TableCell colSpan={5} className="text-right text-sm font-semibold">Total compra</TableCell>
+                    <TableCell className="text-right text-sm font-bold font-mono">{fmt(compra.total)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            {compra.observacion && (
+              <p className="text-xs text-muted-foreground mt-2">Obs: {compra.observacion}</p>
+            )}
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
+const EMPTY_LISTA_FORM = { nombre: "", observaciones: "" };
 
 export default function ProveedorDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { hasPermission } = usePermission();
 
+  // Proveedor
   const [proveedor, setProveedor] = useState(null);
   const [loadingProveedor, setLoadingProveedor] = useState(true);
+  const [showEditProveedor, setShowEditProveedor] = useState(false);
 
+  // Listas de precios
   const [listas, setListas] = useState([]);
   const [loadingListas, setLoadingListas] = useState(false);
+  const [expandedListas, setExpandedListas] = useState({});
 
   // Dialog crear/editar lista
   const [listaDialog, setListaDialog] = useState(false);
-  const [editingLista, setEditingLista] = useState(null); // null = crear
-  const [listaForm, setListaForm] = useState(EMPTY_FORM);
+  const [editingLista, setEditingLista] = useState(null);
+  const [listaForm, setListaForm] = useState(EMPTY_LISTA_FORM);
   const [listaFormError, setListaFormError] = useState("");
   const [savingLista, setSavingLista] = useState(false);
 
-  // Dialog confirmar eliminar
-  const deleteListaDialog = useConfirmDialog(async (lista) => {
+  const deleteListaDlg = useConfirmDialog(async (lista) => {
     await deleteLista(lista.idLista);
     toast.success(`"${lista.nombre}" eliminada`);
     loadListas();
   });
-
-  // Dialog confirmar toggle
-  const toggleListaDialog = useConfirmDialog(async (lista) => {
+  const toggleListaDlg = useConfirmDialog(async (lista) => {
     await toggleActivoLista(lista.idLista);
     toast.success(lista.activo ? `"${lista.nombre}" desactivada` : `"${lista.nombre}" activada`);
     loadListas();
   });
 
-  // ── Carga ────────────────────────────────────────────────────────────────
-  useEffect(() => { loadProveedor(); }, [id]);
+  // Compras
+  const [compras, setCompras] = useState([]);
+  const [loadingCompras, setLoadingCompras] = useState(false);
+
+  // Dialog compra
+  const [compraFormOpen, setCompraFormOpen] = useState(false);
+  const [compraParaRepetir, setCompraParaRepetir] = useState(null);
+
+  // Dialog anular
+  const [anularDialog, setAnularDialog] = useState(false);
+  const [compraAAnular, setCompraAAnular] = useState(null);
+
+  // Modal importar Excel (por lista)
+  const [importarModal, setImportarModal] = useState(false);
+  const [listaParaImportar, setListaParaImportar] = useState(null);
+
+  // ── Carga ─────────────────────────────────────────────────────────────────
+  useEffect(() => { loadProveedor(); loadListas(); }, [id]);
 
   const loadProveedor = async () => {
     try {
       setLoadingProveedor(true);
-      const data = await getProveedorById(id);
-      setProveedor(data);
+      setProveedor(await getProveedorById(id));
     } catch (err) {
       toast.error("Error al cargar el proveedor: " + err.message);
     } finally {
@@ -121,8 +589,7 @@ export default function ProveedorDetailsPage() {
   const loadListas = async () => {
     try {
       setLoadingListas(true);
-      const data = await fetchListasByProveedor(id);
-      setListas(data ?? []);
+      setListas(await fetchListasByProveedor(id) ?? []);
     } catch (err) {
       toast.error("Error al cargar las listas: " + err.message);
     } finally {
@@ -130,19 +597,29 @@ export default function ProveedorDetailsPage() {
     }
   };
 
-  useEffect(() => {
-    if (id) loadListas();
-  }, [id]);
+  const loadCompras = async () => {
+    try {
+      setLoadingCompras(true);
+      setCompras(await getComprasByProveedor(id) ?? []);
+    } catch (err) {
+      toast.error("Error al cargar las compras: " + err.message);
+    } finally {
+      setLoadingCompras(false);
+    }
+  };
 
-  // ── Handlers lista ───────────────────────────────────────────────────────
-  const openCreate = () => {
+  // ── Handlers listas ───────────────────────────────────────────────────────
+  const toggleExpandLista = (idLista) =>
+    setExpandedListas((prev) => ({ ...prev, [idLista]: !prev[idLista] }));
+
+  const openCreateLista = () => {
     setEditingLista(null);
-    setListaForm(EMPTY_FORM);
+    setListaForm(EMPTY_LISTA_FORM);
     setListaFormError("");
     setListaDialog(true);
   };
 
-  const openEdit = (lista) => {
+  const openEditLista = (lista) => {
     setEditingLista(lista);
     setListaForm({ nombre: lista.nombre ?? "", observaciones: lista.observaciones ?? "" });
     setListaFormError("");
@@ -151,26 +628,15 @@ export default function ProveedorDetailsPage() {
 
   const handleListaSubmit = async (e) => {
     e.preventDefault();
-    if (!listaForm.nombre.trim()) {
-      setListaFormError("El nombre es requerido.");
-      return;
-    }
+    if (!listaForm.nombre.trim()) { setListaFormError("El nombre es requerido."); return; }
     try {
       setSavingLista(true);
       setListaFormError("");
       if (editingLista) {
-        await updateLista({
-          idLista: editingLista.idLista,
-          nombre: listaForm.nombre.trim(),
-          observaciones: listaForm.observaciones.trim() || null,
-        });
+        await updateLista({ idLista: editingLista.idLista, nombre: listaForm.nombre.trim(), observaciones: listaForm.observaciones.trim() || null });
         toast.success(`"${listaForm.nombre}" actualizada`);
       } else {
-        await createLista({
-          idProveedor: Number(id),
-          nombre: listaForm.nombre.trim(),
-          observaciones: listaForm.observaciones.trim() || null,
-        });
+        await createLista({ idProveedor: Number(id), nombre: listaForm.nombre.trim(), observaciones: listaForm.observaciones.trim() || null });
         toast.success(`"${listaForm.nombre}" creada`);
       }
       setListaDialog(false);
@@ -182,7 +648,38 @@ export default function ProveedorDetailsPage() {
     }
   };
 
-  // ── Loading / not found ──────────────────────────────────────────────────
+  // ── Handlers compras ──────────────────────────────────────────────────────
+  const handleNuevaCompra = () => {
+    setCompraParaRepetir(null);
+    setCompraFormOpen(true);
+  };
+
+  const handleRepetirCompra = (compra) => {
+    setCompraParaRepetir(compra);
+    setCompraFormOpen(true);
+  };
+
+  const handleAnularCompra = (compra) => {
+    setCompraAAnular(compra);
+    setAnularDialog(true);
+  };
+
+  const handleCompraSubmit = async (payload) => {
+    await createCompra(payload);
+    toast.success("Compra registrada exitosamente");
+    setCompraFormOpen(false);
+    setCompraParaRepetir(null);
+    loadCompras();
+  };
+
+  const handleEditProveedorSubmit = async (payload) => {
+    await updateProveedor(payload);
+    toast.success(`"${payload.nombre}" actualizado`);
+    setShowEditProveedor(false);
+    loadProveedor();
+  };
+
+  // ── Loading / not found ───────────────────────────────────────────────────
   if (loadingProveedor) {
     return (
       <div className="p-6 space-y-4">
@@ -205,7 +702,7 @@ export default function ProveedorDetailsPage() {
     );
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -213,324 +710,344 @@ export default function ProveedorDetailsPage() {
         <Button variant="outline" onClick={() => navigate("/proveedores")}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver
         </Button>
-        <h1 className="text-2xl font-bold">Detalle del Proveedor</h1>
+        <h1 className="text-2xl font-bold flex-1">Detalle del Proveedor</h1>
       </div>
 
       {/* Card proveedor */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-xl">{proveedor.nombre}</CardTitle>
-              <CardDescription>{proveedor.direccion || "Sin dirección registrada"}</CardDescription>
+      {showEditProveedor ? (
+        <PermissionGuard anyOf={["PROV_UPDATE"]}>
+          <ProveedorForm
+            initialData={proveedor}
+            onSubmit={handleEditProveedorSubmit}
+            onCancel={() => setShowEditProveedor(false)}
+          />
+        </PermissionGuard>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-xl">{proveedor.nombre}</CardTitle>
+                <CardDescription>{proveedor.direccion || "Sin dirección registrada"}</CardDescription>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant={proveedor.activo ? "default" : "secondary"}>
+                  {proveedor.activo ? "Activo" : "Inactivo"}
+                </Badge>
+                {hasPermission("PROV_UPDATE") && (
+                  <Button size="sm" variant="outline" onClick={() => setShowEditProveedor(true)}>
+                    <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                  </Button>
+                )}
+              </div>
             </div>
-            <Badge variant={proveedor.activo ? "default" : "secondary"}>
-              {proveedor.activo ? "Activo" : "Inactivo"}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Nombre</p>
-              <p className="text-base">{proveedor.nombre}</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Nombre</p>
+                <p className="text-base">{proveedor.nombre}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Teléfono</p>
+                <p className="text-base">{proveedor.telefono || "-"}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Dirección</p>
+                <p className="text-base">{proveedor.direccion || "-"}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Teléfono</p>
-              <p className="text-base">{proveedor.telefono || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Dirección</p>
-              <p className="text-base">{proveedor.direccion || "-"}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="listas" className="w-full">
         <TabsList className="grid w-full max-w-sm grid-cols-2">
           <TabsTrigger value="listas">Listas de Precios</TabsTrigger>
-          <TabsTrigger value="compras">Compras</TabsTrigger>
+          <TabsTrigger value="compras" onClick={() => { if (compras.length === 0 && !loadingCompras) loadCompras(); }}>
+            Compras
+          </TabsTrigger>
         </TabsList>
 
-        {/* ── Tab Listas ─────────────────────────────────────────────────── */}
-        <TabsContent value="listas" className="space-y-4">
+        {/* ── Tab Listas ───────────────────────────────────────────────────── */}
+        <TabsContent value="listas" className="space-y-3 mt-4">
           <PermissionGuard permission="LP_CREATE">
             <div className="flex justify-end">
-              <Button onClick={openCreate}>
+              <Button onClick={openCreateLista}>
                 <Plus className="mr-2 h-4 w-4" /> Nueva Lista
               </Button>
             </div>
           </PermissionGuard>
 
-          <Card>
-            <CardContent className="p-0">
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted">
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Fecha de creación</TableHead>
-                      <TableHead>Observaciones</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loadingListas ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                          Cargando listas...
-                        </TableCell>
-                      </TableRow>
-                    ) : listas.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                          Sin listas de precios registradas
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      listas.map((l) => (
-                        <TableRow key={l.idLista} className="hover:bg-muted/40 transition">
-                          <TableCell className="font-medium">{l.nombre}</TableCell>
-                          <TableCell>
-                            {l.fechaCreacion
-                              ? new Date(l.fechaCreacion).toLocaleDateString("es-AR")
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {l.observaciones || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={l.activo ? "default" : "secondary"}>
-                              {l.activo ? "Activa" : "Inactiva"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <TooltipProvider>
-                              <div className="flex gap-2 justify-end">
-                                {/* Ver detalle */}
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="icon"
-                                      variant="outline"
-                                      onClick={() =>
-                                        navigate(`/proveedores/${id}/listas/${l.idLista}`)
-                                      }
-                                    >
-                                      <FileText className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Ver productos</TooltipContent>
-                                </Tooltip>
+          {loadingListas ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">Cargando listas...</div>
+          ) : listas.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                Sin listas de precios — creá la primera con el botón de arriba
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {listas.map((lista) => (
+                <Card key={lista.idLista} className="overflow-hidden">
+                  {/* Cabecera de lista */}
+                  <div
+                    className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/30 transition select-none"
+                    onClick={() => toggleExpandLista(lista.idLista)}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0"
+                      onClick={(e) => { e.stopPropagation(); toggleExpandLista(lista.idLista); }}
+                    >
+                      {expandedListas[lista.idLista]
+                        ? <ChevronDown className="h-4 w-4" />
+                        : <ChevronRight className="h-4 w-4" />}
+                    </Button>
 
-                                {/* Editar */}
-                                {hasPermission("LP_UPDATE") && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => openEdit(l)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Editar</TooltipContent>
-                                  </Tooltip>
-                                )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{lista.nombre}</span>
+                        <Badge variant={lista.activo ? "default" : "secondary"} className="text-xs">
+                          {lista.activo ? "Activa" : "Inactiva"}
+                        </Badge>
+                        {lista.cantidadItems != null && (
+                          <span className="text-xs text-muted-foreground">
+                            {lista.cantidadItems} producto{lista.cantidadItems !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      {lista.observaciones && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{lista.observaciones}</p>
+                      )}
+                    </div>
 
-                                {/* Toggle activo */}
-                                {hasPermission("LP_TOGGLE") && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => toggleListaDialog.openDialog(l)}
-                                      >
-                                        <Power className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {l.activo ? "Desactivar" : "Activar"}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
+                    <TooltipProvider>
+                      <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {hasPermission("LP_ITEM_ADD") && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7"
+                                onClick={() => { setListaParaImportar(lista); setImportarModal(true); }}>
+                                <Upload className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Importar desde Excel</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {hasPermission("LP_UPDATE") && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditLista(lista)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Editar lista</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {hasPermission("LP_TOGGLE") && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleListaDlg.openDialog(lista)}>
+                                <Power className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{lista.activo ? "Desactivar" : "Activar"}</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {hasPermission("LP_DELETE") && lista.cantidadItems === 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => deleteListaDlg.openDialog(lista)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Eliminar lista</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TooltipProvider>
+                  </div>
 
-                                {/* Eliminar — solo si la lista no tiene productos */}
-                                {hasPermission("LP_DELETE") && l.cantidadItems === 0 && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => deleteListaDialog.openDialog(l)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Eliminar</TooltipContent>
-                                  </Tooltip>
-                                )}
-                              </div>
-                            </TooltipProvider>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                  {/* Panel expandido con productos */}
+                  {expandedListas[lista.idLista] && (
+                    <CardContent className="pt-0 pb-4 px-4 border-t bg-muted/10">
+                      <ListaItemsPanel idLista={lista.idLista} listaNombre={lista.nombre} />
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
-        {/* ── Tab Compras ────────────────────────────────────────────────── */}
-        <TabsContent value="compras" className="space-y-4">
-          <Card>
-            <CardContent className="p-0">
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted">
-                      <TableHead>Producto</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                      <TableHead>Precio unitario</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
-                        Sin compras registradas para este proveedor
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+        {/* ── Tab Compras ──────────────────────────────────────────────────── */}
+        <TabsContent value="compras" className="space-y-4 mt-4">
+          <PermissionGuard permission="COMP_CREATE">
+            <div className="flex justify-end">
+              <Button onClick={handleNuevaCompra}>
+                <ShoppingCart className="mr-2 h-4 w-4" /> Realizar compra
+              </Button>
+            </div>
+          </PermissionGuard>
+
+          {loadingCompras ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">Cargando compras...</div>
+          ) : compras.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                Sin compras registradas para este proveedor
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted">
+                        <TableHead className="w-10" />
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Comprobante</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {compras.map((c) => (
+                        <CompraRow
+                          key={c.idCompraProveedor}
+                          compra={c}
+                          onRepetir={handleRepetirCompra}
+                          onAnular={handleAnularCompra}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
-      {/* ── Dialog: crear / editar lista ───────────────────────────────────── */}
+      {/* ── Dialog: crear/editar lista ───────────────────────────────────────── */}
       <Dialog open={listaDialog} onOpenChange={(v) => { if (!savingLista) setListaDialog(v); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {editingLista ? "Editar Lista de Precios" : "Nueva Lista de Precios"}
-            </DialogTitle>
+            <DialogTitle>{editingLista ? "Editar Lista de Precios" : "Nueva Lista de Precios"}</DialogTitle>
             <DialogDescription>
-              {editingLista
-                ? `Modificando "${editingLista.nombre}"`
-                : `Creando una lista para ${proveedor.nombre}`}
+              {editingLista ? `Modificando "${editingLista.nombre}"` : `Creando una lista para ${proveedor.nombre}`}
             </DialogDescription>
           </DialogHeader>
-
           <form onSubmit={handleListaSubmit} className="space-y-4">
             <div className="space-y-1">
-              <Label htmlFor="lista-nombre">
-                Nombre <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="lista-nombre"
-                placeholder="Ej: Lista Marzo 2025"
+              <Label htmlFor="lista-nombre">Nombre <span className="text-destructive">*</span></Label>
+              <Input id="lista-nombre" placeholder="Ej: Lista Marzo 2025"
                 value={listaForm.nombre}
                 onChange={(e) => setListaForm((p) => ({ ...p, nombre: e.target.value }))}
                 disabled={savingLista}
               />
             </div>
-
             <div className="space-y-1">
               <Label htmlFor="lista-obs">Observaciones</Label>
-              <Textarea
-                id="lista-obs"
-                placeholder="Observaciones opcionales..."
+              <Textarea id="lista-obs" placeholder="Observaciones opcionales..." rows={3}
                 value={listaForm.observaciones}
                 onChange={(e) => setListaForm((p) => ({ ...p, observaciones: e.target.value }))}
                 disabled={savingLista}
-                rows={3}
               />
             </div>
-
-            {listaFormError && (
-              <p className="text-sm text-destructive">{listaFormError}</p>
-            )}
-
+            {listaFormError && <p className="text-sm text-destructive">{listaFormError}</p>}
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setListaDialog(false)}
-                disabled={savingLista}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={savingLista}>
-                {savingLista ? "Guardando..." : "Guardar"}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setListaDialog(false)} disabled={savingLista}>Cancelar</Button>
+              <Button type="submit" disabled={savingLista}>{savingLista ? "Guardando..." : "Guardar"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* ── AlertDialog: eliminar lista ────────────────────────────────────── */}
-      <AlertDialog open={deleteListaDialog.open} onOpenChange={deleteListaDialog.closeDialog}>
+      {/* ── AlertDialog: eliminar lista ──────────────────────────────────────── */}
+      <AlertDialog open={deleteListaDlg.open} onOpenChange={deleteListaDlg.closeDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar lista?</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de eliminar{" "}
-              <span className="font-semibold text-foreground">
-                "{deleteListaDialog.item?.nombre}"
-              </span>
-              ? Esta acción no se puede deshacer.
+              ¿Estás seguro de eliminar <span className="font-semibold text-foreground">"{deleteListaDlg.item?.nombre}"</span>? Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteListaDialog.loading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={deleteListaDialog.confirm}
-              disabled={deleteListaDialog.loading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteListaDialog.loading ? "Eliminando..." : "Eliminar"}
+            <AlertDialogCancel disabled={deleteListaDlg.loading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteListaDlg.confirm} disabled={deleteListaDlg.loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteListaDlg.loading ? "Eliminando..." : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── AlertDialog: toggle lista ──────────────────────────────────────── */}
-      <AlertDialog open={toggleListaDialog.open} onOpenChange={toggleListaDialog.closeDialog}>
+      {/* ── AlertDialog: toggle lista ────────────────────────────────────────── */}
+      <AlertDialog open={toggleListaDlg.open} onOpenChange={toggleListaDlg.closeDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {toggleListaDialog.item?.activo ? "¿Desactivar lista?" : "¿Activar lista?"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{toggleListaDlg.item?.activo ? "¿Desactivar lista?" : "¿Activar lista?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {toggleListaDialog.item?.activo
-                ? `"${toggleListaDialog.item?.nombre}" quedará como inactiva.`
-                : `"${toggleListaDialog.item?.nombre}" volverá a estar activa.`}
+              {toggleListaDlg.item?.activo
+                ? `"${toggleListaDlg.item?.nombre}" quedará como inactiva.`
+                : `"${toggleListaDlg.item?.nombre}" volverá a estar activa.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={toggleListaDialog.loading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={toggleListaDialog.confirm}
-              disabled={toggleListaDialog.loading}
-            >
-              {toggleListaDialog.loading
-                ? "Procesando..."
-                : toggleListaDialog.item?.activo
-                ? "Desactivar"
-                : "Activar"}
+            <AlertDialogCancel disabled={toggleListaDlg.loading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={toggleListaDlg.confirm} disabled={toggleListaDlg.loading}>
+              {toggleListaDlg.loading ? "Procesando..." : toggleListaDlg.item?.activo ? "Desactivar" : "Activar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Dialog: formulario de compra ─────────────────────────────────────── */}
+      <Dialog open={compraFormOpen} onOpenChange={(v) => { if (!v) { setCompraFormOpen(false); setCompraParaRepetir(null); } }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{compraParaRepetir ? "Repetir Compra" : "Nueva Compra"}</DialogTitle>
+            <DialogDescription>
+              {compraParaRepetir
+                ? "Los datos de la compra anterior están precargados. Revisá y ajustá antes de confirmar."
+                : `Registrando compra para ${proveedor.nombre}`}
+            </DialogDescription>
+          </DialogHeader>
+          <CompraForm
+            proveedorInicial={proveedor}
+            compraParaRepetir={compraParaRepetir ?? undefined}
+            onSubmit={handleCompraSubmit}
+            onCancel={() => { setCompraFormOpen(false); setCompraParaRepetir(null); }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: anular compra ────────────────────────────────────────────── */}
+      <AnularCompraDialog
+        open={anularDialog}
+        onOpenChange={setAnularDialog}
+        compra={compraAAnular}
+        onSuccess={loadCompras}
+      />
+
+      {/* ── Modal: importar lista desde Excel ────────────────────────────────── */}
+      {listaParaImportar && (
+        <ImportarListaModal
+          open={importarModal}
+          onOpenChange={(v) => { setImportarModal(v); if (!v) setListaParaImportar(null); }}
+          idLista={listaParaImportar.idLista}
+          listaNombre={listaParaImportar.nombre}
+          onSuccess={loadListas}
+        />
+      )}
     </div>
   );
 }

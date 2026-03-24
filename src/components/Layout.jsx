@@ -3,12 +3,10 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "./app-sidebar"
 import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useNavigate } from "react-router-dom"
 import { logout, getCurrentUser } from "@/services/AuthService"
 import { toast } from "sonner"
 
 export default function Layout({ children }) {
-  const navigate = useNavigate();
   const currentUser = getCurrentUser();
 
   const handleLogout = () => {
@@ -23,10 +21,11 @@ export default function Layout({ children }) {
       <AppSidebar />
       <main className="flex flex-col flex-1 min-h-screen">
         {/* Header */}
-        <header className="flex h-16 items-center gap-2 border-b px-4 bg-background justify-between">
-          <div className="flex items-center gap-2">
+        <header className="flex h-14 items-center gap-2 border-b px-4 bg-background shadow-sm justify-between">
+          <div className="flex items-center gap-3">
             <SidebarTrigger className="-ml-1" />
-            <div className="text-lg font-semibold">Sistema Ferretería</div>
+            <div className="h-4 w-px bg-border" />
+            <span className="text-sm font-semibold tracking-tight text-foreground">Sistema Ferretería</span>
           </div>
 
           {/* Usuario logueado y botón de cerrar sesión */}

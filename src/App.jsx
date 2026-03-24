@@ -16,7 +16,6 @@ import Sales from "./components/Sales/Sales";
 import ProveedoresPage from "./components/Proveedores/ProveedoresPage";
 import ComprasPage from "./components/Compras/ComprasPage";
 import ProveedorDetailsPage from "./components/Proveedores/ProveedorDetailsPage";
-import ListaDetailsPage from "./components/Proveedores/ListaDetailsPage";
 import ReportesPage from "./components/Reportes/ReportesPage";
 import { isAuthenticated } from "@/services/AuthService";
 
@@ -51,7 +50,6 @@ function App() {
                   <Route path="/ventas" element={<Sales />} />
                   <Route path="/proveedores" element={<ProveedoresPage />} />
                   <Route path="/proveedores/:id" element={<ProveedorDetailsPage />} />
-                  <Route path="/proveedores/:id/listas/:idLista" element={<ListaDetailsPage />} />
                   <Route path="/compras" element={<ComprasPage />} />
                   <Route path="/reportes" element={<ReportesPage />} />
                 </Routes>

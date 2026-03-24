@@ -37,6 +37,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { UNIDADES_MEDIDA, formatCantidad, esUnidadDecimal } from "@/utils/unidadesMedida";
 import { createSale, fetchAvailableProducts, fetchAllClients, downloadSalePdf, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { createCliente } from "@/services/ClienteQueries";
 import { getCurrentAccountSummary } from "@/services/CurrentAccountQueries";
@@ -47,8 +48,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
   const {
     items,
     addItem,
-    incrementQuantity,
-    decrementQuantity,
+    updateQuantity,
     removeItem,
     clearCart,
     total,
@@ -62,10 +62,10 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
   const [searchProduct, setSearchProduct] = useState("");
   const [searchClient, setSearchClient] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("todos"); // todos, con_stock, venta_sin_stock
+  const [categoriaFiltro, setCategoriaFiltro] = useState("todas");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [loadingClients, setLoadingClients] = useState(false);
   const [loadingCCBalance, setLoadingCCBalance] = useState(false);
   // Datos reales de la CC del cliente seleccionado (cargados desde movements)
   const [ccData, setCCData] = useState({ saldoActual: 0, limiteCredito: 0 });
@@ -114,17 +114,20 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
 
     filtered = filtered.filter(filterByAvailability);
 
+    // Filtro por categoría
+    if (categoriaFiltro !== "todas") {
+      filtered = filtered.filter((p) => p.categoria === categoriaFiltro);
+    }
+
     // Filtro por búsqueda de texto
     if (searchProduct.trim() !== "") {
       const search = searchProduct.toLowerCase();
       filtered = filtered.filter((p) => {
-        // Búsqueda por nombre, marca y categoría
         const matchesText =
           p.nombre?.toLowerCase().includes(search) ||
           p.marca?.toLowerCase().includes(search) ||
           p.categoria?.toLowerCase().includes(search);
 
-        // Búsqueda por código de barras (es un array de objetos)
         const matchesBarcode = p.codigoBarras?.some(
           (cb) => cb.codigo?.toLowerCase().includes(search)
         );
@@ -134,7 +137,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     }
 
     setFilteredProducts(filtered);
-  }, [searchProduct, availabilityFilter, products]);
+  }, [searchProduct, availabilityFilter, categoriaFiltro, products]);
 
   const loadProducts = async () => {
     setLoadingProducts(true);
@@ -151,15 +154,12 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
   };
 
   const loadClients = async () => {
-    setLoadingClients(true);
     try {
       const data = await fetchAllClients();
       setClients(data);
     } catch (error) {
       console.error("Error al cargar clientes:", error);
       toast.error("Error al cargar clientes");
-    } finally {
-      setLoadingClients(false);
     }
   };
 
@@ -235,7 +235,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     // Si tiene stock mayor a 0
     if (stock > 0) {
       return {
-        text: `Stock: ${stock}`,
+        text: `Stock: ${formatCantidad(stock, product.idUnidadMedida)}`,
         className: "bg-green-100 text-green-800 border-green-200",
         icon: null,
       };
@@ -323,7 +323,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
         idUsuarioVendedor: 1, // TODO: Obtener del contexto de autenticación
         items: items.map((item) => ({
           IdProducto: item.id || item.idProducto,
-          Cantidad: item.quantity,
+          Cantidad: parseFloat(item.quantity),
         })),
       };
 
@@ -546,49 +546,66 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
             </div>
 
             {/* FILA 2: PRODUCTOS Y CARRITO (Dos columnas) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 h-full overflow-hidden min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-1 gap-0 flex-1 min-h-0 overflow-hidden">
               {/* COLUMNA 1: PRODUCTOS */}
-              <div className="border-r flex flex-col h-full min-h-0">
-                <div className="p-4 border-b bg-muted/30 space-y-3">
-                  <h3 className="text-sm font-semibold">Productos</h3>
-
-                  {/* Buscador */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="text"
-                      placeholder="Buscar por nombre, marca, categoría..."
-                      value={searchProduct}
-                      onChange={(e) => setSearchProduct(e.target.value)}
-                      className="pl-10"
-                      autoComplete="off"
-                    />
+              <div className="border-r flex flex-col min-h-0">
+                <div className="p-3 border-b bg-muted/30 space-y-2">
+                  {/* Fila 1: título + contador */}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Productos</h3>
+                    {!loadingProducts && (
+                      <span className="text-xs text-muted-foreground">
+                        {filteredProducts.length} resultado{filteredProducts.length !== 1 ? "s" : ""}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Filtros de disponibilidad */}
+                  {/* Fila 2: buscador + categoría */}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        type="text"
+                        placeholder="Nombre, marca, código..."
+                        value={searchProduct}
+                        onChange={(e) => setSearchProduct(e.target.value)}
+                        className="pl-9 h-8 text-sm"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <Select value={categoriaFiltro} onValueChange={setCategoriaFiltro}>
+                      <SelectTrigger className="w-40 h-8 text-sm shrink-0">
+                        <SelectValue placeholder="Categoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas</SelectItem>
+                        {[...new Set(products.map((p) => p.categoria).filter(Boolean))]
+                          .sort()
+                          .map((cat) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Fila 3: disponibilidad — botones compactos */}
                   <RadioGroup
                     value={availabilityFilter}
                     onValueChange={setAvailabilityFilter}
-                    className="flex gap-4"
+                    className="flex gap-3"
                   >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="todos" id="todos" />
-                      <Label htmlFor="todos" className="text-sm cursor-pointer">
-                        Disponibles (stock o venta sin stock)
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="con_stock" id="con_stock" />
-                      <Label htmlFor="con_stock" className="text-sm cursor-pointer">
-                        Solo con stock
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="venta_sin_stock" id="venta_sin_stock" />
-                      <Label htmlFor="venta_sin_stock" className="text-sm cursor-pointer">
-                        Solo venta sin stock
-                      </Label>
-                    </div>
+                    {[
+                      { value: "todos",            label: "Disponibles"   },
+                      { value: "con_stock",         label: "Con stock"     },
+                      { value: "venta_sin_stock",   label: "Sin stock"     },
+                    ].map(({ value, label }) => (
+                      <div key={value} className="flex items-center gap-1.5">
+                        <RadioGroupItem value={value} id={value} className="h-3.5 w-3.5" />
+                        <Label htmlFor={value} className="text-xs cursor-pointer text-muted-foreground">
+                          {label}
+                        </Label>
+                      </div>
+                    ))}
                   </RadioGroup>
                 </div>
 
@@ -673,7 +690,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
               </div>
 
               {/* COLUMNA 2: CARRITO */}
-              <div className="flex flex-col h-full">
+              <div className="flex flex-col min-h-0">
                 <div className="p-4 border-b bg-muted/30">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold">Carrito</h3>
@@ -706,15 +723,23 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                               <h4 className="font-semibold text-sm truncate">
                                 {item.nombre || item.name}
                               </h4>
-                              <p className="text-sm text-muted-foreground mt-0.5">
-                                {formatCurrency(item.precio || item.price || 0)}{" "}
-                                c/u
+                              <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+                                {formatCurrency(item.precio || item.price || 0)}
+                                <span className="text-muted-foreground/60">/</span>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs px-1.5 py-0 h-4 ${
+                                    esUnidadDecimal(item.idUnidadMedida)
+                                      ? "bg-primary/10 text-primary border-primary/30 font-bold"
+                                      : "bg-muted text-muted-foreground font-medium"
+                                  }`}
+                                >
+                                  {UNIDADES_MEDIDA[item.idUnidadMedida ?? 1]?.abreviatura ?? "u"}
+                                </Badge>
                               </p>
                             </div>
                             <Button
-                              onClick={() =>
-                                removeItem(item.id || item.idProducto)
-                              }
+                              onClick={() => removeItem(item.id || item.idProducto)}
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 shrink-0"
@@ -723,24 +748,47 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                             </Button>
                           </div>
                           <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <Button
-                                onClick={() =>
-                                  decrementQuantity(item.id || item.idProducto)
-                                }
+                                onClick={() => {
+                                  const step = esUnidadDecimal(item.idUnidadMedida) ? 0.1 : 1;
+                                  const next = parseFloat((item.quantity - step).toFixed(2));
+                                  updateQuantity(item.id || item.idProducto, next);
+                                }}
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7"
                               >
                                 <Minus className="w-3 h-3" />
                               </Button>
-                              <span className="font-semibold w-8 text-center">
-                                {item.quantity}
-                              </span>
+                              <Input
+                                type="number"
+                                min={esUnidadDecimal(item.idUnidadMedida) ? "0.01" : "1"}
+                                step={esUnidadDecimal(item.idUnidadMedida) ? "0.01" : "1"}
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value);
+                                  if (!isNaN(val) && val > 0)
+                                    updateQuantity(item.id || item.idProducto, parseFloat(val.toFixed(2)));
+                                }}
+                                className="w-16 h-7 text-center text-sm px-1 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                              />
+                              <Badge
+                                variant="outline"
+                                className={`text-xs font-bold shrink-0 ${
+                                  esUnidadDecimal(item.idUnidadMedida)
+                                    ? "bg-amber-50 text-amber-700 border-amber-300"
+                                    : "bg-muted text-muted-foreground border-border"
+                                }`}
+                              >
+                                {UNIDADES_MEDIDA[item.idUnidadMedida ?? 1]?.abreviatura ?? "u"}
+                              </Badge>
                               <Button
-                                onClick={() =>
-                                  incrementQuantity(item.id || item.idProducto)
-                                }
+                                onClick={() => {
+                                  const step = esUnidadDecimal(item.idUnidadMedida) ? 0.1 : 1;
+                                  const next = parseFloat((item.quantity + step).toFixed(2));
+                                  updateQuantity(item.id || item.idProducto, next);
+                                }}
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7"
@@ -750,7 +798,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                             </div>
                             <p className="font-bold">
                               {formatCurrency(
-                                (item.precio || item.price || 0) * item.quantity
+                                (item.precio || item.price || 0) * parseFloat(item.quantity)
                               )}
                             </p>
                           </div>

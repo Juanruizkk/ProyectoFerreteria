@@ -17,6 +17,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SearchBar from "../Common/SearchBar";
+import PageHeader from "../Common/PageHeader";
 import { AuditPagination } from "@/components/Audit/AuditPagination";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -51,6 +52,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Eye, KeyRound, Pencil, Plus, Trash2, UserCheck, Users } from "lucide-react";
+import EmptyState from "@/components/Common/EmptyState";
 import { toast } from "sonner";
 
 function useDebouncedValue(value, delay = 400) {
@@ -241,21 +243,18 @@ export default function UsersPage() {
       <div className="container mx-auto py-6 px-4">
         <div className="flex flex-col gap-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-primary" />
-              <div>
-                <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
-                <p className="text-muted-foreground">Administrá los usuarios y sus permisos</p>
-              </div>
-            </div>
+          <PageHeader
+            icon={<Users className="h-8 w-8 text-primary" />}
+            title="Gestión de Usuarios"
+            description="Administrá los usuarios y sus permisos"
+          >
             <PermissionGuard permission="USR_CREATE">
               <Button onClick={openCreate} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Nuevo Usuario
               </Button>
             </PermissionGuard>
-          </div>
+          </PageHeader>
 
           {/* Form crear/editar */}
           <PermissionGuard anyOf={["USR_CREATE", "USR_UPDATE"]}>
@@ -295,16 +294,20 @@ export default function UsersPage() {
               ].map((card) => {
                 const isActive = estado === card.key;
                 const border = isActive ? card.color : "border-muted";
+                const count = isActive ? paged.totalCount : null;
                 return (
                   <Card
                     key={card.key}
                     onClick={() => { setEstado(card.key); setPageIndex(1); }}
-                    className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                    className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${border} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
                   >
                     <CardHeader className="p-1">
                       <CardTitle className="text-lg font-medium">
                         {card.label}
                       </CardTitle>
+                      {count > 0 && (
+                        <p className="text-sm text-muted-foreground">{count}</p>
+                      )}
                     </CardHeader>
                   </Card>
                 );
@@ -359,8 +362,12 @@ export default function UsersPage() {
                             <>
                               {visibleItems.length === 0 && (
                                 <TableRow>
-                                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                    Sin datos
+                                  <TableCell colSpan={6}>
+                                    <EmptyState
+                                      icon={Users}
+                                      title="Sin usuarios encontrados"
+                                      description={q ? "Probá con otro término de búsqueda" : undefined}
+                                    />
                                   </TableCell>
                                 </TableRow>
                               )}

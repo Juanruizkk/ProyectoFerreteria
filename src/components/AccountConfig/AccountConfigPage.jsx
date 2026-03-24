@@ -224,7 +224,7 @@ export default function AccountConfigPage() {
               <Card
                 key={section.key}
                 onClick={() => setActiveTab(section.key)}
-                className={`cursor-pointer border ${isActive ? section.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${section.color} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
               >
                 <CardHeader className="p-1">
                   <CardTitle className="text-base font-medium">{section.label}</CardTitle>
@@ -247,7 +247,7 @@ export default function AccountConfigPage() {
                   <Card
                     key={sub.key}
                     onClick={() => setLimiteCCSubTab(sub.key)}
-                    className={`cursor-pointer border ${isActive ? sub.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                    className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${sub.color} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
                   >
                     <CardHeader className="p-1">
                       <CardTitle className="text-lg font-medium">{sub.label}</CardTitle>

@@ -82,7 +82,7 @@ export default function CurrentAccountMovementsSection({
         });
         
         setTypes(availableTypes);
-      } catch (error) {
+      } catch {
         toast.error("Error al cargar los tipos de movimiento.");
       }
     };

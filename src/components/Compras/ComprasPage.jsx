@@ -4,12 +4,12 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  Pencil,
-  Plus,
-  Power,
-  Trash2,
+  FileSpreadsheet,
+  FileText,
+  XCircle,
 } from "lucide-react";
 import SearchBar from "../Common/SearchBar";
+import PageHeader from "../Common/PageHeader";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,16 +23,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -43,18 +33,9 @@ import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
 import { usePermission } from "@/hooks/usePermission";
-import { useConfirmDialog } from "@/hooks/useConfirmDialog";
-import { useCrud } from "@/hooks/useCrud";
 
-import CompraForm from "./CompraForm";
-import {
-  createCompra,
-  deleteCompra,
-  fetchCompras,
-  getCompraById,
-  toggleEstadoCompra,
-  updateCompra,
-} from "@/services/CompraProveedorQueries";
+import AnularCompraDialog from "./AnularCompraDialog";
+import { fetchCompras, exportarComprasExcel, exportarComprasPdf } from "@/services/CompraProveedorQueries";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,65 +62,87 @@ function useDebouncedValue(value, delay = 400) {
   return v;
 }
 
+// ── Detalle expandible de compra ──────────────────────────────────────────────
+function CompraExpandContent({ compra }) {
+  if (!compra.detalles || compra.detalles.length === 0) {
+    return <p className="text-sm text-muted-foreground">Sin detalle de productos disponible.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-background">
+              <TableHead className="text-xs">Producto</TableHead>
+              <TableHead className="text-xs text-right">Cant.</TableHead>
+              <TableHead className="text-xs text-right">Precio unit.</TableHead>
+              <TableHead className="text-xs text-right">Desc %</TableHead>
+              <TableHead className="text-xs text-right">IVA %</TableHead>
+              <TableHead className="text-xs text-right">Total línea</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {compra.detalles.map((d, i) => (
+              <TableRow key={i}>
+                <TableCell className="text-sm">{d.nombreProducto}</TableCell>
+                <TableCell className="text-sm text-right">{d.cantidad}</TableCell>
+                <TableCell className="text-sm text-right font-mono">{fmt(d.precioUnitario)}</TableCell>
+                <TableCell className="text-sm text-right">{d.descuentoPorcentaje > 0 ? `${d.descuentoPorcentaje}%` : "-"}</TableCell>
+                <TableCell className="text-sm text-right">{d.ivaPorcentaje > 0 ? `${d.ivaPorcentaje}%` : "-"}</TableCell>
+                <TableCell className="text-sm text-right font-mono font-medium">{fmt(d.total)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="flex justify-between items-start text-sm px-1">
+        <div className="text-muted-foreground">
+          {compra.observacion && <p>Obs: {compra.observacion}</p>}
+          {compra.nombreUsuario && <p>Registrado por: {compra.nombreUsuario}</p>}
+        </div>
+        <div className="text-right space-y-0.5">
+          {compra.descuentoTotal > 0 && (
+            <p className="text-muted-foreground">Descuento: {fmt(compra.descuentoTotal)}</p>
+          )}
+          {compra.ivaTotal > 0 && (
+            <p className="text-muted-foreground">IVA: {fmt(compra.ivaTotal)}</p>
+          )}
+          <p className="font-bold">Total: {fmt(compra.total)}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Página ────────────────────────────────────────────────────────────────────
 
 export default function ComprasPage() {
   const { hasPermission } = usePermission();
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("activas");
-
-  // ── Datos ──────────────────────────────────────────────────────────────────
   const [todasLasCompras, setTodasLasCompras] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(null); // "excel" | "pdf" | null
 
-  // ── Búsqueda ───────────────────────────────────────────────────────────────
   const [searchActivas, setSearchActivas] = useState("");
-  const [searchInactivas, setSearchInactivas] = useState("");
+  const [searchAnuladas, setSearchAnuladas] = useState("");
   const dqActivas = useDebouncedValue(searchActivas);
-  const dqInactivas = useDebouncedValue(searchInactivas);
+  const dqAnuladas = useDebouncedValue(searchAnuladas);
 
-  // ── Expand rows ────────────────────────────────────────────────────────────
   const [expandedRows, setExpandedRows] = useState({});
-  const toggleExpand = (id) =>
-    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleExpand = (key) =>
+    setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  // ── Form ───────────────────────────────────────────────────────────────────
-  const [showForm, setShowForm] = useState(false);
-  const [editingCompra, setEditingCompra] = useState(null);
+  // Anular
+  const [anularDialog, setAnularDialog] = useState(false);
+  const [compraAAnular, setCompraAAnular] = useState(null);
 
-  // ── CRUD ───────────────────────────────────────────────────────────────────
-  const crud = useCrud({
-    onSuccess: ({ message }) => { if (message) toast.success(message); },
-    onError: ({ error, message }) => {
-      toast.error(message || error?.message || "Error inesperado");
-    },
-  });
-
-  const deleteDialog = useConfirmDialog(async (compra) => {
-    await crud.remove(deleteCompra, compra.idCompraProveedor, {
-      successMessage: `Compra #${compra.idCompraProveedor} eliminada`,
-      errorMessage: "No se pudo eliminar la compra",
-    });
-    cargarCompras();
-  });
-
-  const toggleDialog = useConfirmDialog(async (compra) => {
-    await crud.toggle(toggleEstadoCompra, compra.idCompraProveedor, {
-      successMessage: compra.activo
-        ? "Compra desactivada"
-        : "Compra activada",
-      errorMessage: "No se pudo cambiar el estado",
-    });
-    cargarCompras();
-  });
-
-  // ── Carga de datos ─────────────────────────────────────────────────────────
   const cargarCompras = async () => {
     try {
       setLoading(true);
-      const data = await fetchCompras();
-      setTodasLasCompras(data ?? []);
+      setTodasLasCompras(await fetchCompras() ?? []);
     } catch (err) {
       toast.error("Error al cargar compras: " + err.message);
     } finally {
@@ -149,7 +152,18 @@ export default function ComprasPage() {
 
   useEffect(() => { cargarCompras(); }, []);
 
-  // ── Filtrado client-side ───────────────────────────────────────────────────
+  const handleExport = async (type) => {
+    try {
+      setExporting(type);
+      if (type === "excel") await exportarComprasExcel();
+      else await exportarComprasPdf();
+    } catch (err) {
+      toast.error("Error al exportar: " + err.message);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   function filtrar(lista, search) {
     if (!search.trim()) return lista;
     const q = search.toLowerCase();
@@ -162,44 +176,96 @@ export default function ComprasPage() {
     );
   }
 
-  const comprasActivas = filtrar(
-    todasLasCompras.filter((c) => c.activo),
-    dqActivas
-  );
-  const comprasInactivas = filtrar(
-    todasLasCompras.filter((c) => !c.activo),
-    dqInactivas
-  );
+  const comprasActivas = filtrar(todasLasCompras.filter((c) => c.activo), dqActivas);
+  const comprasAnuladas = filtrar(todasLasCompras.filter((c) => !c.activo), dqAnuladas);
 
-  // ── Handlers form ──────────────────────────────────────────────────────────
-  const handleCreate = () => {
-    setEditingCompra(null);
-    setShowForm(true);
-    setExpandedRows({});
+  const handleAnular = (compra) => {
+    setCompraAAnular(compra);
+    setAnularDialog(true);
   };
 
-  const handleEdit = async (compra) => {
-    try {
-      const full = await getCompraById(compra.idCompraProveedor);
-      setEditingCompra(full);
-      setShowForm(true);
-    } catch (err) {
-      toast.error("Error al cargar la compra: " + err.message);
-    }
-  };
+  // ── Tabla reutilizable ────────────────────────────────────────────────────
+  function ComprasTable({ compras, rowKey = (c) => c.idCompraProveedor, showAnular = false, emptyMsg }) {
+    return (
+      <Card>
+        <CardContent className="p-0">
+          <div className="border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted">
+                  <TableHead className="w-10" />
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Proveedor</TableHead>
+                  <TableHead>Comprobante</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  {showAnular && <TableHead className="text-right w-24">Acciones</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {compras.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={showAnular ? 7 : 6} className="text-center py-10 text-muted-foreground">
+                      {emptyMsg}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {compras.map((c) => (
+                  <Fragment key={rowKey(c)}>
+                    <TableRow className="hover:bg-muted/40 transition">
+                      <TableCell>
+                        <Button size="icon" variant="ghost" className="h-6 w-6"
+                          onClick={() => toggleExpand(rowKey(c))}>
+                          {expandedRows[rowKey(c)]
+                            ? <ChevronDown className="h-4 w-4" />
+                            : <ChevronRight className="h-4 w-4" />}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-sm">{fmtFecha(c.fecha)}</TableCell>
+                      <TableCell className="font-medium text-sm">{c.nombreProveedor}</TableCell>
+                      <TableCell className="text-sm">{c.numeroComprobante || "-"}</TableCell>
+                      <TableCell>
+                        {c.tipoComprobante
+                          ? <Badge variant="outline" className="text-xs">{c.tipoComprobante}</Badge>
+                          : <span className="text-muted-foreground text-sm">-</span>}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-sm font-mono">
+                        {fmt(c.total)}
+                      </TableCell>
+                      {showAnular && (
+                        <TableCell className="text-right">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost"
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                  onClick={() => handleAnular(c)}>
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Anular compra</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
+                      )}
+                    </TableRow>
 
-  const handleSubmit = async (payload) => {
-    if (editingCompra) {
-      await updateCompra(payload);
-      toast.success("Compra actualizada correctamente");
-    } else {
-      await createCompra(payload);
-      toast.success("Compra registrada correctamente");
-    }
-    setShowForm(false);
-    setEditingCompra(null);
-    cargarCompras();
-  };
+                    {expandedRows[rowKey(c)] && (
+                      <TableRow>
+                        <TableCell colSpan={showAnular ? 7 : 6} className="bg-muted/30 px-6 py-4">
+                          <CompraExpandContent compra={c} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -210,47 +276,54 @@ export default function ComprasPage() {
       <div className="container mx-auto py-6 px-4">
         <div className="flex flex-col gap-6">
 
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ClipboardList className="h-8 w-8 text-primary" />
-              <div>
-                <h1 className="text-3xl font-bold">Gestión de Compras</h1>
-                <p className="text-muted-foreground">Registrá y administrá las compras a proveedores</p>
-              </div>
+          <div className="flex items-start justify-between gap-4">
+            <PageHeader
+              icon={<ClipboardList className="h-8 w-8 text-primary" />}
+              title="Historial de Compras"
+              description="Consultá y anulá compras registradas. Para crear nuevas compras, accedé desde el detalle del proveedor."
+            />
+            <div className="flex gap-2 shrink-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => handleExport("excel")}
+                      disabled={exporting !== null}>
+                      <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                      {exporting === "excel" ? "Exportando..." : "Excel"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Exportar a Excel</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => handleExport("pdf")}
+                      disabled={exporting !== null}>
+                      <FileText className="h-4 w-4 mr-1.5" />
+                      {exporting === "pdf" ? "Exportando..." : "PDF"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Exportar a PDF</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-            <PermissionGuard permission="COMP_CREATE">
-              <Button onClick={handleCreate} disabled={showForm} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nueva Compra
-              </Button>
-            </PermissionGuard>
           </div>
-
-          {/* Form inline */}
-          <PermissionGuard anyOf={["COMP_CREATE", "COMP_UPDATE"]}>
-            {showForm && (
-              <CompraForm
-                initialData={editingCompra}
-                onSubmit={handleSubmit}
-                onCancel={() => { setShowForm(false); setEditingCompra(null); }}
-              />
-            )}
-          </PermissionGuard>
 
           {/* Filtros */}
           <div className="grid grid-cols-2 gap-3">
             {[
               { key: "activas",   label: "Activas",   color: "border-primary" },
-              { key: "inactivas", label: "Inactivas", color: "border-red-500" },
+              { key: "anuladas",  label: "Anuladas",  color: "border-red-500" },
             ].map((card) => {
               const isActive = activeTab === card.key;
-              const border = isActive ? card.color : "border-muted";
               return (
                 <Card
                   key={card.key}
                   onClick={() => setActiveTab(card.key)}
-                  className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                  className={`cursor-pointer border transition rounded-md p-3 text-center ${
+                    isActive
+                      ? `${card.color} bg-accent/60 shadow-sm`
+                      : "border-muted hover:bg-muted/40 hover:shadow-sm"
+                  }`}
                 >
                   <CardHeader className="p-1">
                     <CardTitle className="text-lg font-medium">
@@ -267,486 +340,57 @@ export default function ComprasPage() {
             })}
           </div>
 
-          {/* Contenido Activas */}
+          {/* Activas */}
           {activeTab === "activas" && (
             <div className="space-y-4">
               <Card>
                 <CardContent className="py-4">
-                  <SearchBar
-                    value={searchActivas}
-                    onChange={setSearchActivas}
-                    placeholder="Buscar por proveedor, comprobante o fecha..."
-                  />
+                  <SearchBar value={searchActivas} onChange={setSearchActivas}
+                    placeholder="Buscar por proveedor, comprobante o fecha..." />
                 </CardContent>
               </Card>
-
               {loading ? (
-                <Card>
-                  <CardContent className="p-0">
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted">
-                            <TableHead className="w-10" />
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Proveedor</TableHead>
-                            <TableHead>Comprobante</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <TableRow key={i}>
-                              <TableCell><div className="h-5 w-5 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-36 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-5 w-20 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded ml-auto" /></TableCell>
-                              <TableCell><div className="h-8 w-20 bg-muted animate-pulse rounded ml-auto" /></TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Cargando...</CardContent></Card>
               ) : (
-                <Card>
-                  <CardContent className="p-0">
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted">
-                            <TableHead className="w-10" />
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Proveedor</TableHead>
-                            <TableHead>Comprobante</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {comprasActivas.length === 0 && (
-                            <TableRow>
-                              <TableCell
-                                colSpan={7}
-                                className="text-center py-10 text-muted-foreground"
-                              >
-                                No se encontraron compras activas
-                              </TableCell>
-                            </TableRow>
-                          )}
-                          {comprasActivas.map((c) => (
-                            <Fragment key={c.idCompraProveedor}>
-                              <TableRow className="hover:bg-muted/40 transition">
-                                <TableCell>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6"
-                                    onClick={() => toggleExpand(c.idCompraProveedor)}
-                                  >
-                                    {expandedRows[c.idCompraProveedor] ? (
-                                      <ChevronDown className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </TableCell>
-                                <TableCell>{fmtFecha(c.fecha)}</TableCell>
-                                <TableCell className="font-medium">
-                                  {c.nombreProveedor}
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {c.numeroComprobante || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  {c.tipoComprobante ? (
-                                    <Badge variant="outline" className="text-xs">
-                                      {c.tipoComprobante}
-                                    </Badge>
-                                  ) : (
-                                    "-"
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right font-semibold">
-                                  {fmt(c.total)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <TooltipProvider>
-                                    <div className="flex gap-2 justify-end">
-                                      {hasPermission("COMP_UPDATE") && (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={() => handleEdit(c)}
-                                            >
-                                              <Pencil className="h-4 w-4" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>Editar</TooltipContent>
-                                        </Tooltip>
-                                      )}
-                                      {hasPermission("COMP_UPDATE") && (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={() => toggleDialog.openDialog(c)}
-                                              disabled={crud.loading.toggle}
-                                            >
-                                              <Power className="h-4 w-4" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>Desactivar</TooltipContent>
-                                        </Tooltip>
-                                      )}
-                                      {hasPermission("COMP_DELETE") && (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={() => deleteDialog.openDialog(c)}
-                                              disabled={crud.loading.remove}
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>Eliminar</TooltipContent>
-                                        </Tooltip>
-                                      )}
-                                    </div>
-                                  </TooltipProvider>
-                                </TableCell>
-                              </TableRow>
-
-                              {/* ── Expand: detalles ── */}
-                              {expandedRows[c.idCompraProveedor] && (
-                                <TableRow>
-                                  <TableCell colSpan={7} className="bg-muted/30 px-6 py-4">
-                                    <CompraExpandContent compra={c} />
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </Fragment>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ComprasTable
+                  compras={comprasActivas}
+                  showAnular={hasPermission("COMP_UPDATE")}
+                  emptyMsg="No se encontraron compras activas"
+                />
               )}
             </div>
           )}
 
-          {/* Contenido Inactivas */}
-          {activeTab === "inactivas" && (
+          {/* Anuladas */}
+          {activeTab === "anuladas" && (
             <div className="space-y-4">
               <Card>
                 <CardContent className="py-4">
-                  <SearchBar
-                    value={searchInactivas}
-                    onChange={setSearchInactivas}
-                    placeholder="Buscar por proveedor, comprobante o fecha..."
-                  />
+                  <SearchBar value={searchAnuladas} onChange={setSearchAnuladas}
+                    placeholder="Buscar por proveedor, comprobante o fecha..." />
                 </CardContent>
               </Card>
-
               {loading ? (
-                <Card>
-                  <CardContent className="p-0">
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted">
-                            <TableHead className="w-10" />
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Proveedor</TableHead>
-                            <TableHead>Comprobante</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <TableRow key={i}>
-                              <TableCell><div className="h-5 w-5 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-36 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-28 bg-muted animate-pulse rounded" /></TableCell>
-                              <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded ml-auto" /></TableCell>
-                              <TableCell><div className="h-8 w-8 bg-muted animate-pulse rounded ml-auto" /></TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Cargando...</CardContent></Card>
               ) : (
-                <Card>
-                  <CardContent className="p-0">
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted">
-                            <TableHead className="w-10" />
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Proveedor</TableHead>
-                            <TableHead>Comprobante</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {comprasInactivas.length === 0 && (
-                            <TableRow>
-                              <TableCell
-                                colSpan={6}
-                                className="text-center py-10 text-muted-foreground"
-                              >
-                                No hay compras inactivas
-                              </TableCell>
-                            </TableRow>
-                          )}
-                          {comprasInactivas.map((c) => (
-                            <Fragment key={c.idCompraProveedor}>
-                              <TableRow className="opacity-60 hover:opacity-80 transition">
-                                <TableCell>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6"
-                                    onClick={() => toggleExpand(`i-${c.idCompraProveedor}`)}
-                                  >
-                                    {expandedRows[`i-${c.idCompraProveedor}`] ? (
-                                      <ChevronDown className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </TableCell>
-                                <TableCell>{fmtFecha(c.fecha)}</TableCell>
-                                <TableCell className="font-medium">
-                                  {c.nombreProveedor}
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {c.numeroComprobante || "-"}
-                                </TableCell>
-                                <TableCell className="text-right font-semibold">
-                                  {fmt(c.total)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {hasPermission("COMP_UPDATE") && (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => toggleDialog.openDialog(c)}
-                                            disabled={crud.loading.toggle}
-                                          >
-                                            <Power className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Activar</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-
-                              {expandedRows[`i-${c.idCompraProveedor}`] && (
-                                <TableRow>
-                                  <TableCell colSpan={6} className="bg-muted/30 px-6 py-4">
-                                    <CompraExpandContent compra={c} />
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </Fragment>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ComprasTable
+                  compras={comprasAnuladas}
+                  rowKey={(c) => `a-${c.idCompraProveedor}`}
+                  showAnular={false}
+                  emptyMsg="No hay compras anuladas"
+                />
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Dialog: eliminar ──────────────────────────────────────────────── */}
-      <AlertDialog open={deleteDialog.open} onOpenChange={deleteDialog.closeDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar compra?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se eliminará la compra del{" "}
-              <span className="font-semibold text-foreground">
-                {fmtFecha(deleteDialog.item?.fecha)}
-              </span>{" "}
-              a{" "}
-              <span className="font-semibold text-foreground">
-                {deleteDialog.item?.nombreProveedor}
-              </span>
-              . El stock de los productos se revertirá automáticamente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteDialog.loading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={deleteDialog.confirm}
-              disabled={deleteDialog.loading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteDialog.loading ? "Eliminando..." : "Eliminar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* ── Dialog: toggle estado ─────────────────────────────────────────── */}
-      <AlertDialog open={toggleDialog.open} onOpenChange={toggleDialog.closeDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {toggleDialog.item?.activo ? "¿Desactivar compra?" : "¿Activar compra?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {toggleDialog.item?.activo
-                ? "Se revertirá el stock de todos los productos de esta compra."
-                : "Se sumará nuevamente el stock de todos los productos de esta compra."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={toggleDialog.loading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={toggleDialog.confirm}
-              disabled={toggleDialog.loading}
-            >
-              {toggleDialog.loading
-                ? "Procesando..."
-                : toggleDialog.item?.activo
-                ? "Desactivar"
-                : "Activar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AnularCompraDialog
+        open={anularDialog}
+        onOpenChange={setAnularDialog}
+        compra={compraAAnular}
+        onSuccess={cargarCompras}
+      />
     </PermissionGuard>
-  );
-}
-
-// ── Expand row: detalle de productos ─────────────────────────────────────────
-
-function CompraExpandContent({ compra }) {
-  function fmt(value) {
-    return new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: "ARS",
-      minimumFractionDigits: 2,
-    }).format(value || 0);
-  }
-
-  const detalles = compra.detalles ?? [];
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-6 text-sm text-muted-foreground mb-2">
-        {compra.observacion && (
-          <span>
-            <span className="font-medium text-foreground">Obs:</span>{" "}
-            {compra.observacion}
-          </span>
-        )}
-        {compra.nombreUsuario && (
-          <span>
-            <span className="font-medium text-foreground">Usuario:</span>{" "}
-            {compra.nombreUsuario}
-          </span>
-        )}
-        {compra.fechaVencimiento && (
-          <span>
-            <span className="font-medium text-foreground">Vence:</span>{" "}
-            {compra.fechaVencimiento}
-          </span>
-        )}
-      </div>
-
-      <div className="border rounded-md overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-background">
-              <TableHead className="text-xs">Producto</TableHead>
-              <TableHead className="text-xs text-right">Cant.</TableHead>
-              <TableHead className="text-xs text-right">Precio Unit.</TableHead>
-              <TableHead className="text-xs text-right">Desc. %</TableHead>
-              <TableHead className="text-xs text-right">IVA %</TableHead>
-              <TableHead className="text-xs text-right">Subtotal</TableHead>
-              <TableHead className="text-xs text-right">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {detalles.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-4 text-xs text-muted-foreground">
-                  Sin detalles disponibles
-                </TableCell>
-              </TableRow>
-            ) : (
-              detalles.map((d) => (
-                <TableRow key={d.idCompraProveedorDetalle}>
-                  <TableCell className="text-sm font-medium">
-                    {d.nombreProducto}
-                  </TableCell>
-                  <TableCell className="text-sm text-right">{d.cantidad}</TableCell>
-                  <TableCell className="text-sm text-right">
-                    {fmt(d.precioUnitario)}
-                  </TableCell>
-                  <TableCell className="text-sm text-right">
-                    {d.descuentoPorcentaje > 0 ? `${d.descuentoPorcentaje}%` : "-"}
-                  </TableCell>
-                  <TableCell className="text-sm text-right">
-                    {d.ivaPorcentaje}%
-                  </TableCell>
-                  <TableCell className="text-sm text-right">{fmt(d.subtotal)}</TableCell>
-                  <TableCell className="text-sm text-right font-semibold">
-                    {fmt(d.total)}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Mini resumen de totales */}
-      <div className="flex justify-end gap-6 text-sm pr-1">
-        <span className="text-muted-foreground">
-          Subtotal: <span className="text-foreground font-medium">{fmt(compra.subtotal)}</span>
-        </span>
-        {compra.descuentoTotal > 0 && (
-          <span className="text-green-600">
-            Descuento: <span className="font-medium">- {fmt(compra.descuentoTotal)}</span>
-          </span>
-        )}
-        <span className="text-muted-foreground">
-          IVA: <span className="text-foreground font-medium">{fmt(compra.ivaTotal)}</span>
-        </span>
-        <span className="font-bold">
-          Total: {fmt(compra.total)}
-        </span>
-      </div>
-    </div>
   );
 }

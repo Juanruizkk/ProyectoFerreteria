@@ -44,24 +44,35 @@ export async function createCompra(data) {
   return res.json();
 }
 
-export async function updateCompra(data) {
-  const res = await fetchWithAuth(`${API_URL}/update`, {
-    method: "PUT",
+export async function anularCompra(id, motivo) {
+  const res = await fetchWithAuth(`${API_URL}/${id}/anular`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ motivo }),
   });
-  if (!res.ok) throw new Error(await parseError(res, "Error al actualizar la compra"));
-  return res.json();
-}
-
-export async function deleteCompra(id) {
-  const res = await fetchWithAuth(`${API_URL}/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(await parseError(res, "Error al eliminar la compra"));
+  if (!res.ok) throw new Error(await parseError(res, "Error al anular la compra"));
   return true;
 }
 
-export async function toggleEstadoCompra(id) {
-  const res = await fetchWithAuth(`${API_URL}/${id}/toggle-estado`, { method: "PATCH" });
-  if (!res.ok) throw new Error(await parseError(res, "Error al cambiar el estado de la compra"));
-  return true;
+// ── Exportación ───────────────────────────────────────────────────────────────
+
+function triggerDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportarComprasExcel() {
+  const res = await fetchWithAuth(`${API_URL}/export/excel`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar compras"));
+  triggerDownload(await res.blob(), "compras.xlsx");
+}
+
+export async function exportarComprasPdf() {
+  const res = await fetchWithAuth(`${API_URL}/export/pdf`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar compras"));
+  triggerDownload(await res.blob(), "compras.pdf");
 }

@@ -73,7 +73,9 @@ function useDebouncedValue(value, delay = 350) {
 
 // ── Componente principal ─────────────────────────────────────────────────────
 
-export default function CompraForm({ initialData, onSubmit, onCancel }) {
+// proveedorInicial: { idProveedor, nombre } — pre-selecciona el proveedor y lo bloquea
+// compraParaRepetir: compra completa — pre-carga datos como base para nueva compra
+export default function CompraForm({ initialData, proveedorInicial, compraParaRepetir, onSubmit, onCancel }) {
   const isEditing = !!initialData;
 
   // ── Encabezado ────────────────────────────────────────────────────────────
@@ -121,8 +123,13 @@ export default function CompraForm({ initialData, onSubmit, onCancel }) {
   // EFECTOS
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Cargar proveedores al montar
+  // Cargar proveedores al montar (solo si no hay proveedor pre-seleccionado)
   useEffect(() => {
+    if (proveedorInicial) {
+      setLoadingProveedores(false);
+      setForm((f) => ({ ...f, idProveedor: String(proveedorInicial.idProveedor) }));
+      return;
+    }
     fetchProveedores(1, 200, "", "activos")
       .then((d) => setProveedores(d.items ?? []))
       .catch(() => toast.error("No se pudieron cargar los proveedores"))
@@ -217,6 +224,34 @@ export default function CompraForm({ initialData, onSubmit, onCancel }) {
       );
     }
   }, [initialData]);
+
+  // Hidratar si es repetición de compra (nueva compra con datos pre-cargados)
+  useEffect(() => {
+    if (!compraParaRepetir) return;
+    setForm({
+      idProveedor: String(compraParaRepetir.idProveedor ?? proveedorInicial?.idProveedor ?? ""),
+      idLista: "",
+      fecha: TODAY,
+      fechaVencimiento: "",
+      tipoComprobante: compraParaRepetir.tipoComprobante ?? "",
+      numeroComprobante: "",
+      observacion: compraParaRepetir.observacion ?? "",
+    });
+    if (compraParaRepetir.detalles) {
+      setDetalles(
+        compraParaRepetir.detalles.map((d) => ({
+          _key: crypto.randomUUID(),
+          idProducto: d.idProducto,
+          nombreProducto: d.nombreProducto,
+          cantidad: d.cantidad,
+          precioUnitario: d.precioUnitario,
+          descuentoPorcentaje: d.descuentoPorcentaje,
+          ivaPorcentaje: d.ivaPorcentaje,
+          deLista: false,
+        }))
+      );
+    }
+  }, [compraParaRepetir]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // HANDLERS
@@ -398,7 +433,11 @@ export default function CompraForm({ initialData, onSubmit, onCancel }) {
             {/* Proveedor */}
             <div className="space-y-1.5">
               <Label>Proveedor <span className="text-destructive">*</span></Label>
-              {loadingProveedores ? (
+              {proveedorInicial ? (
+                <div className="flex h-10 items-center rounded-md border bg-muted/50 px-3 text-sm font-medium">
+                  {proveedorInicial.nombre}
+                </div>
+              ) : loadingProveedores ? (
                 <div className="flex items-center gap-2 h-10 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> Cargando...
                 </div>

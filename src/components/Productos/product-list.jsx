@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, Package, AlertTriangle, MapPin, Tag, CheckCircle, XCircle } from "lucide-react"
+import { Edit, Trash2, Package, AlertTriangle, MapPin, Tag, Sliders, History } from "lucide-react"
+import { formatCantidad } from "@/utils/unidadesMedida"
 
-export default function ProductList({ productos, onEditar, onEliminar, onToggleEstado, isLoading }) {
+export default function ProductList({ productos, onEditar, onEliminar, onToggleEstado, onAjustarStock, onVerHistorial, isLoading }) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -76,15 +77,21 @@ export default function ProductList({ productos, onEditar, onEliminar, onToggleE
                 <span className="text-xs text-muted-foreground">ID: {producto.id}</span>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div><span className="text-muted-foreground">Stock:</span><p className="font-semibold">{producto.stock}</p></div>
-                <div><span className="text-muted-foreground">Mínimo:</span><p className="font-semibold">{producto.stockMinimo ?? producto.stock_minimo ?? 0}</p></div>
+                <div><span className="text-muted-foreground">Stock:</span><p className="font-semibold">{formatCantidad(producto.stock, producto.idUnidadMedida)}</p></div>
+                <div><span className="text-muted-foreground">Mínimo:</span><p className="font-semibold">{formatCantidad(producto.stockMinimo ?? producto.stock_minimo ?? 0, producto.idUnidadMedida)}</p></div>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex gap-2 items-center"><Tag className="h-4 w-4 text-muted-foreground"/><span>Categoría:</span><Badge variant="outline">{producto.categoria}</Badge></div>
                 <div className="flex gap-2 items-center"><MapPin className="h-4 w-4 text-muted-foreground"/><span>Ubicación:</span><Badge variant="outline">{producto.ubicacion}</Badge></div>
               </div>
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={() => onEditar(producto)} className="flex-1 gap-2"><Edit className="h-4 w-4"/>Editar</Button>
+                <Button variant="outline" size="sm" onClick={() => onAjustarStock?.(producto)} className="gap-2">
+                  <Sliders className="h-4 w-4"/>Stock
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => onVerHistorial?.(producto)} className="gap-2">
+                  <History className="h-4 w-4"/>Historial
+                </Button>
                 {producto.activo ? (
                   <Button variant="outline" size="sm" onClick={() => onEliminar(producto)} className="gap-2 text-destructive"><Trash2 className="h-4 w-4"/>Eliminar</Button>
                 ) : (

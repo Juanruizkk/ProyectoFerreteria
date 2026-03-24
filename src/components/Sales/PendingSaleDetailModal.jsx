@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, User, CreditCard, Calendar, FileText, AlertTriangle, CheckCircle, XCircle, Download } from "lucide-react";
 import { fetchPendingSaleById, approvePendingSale, rejectPendingSale, downloadPendingSalePdf } from "@/services/SaleQueries";
+import { formatCantidad } from "@/utils/unidadesMedida";
 import { toast } from "sonner";
 
 export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onActionCompleted }) {
@@ -318,8 +319,8 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                             <TableCell className="text-muted-foreground">
                               {item.marcaProducto}
                             </TableCell>
-                            <TableCell className="text-center">
-                              {item.cantidad}
+                            <TableCell className="text-center font-medium">
+                              {formatCantidad(item.cantidad, item.idUnidadMedida)}
                             </TableCell>
                             <TableCell className="text-right">
                               {formatCurrency(item.precioUnitario)}

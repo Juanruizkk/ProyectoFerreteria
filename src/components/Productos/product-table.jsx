@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { formatCantidad } from "@/utils/unidadesMedida"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,10 +14,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Edit, Trash2, CheckCircle, XCircle, RefreshCw, Barcode } from "lucide-react"
+import { Edit, Trash2, CheckCircle, XCircle, RefreshCw, Barcode, Package, Sliders, History } from "lucide-react"
 import BarcodeManagerDialog from "./BarcodeManagerDialog"
+import EmptyState from "@/components/Common/EmptyState"
 
-function StockCell({ stock, stockMinimo }) {
+function StockCell({ stock, stockMinimo, idUnidadMedida }) {
   const minimo = stockMinimo ?? 0
   const sinStock = stock === 0
   const bajoMinimo = stock <= minimo
@@ -29,15 +31,15 @@ function StockCell({ stock, stockMinimo }) {
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className={`inline-flex items-center justify-center w-10 rounded-md border text-sm font-medium px-1.5 py-0.5 ${badgeClass}`}>
-        {stock}
+      <span className={`inline-flex items-center justify-center rounded-md border text-sm font-medium px-1.5 py-0.5 ${badgeClass}`}>
+        {formatCantidad(stock, idUnidadMedida)}
       </span>
-      <span className="text-xs text-muted-foreground">mín {minimo}</span>
+      <span className="text-xs text-muted-foreground">mín {formatCantidad(minimo, idUnidadMedida)}</span>
     </div>
   )
 }
 
-export default function ProductTable({ productos, isLoading = false, onEditar, onEliminar, onToggleEstado, onToggleVentaSinStock, onGestionarCodigosBarras }) {
+export default function ProductTable({ productos, isLoading = false, onEditar, onEliminar, onToggleEstado, onToggleVentaSinStock, onGestionarCodigosBarras, onAjustarStock, onVerHistorial }) {
   const [confirmVss, setConfirmVss] = useState({ open: false, producto: null })
   const [barcodeDialog, setBarcodeDialog] = useState({ open: false, producto: null })
 
@@ -56,14 +58,14 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
       <div className="rounded-md border">
         <Table className="table-fixed w-full">
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="w-[12%]">Código</TableHead>
               <TableHead className="w-[22%]">Producto</TableHead>
               <TableHead className="w-[10%]">Precio</TableHead>
               <TableHead className="w-[10%]">Stock</TableHead>
               <TableHead className="w-[20%]">Categoría / Ubicación</TableHead>
               <TableHead className="w-[10%] text-center">V. sin stock</TableHead>
-              <TableHead className="w-[16%] text-right">Acciones</TableHead>
+              <TableHead className="w-[20%] text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -81,15 +83,15 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
               ))
             ) : productos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                  No hay productos
+                <TableCell colSpan={7}>
+                  <EmptyState icon={Package} title="No hay productos" />
                 </TableCell>
               </TableRow>
             ) : (
               productos.map((producto) => {
                 const codigos = producto.codigoBarras ?? producto.codigosBarras ?? []
                 return (
-                  <TableRow key={producto.id}>
+                  <TableRow key={producto.id} className="hover:bg-muted/30 transition-colors">
                     {/* Código de barra */}
                     <TableCell>
                       {codigos.length === 0 ? (
@@ -97,7 +99,7 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
                       ) : (
                         <div className="flex flex-col gap-0.5">
                           {codigos.slice(0, 2).map((cb) => (
-                            <span key={cb.idCodigo ?? cb.codigo} className="text-xs font-mono truncate">
+                            <span key={cb.codigo} className="text-xs font-mono truncate">
                               {cb.codigo}
                             </span>
                           ))}
@@ -135,6 +137,7 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
                       <StockCell
                         stock={producto.stock}
                         stockMinimo={producto.stockMinimo ?? producto.stock_minimo}
+                        idUnidadMedida={producto.idUnidadMedida}
                       />
                     </TableCell>
 
@@ -173,21 +176,57 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
                     {/* Acciones */}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1 flex-nowrap">
-                      <Button size="sm" variant="outline" onClick={() => onEditar(producto)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setBarcodeDialog({ open: true, producto })}>
-                        <Barcode className="h-4 w-4" />
-                      </Button>
-                      {producto.activo ? (
-                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => onEliminar(producto)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" className="text-green-600" onClick={() => onToggleEstado(producto.id)}>
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => onEditar(producto)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => onAjustarStock?.(producto)}>
+                              <Sliders className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Ajustar Stock</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => onVerHistorial?.(producto)}>
+                              <History className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Ver Historial</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => setBarcodeDialog({ open: true, producto })}>
+                              <Barcode className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Códigos de barra</TooltipContent>
+                        </Tooltip>
+                        {producto.activo ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="sm" variant="outline" className="text-destructive" onClick={() => onEliminar(producto)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Desactivar</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="sm" variant="outline" className="text-green-600" onClick={() => onToggleEstado(producto.id)}>
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Reactivar</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -280,7 +280,7 @@ export default function OverdueClientsPanel({ onGoToInterestConfig }) {
   );
 }
 
-function ActiveConfigBlock({ config, error, loading, onGoToConfig }) {
+function ActiveConfigBlock({ config, loading, onGoToConfig }) {
   if (loading && config === undefined) return null;
 
   if (!config) {

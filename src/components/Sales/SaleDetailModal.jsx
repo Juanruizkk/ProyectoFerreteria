@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, User, CreditCard, Calendar, FileText, Download, Ban, XCircle, CheckCircle, AlertTriangle } from "lucide-react";
 import { fetchSaleById, downloadSalePdf, downloadCreditNotePdf } from "@/services/SaleQueries";
+import { formatCantidad } from "@/utils/unidadesMedida";
 import { toast } from "sonner";
 import { usePermission } from "@/hooks/usePermission";
 import AnnulSaleDialog from "./AnnulSaleDialog";
@@ -283,8 +284,8 @@ export default function SaleDetailModal({ open, onOpenChange, saleId, onSaleAnnu
                           <TableCell className="text-muted-foreground">
                             {item.marcaProducto}
                           </TableCell>
-                          <TableCell className="text-center">
-                            {item.cantidad}
+                          <TableCell className="text-center font-medium">
+                            {formatCantidad(item.cantidad, item.idUnidadMedida)}
                           </TableCell>
                           <TableCell className="text-right">
                             {formatCurrency(item.precioUnitario)}

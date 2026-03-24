@@ -7,6 +7,7 @@ import { searchAudit } from "@/services/AuditQueries";
 import { Card } from "@/components/ui/card";
 import { History } from "lucide-react";
 import { toast } from "sonner";
+import PageHeader from "@/components/Common/PageHeader";
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
 
@@ -86,17 +87,14 @@ export default function AuditPage() {
       permission="HIS_VIEW"
       fallback={<AccessDenied moduleName="el módulo de auditoría" />}
     >
-      <div className="mx-auto max-w-7xl w-full flex flex-col gap-6 px-4 py-8">
+      <div className="container mx-auto py-6 px-4">
+        <div className="flex flex-col gap-6">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <History className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Auditoría</h1>
-            <p className="text-muted-foreground">
-              Historial completo de cambios en el sistema
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          icon={<History className="h-8 w-8 text-primary" />}
+          title="Auditoría"
+          description="Historial completo de cambios en el sistema"
+        />
 
       {/* Filtros */}
       <AuditFilters
@@ -115,7 +113,7 @@ export default function AuditPage() {
               metadata={metadata}
               pageSize={pageSize}
               onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
+              showPageSize={false}
             />
           </Card>
         )}
@@ -127,6 +125,7 @@ export default function AuditPage() {
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />
+        </div>
       </div>
     </PermissionGuard>
   );

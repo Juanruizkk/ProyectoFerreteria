@@ -53,7 +53,7 @@ function parseJSON(jsonString) {
   if (!jsonString) return null;
   try {
     return JSON.parse(jsonString);
-  } catch (err) {
+  } catch {
     return null;
   }
 }

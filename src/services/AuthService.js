@@ -37,7 +37,7 @@ export async function login(username, password) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla el parseo, usar mensaje por defecto
     }
 
@@ -87,7 +87,7 @@ export function getSession() {
     }
 
     return session;
-  } catch (e) {
+  } catch {
     // Si falla el parseo, eliminar datos corruptos
     clearSession();
     return null;

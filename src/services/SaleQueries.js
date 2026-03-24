@@ -31,7 +31,7 @@ export async function createSale(sale) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -96,7 +96,7 @@ export async function fetchAllClients(search = "") {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -160,7 +160,7 @@ export async function fetchSales(
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -202,7 +202,7 @@ export async function fetchSaleById(id) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -236,7 +236,7 @@ export async function fetchPendingSales() {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -275,7 +275,7 @@ export async function fetchPendingSaleById(id) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -319,7 +319,7 @@ export async function approvePendingSale(id, observaciones = "") {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -362,7 +362,7 @@ export async function rejectPendingSale(id, observaciones) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -397,7 +397,7 @@ export async function downloadSalePdf(id, codigoVenta) {
             errorMessage = textError;
           }
         }
-      } catch (e) {
+      } catch {
         // Si falla todo, usar mensaje por defecto
       }
       throw new Error(errorMessage);
@@ -579,7 +579,7 @@ export async function downloadPendingSalePdf(id, codigoVenta) {
             errorMessage = textError;
           }
         }
-      } catch (e) {
+      } catch {
         // Si falla todo, usar mensaje por defecto
       }
       throw new Error(errorMessage);

@@ -41,9 +41,48 @@ export async function fetchArticuloMasVendido(fechaDesde, fechaHasta) {
   return handleResponse(res);
 }
 
-export async function fetchProductosMasVendidos(fechaDesde, fechaHasta, topN = 10) {
+export async function fetchProductosMasVendidos(fechaDesde, fechaHasta, topN = 10, idCategoria = null) {
   const params = new URLSearchParams({ fechaDesde, fechaHasta, topN });
+  if (idCategoria) params.set("idCategoria", idCategoria);
   const res = await fetch(`${API_BASE}/api/Report/productos-mas-vendidos?${params}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchMargenUtilidad(fechaDesde, fechaHasta) {
+  const params = new URLSearchParams({ fechaDesde, fechaHasta });
+  const res = await fetch(`${API_BASE}/api/Report/margen-utilidad?${params}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchClientesFrecuentes(fechaDesde, fechaHasta, topN = 10) {
+  const params = new URLSearchParams({ fechaDesde, fechaHasta, topN });
+  const res = await fetch(`${API_BASE}/api/Report/clientes-frecuentes?${params}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchTiempoPromedioCobro(fechaDesde, fechaHasta) {
+  const params = new URLSearchParams({ fechaDesde, fechaHasta });
+  const res = await fetch(`${API_BASE}/api/Report/tiempo-promedio-cobro?${params}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchDeudaTotal() {
+  const res = await fetch(`${API_BASE}/api/Report/deuda-total`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function fetchClientesSaldoDeudor() {
+  const res = await fetch(`${API_BASE}/api/Report/clientes-saldo-deudor`, {
     headers: authHeaders(),
   });
   return handleResponse(res);

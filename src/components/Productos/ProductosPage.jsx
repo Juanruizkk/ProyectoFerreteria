@@ -27,13 +27,14 @@ import {
 import ProductForm from "@/components/Productos/product-form";
 import ProductList from "@/components/Productos/product-list";
 import ProductTable from "./product-table";
+import AjusteStockModal from "@/components/Productos/AjusteStockModal";
+import HistorialStockModal from "@/components/Productos/HistorialStockModal";
 import ProductImport from "@/components/Productos/ProductImport";
 import { AuditPagination } from "@/components/Audit/AuditPagination";
 import { toast } from "sonner";
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
-import { usePermission } from "@/hooks/usePermission";
 
 import {
   fetchProductsWithDetails,
@@ -45,6 +46,7 @@ import {
 import { fetchCategorias } from "@/services/CategoryQueries";
 import { fetchLocations } from "@/services/LocationQueries";
 import SearchBar from "../Common/SearchBar";
+import PageHeader from "../Common/PageHeader";
 import {
   Select,
   SelectContent,
@@ -54,7 +56,6 @@ import {
 } from "@/components/ui/select";
 
 export default function ProductosPage() {
-  const { hasPermission } = usePermission();
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
@@ -78,7 +79,7 @@ export default function ProductosPage() {
 
   // paginado
   const [pageIndex, setPageIndex] = useState(1);
-  const [pageSize, setPageSize] = useState(9);
+  const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasPrev, setHasPrev] = useState(false);
@@ -88,6 +89,26 @@ export default function ProductosPage() {
   const cacheRef = useRef({ activos: {}, inactivos: {} });
   // cache para el listado completo de stock bajo (paginado client-side)
   const stockBajoRef = useRef(null);
+
+  // modal historial de stock
+  const [historialModal, setHistorialModal] = useState({ open: false, producto: null });
+
+  const abrirHistorial = (producto) => setHistorialModal({ open: true, producto });
+  const cerrarHistorial = () => setHistorialModal({ open: false, producto: null });
+
+  // modal ajuste de stock
+  const [ajusteModal, setAjusteModal] = useState({ open: false, producto: null });
+
+  const abrirAjusteStock = (producto) => setAjusteModal({ open: true, producto });
+  const cerrarAjusteStock = () => setAjusteModal({ open: false, producto: null });
+
+  const handleAjusteExitoso = (productoActualizado) => {
+    setProductos((prev) =>
+      prev.map((p) => (p.id === productoActualizado.id ? { ...p, stock: productoActualizado.stock } : p))
+    );
+    // Invalidar cache para que el próximo fetch traiga datos frescos
+    limpiarCache();
+  };
 
   // diálogo de eliminación
   const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false);
@@ -351,6 +372,7 @@ export default function ProductosPage() {
   };
 
   const abrirFormularioCrear = () => {
+    if (filtro === "stockBajo") setFiltro("activos");
     setMostrarImportacion(false);
     setMostrarFormulario(true);
   };
@@ -377,10 +399,10 @@ export default function ProductosPage() {
   };
 
   const filterCards = [
-    { key: "activos",    label: "Activos",          color: "border-primary" },
-    { key: "inactivos",  label: "Inactivos",         color: "border-red-500" },
-    { key: "stockBajo",  label: "Stock Bajo",        color: "border-amber-500" },
-    { key: "nuevo",      label: "Cargar Producto",   color: "border-green-500" },
+    { key: "activos",    label: "Activos",          color: "border-primary",    count: filtro === "activos"   ? totalCount : null },
+    { key: "inactivos",  label: "Inactivos",         color: "border-red-500",    count: filtro === "inactivos" ? totalCount : null },
+    { key: "stockBajo",  label: "Stock Bajo",        color: "border-amber-500",  count: stockBajoCounts.todos > 0 ? stockBajoCounts.todos : null },
+    { key: "nuevo",      label: "Cargar Producto",   color: "border-green-500",  count: null },
   ];
 
   return (
@@ -390,17 +412,12 @@ export default function ProductosPage() {
     >
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <Package className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold">Gestión de Productos</h1>
-              <p className="text-muted-foreground">
-                Administra tu inventario de productos
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
+        <div className="mb-8">
+          <PageHeader
+            icon={<Package className="h-8 w-8 text-primary" />}
+            title="Gestión de Productos"
+            description="Administra tu inventario de productos"
+          >
             <Button
               variant={vista === "cards" ? "default" : "outline"}
               size="icon"
@@ -420,7 +437,7 @@ export default function ProductosPage() {
                 <Plus className="h-4 w-4" /> Nuevo Producto
               </Button>
             </PermissionGuard>
-          </div>
+          </PageHeader>
         </div>
 
         {/* Filtros */}
@@ -439,12 +456,15 @@ export default function ProductosPage() {
                   if (card.key === "nuevo") abrirImportacion();
                   else cambiarFiltro(card.key);
                 }}
-                className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${border} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
               >
                 <CardHeader className="p-1">
                   <CardTitle className="text-lg font-medium">
                     {card.label}
                   </CardTitle>
+                  {card.count !== null && (
+                    <p className="text-sm text-muted-foreground">{card.count}</p>
+                  )}
                 </CardHeader>
               </Card>
             );
@@ -578,6 +598,8 @@ export default function ProductosPage() {
             onEliminar={handleSolicitarEliminar}
             onToggleEstado={handleToggleEstado}
             onToggleVentaSinStock={handleToggleVentaSinStock}
+            onAjustarStock={abrirAjusteStock}
+            onVerHistorial={abrirHistorial}
           />
         ) : (
           <ProductTable
@@ -588,6 +610,8 @@ export default function ProductosPage() {
             onToggleEstado={handleToggleEstado}
             onToggleVentaSinStock={handleToggleVentaSinStock}
             onGestionarCodigosBarras={handleGestionarCodigosBarras}
+            onAjustarStock={abrirAjusteStock}
+            onVerHistorial={abrirHistorial}
           />
         )}
 
@@ -604,10 +628,25 @@ export default function ProductosPage() {
               }}
               pageSize={pageSize}
               onPageChange={setPageIndex}
-              onPageSizeChange={(size) => { setPageSize(size); setPageIndex(1); }}
+              showPageSize={false}
             />
           </Card>
         )}
+
+        {/* Modal historial de stock */}
+        <HistorialStockModal
+          open={historialModal.open}
+          producto={historialModal.producto}
+          onClose={cerrarHistorial}
+        />
+
+        {/* Modal ajuste de stock */}
+        <AjusteStockModal
+          open={ajusteModal.open}
+          producto={ajusteModal.producto}
+          onClose={cerrarAjusteStock}
+          onSuccess={handleAjusteExitoso}
+        />
 
         {/* Diálogo eliminar */}
         <AlertDialog open={mostrarDialogoEliminar} onOpenChange={setMostrarDialogoEliminar}>

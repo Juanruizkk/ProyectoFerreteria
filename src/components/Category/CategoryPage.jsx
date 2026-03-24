@@ -57,7 +57,7 @@ export default function CategoryPage() {
               <Card
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`cursor-pointer border ${isActive ? tab.color : "border-muted"} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${tab.color} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
               >
                 <CardHeader className="p-1">
                   <CardTitle className="text-lg font-medium">{tab.label}</CardTitle>

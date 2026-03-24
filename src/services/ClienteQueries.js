@@ -27,7 +27,7 @@ export async function fetchClientes(pageIndex = 1, pageSize = 10, searchTerm = "
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -57,7 +57,7 @@ export async function getClienteById(id) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -95,7 +95,7 @@ export async function createCliente(clienteData) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -131,7 +131,7 @@ export async function updateCliente(id, clienteData) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -170,7 +170,7 @@ export async function deleteCliente(id) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -185,7 +185,7 @@ export async function deleteCliente(id) {
       // Si es texto plano, devolverlo como string
       return await response.text();
     }
-  } catch (e) {
+  } catch {
     // Si falla, devolver vacío
     return null;
   }
@@ -220,7 +220,7 @@ export async function activateCliente(id) {
           errorMessage = textError;
         }
       }
-    } catch (e) {
+    } catch {
       // Si falla todo, usar mensaje por defecto
     }
     throw new Error(errorMessage);
@@ -234,7 +234,7 @@ export async function activateCliente(id) {
     } else {
       return await response.text();
     }
-  } catch (e) {
+  } catch {
     return null;
   }
 }

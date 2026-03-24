@@ -104,7 +104,7 @@ export async function toggleProductEstado(id) {
 
 export async function descargarPlantillaCsv() {
   const url = `${API_URL}/export/plantilla-csv`;
-  const res = await fetch(url);
+  const res = await fetchWithAuth(url);
 
   if (!res.ok) {
     throw new Error(`Error al descargar plantilla CSV: ${res.status} ${res.statusText}`);
@@ -123,7 +123,7 @@ export async function descargarPlantillaCsv() {
 
 export async function descargarPlantillaExcel() {
   const url = `${API_URL}/export/plantilla-excel`;
-  const res = await fetch(url);
+  const res = await fetchWithAuth(url);
 
   if (!res.ok) {
     throw new Error(`Error al descargar plantilla Excel: ${res.status} ${res.statusText}`);
@@ -145,7 +145,7 @@ export async function importarProductos(file) {
   formData.append("file", file);
 
   const url = `${API_URL}/importar`;
-  const res = await fetch(url, {
+  const res = await fetchWithAuth(url, {
     method: "POST",
     body: formData,
   });
@@ -160,7 +160,7 @@ export async function importarProductos(file) {
 
 export async function exportarProductosCsv() {
   const url = `${API_URL}/export/csv`;
-  const res = await fetch(url);
+  const res = await fetchWithAuth(url);
 
   if (!res.ok) {
     throw new Error(`Error al exportar productos CSV: ${res.status} ${res.statusText}`);
@@ -179,7 +179,7 @@ export async function exportarProductosCsv() {
 
 export async function exportarProductosExcel() {
   const url = `${API_URL}/export/excel`;
-  const res = await fetch(url);
+  const res = await fetchWithAuth(url);
 
   if (!res.ok) {
     throw new Error(`Error al exportar productos Excel: ${res.status} ${res.statusText}`);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart2,
   TrendingUp,
@@ -9,6 +9,11 @@ import {
   Star,
   Tag,
   FileDown,
+  Percent,
+  Clock,
+  CreditCard,
+  Users,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +51,13 @@ import {
   fetchArticuloMasVendido,
   fetchProductosMasVendidos,
   fetchCategoriasMasVendidas,
+  fetchMargenUtilidad,
+  fetchClientesFrecuentes,
+  fetchTiempoPromedioCobro,
+  fetchDeudaTotal,
+  fetchClientesSaldoDeudor,
 } from "@/services/ReportQueries";
+import { fetchCategorias } from "@/services/CategoryQueries";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -435,13 +446,53 @@ function LoadingRows({ count = 5 }) {
   );
 }
 
+// ── Clientes Frecuentes Chart ─────────────────────────────────────────────────
+
+function ClientesFrecuentesChart({ data }) {
+  if (!data || data.length === 0) return null;
+  const maxVal = Math.max(...data.map((d) => d.cantidadCompras ?? d.cantidadVentas ?? 0), 1);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {data.map((row, i) => {
+        const cantidad = row.cantidadCompras ?? row.cantidadVentas ?? 0;
+        const nombre   = row.nombreCliente ?? row.nombre ?? `Cliente ${row.idCliente}`;
+        const pct      = (cantidad / maxVal) * 100;
+        return (
+          <div key={row.idCliente ?? i} className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground w-5 text-right shrink-0">
+              {i + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="text-xs font-medium truncate leading-tight">{nombre}</span>
+                <span className="text-xs text-muted-foreground shrink-0 ml-1">
+                  {cantidad} {cantidad === 1 ? "compra" : "compras"}
+                </span>
+              </div>
+              <div className="h-4 bg-muted rounded overflow-hidden">
+                <div
+                  className="h-full rounded bg-blue-500/70 transition-all duration-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export default function ReportesPage() {
-  const [desde, setDesde]         = useState(firstDayOfMonth());
-  const [hasta, setHasta]         = useState(today());
+  const [desde, setDesde]           = useState(firstDayOfMonth());
+  const [hasta, setHasta]           = useState(today());
   const [agrupacion, setAgrupacion] = useState("mes");
-  const [topN, setTopN]           = useState("10");
+  const [topN, setTopN]             = useState("10");
+  const [idCategoria, setIdCategoria] = useState("all");
+  const [categorias, setCategorias] = useState([]);
 
   const [loading, setLoading]         = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -451,17 +502,33 @@ export default function ReportesPage() {
   const [amData, setAmData]   = useState(null);
   const [pmData, setPmData]   = useState(null);
   const [catData, setCatData] = useState(null);
+  const [muData, setMuData]   = useState(null);
+  const [cfData, setCfData]   = useState(null);
+  const [tcData, setTcData]   = useState(null);
+  const [dtData, setDtData]   = useState(null);
+  const [cdData, setCdData]   = useState(null);
+
+  useEffect(() => {
+    fetchCategorias().then(setCategorias).catch(() => {});
+  }, []);
 
   async function buscar() {
     setLoading(true);
     setHasSearched(true);
 
-    const [tv, vp, am, pm, cat] = await Promise.allSettled([
+    const catId = idCategoria !== "all" ? Number(idCategoria) : null;
+
+    const [tv, vp, am, pm, cat, mu, cf, tc, dt, cd] = await Promise.allSettled([
       fetchTotalVendido(desde, hasta),
       fetchVentasPorPeriodo(desde, hasta, agrupacion),
       fetchArticuloMasVendido(desde, hasta),
-      fetchProductosMasVendidos(desde, hasta, Number(topN)),
+      fetchProductosMasVendidos(desde, hasta, Number(topN), catId),
       fetchCategoriasMasVendidas(desde, hasta),
+      fetchMargenUtilidad(desde, hasta),
+      fetchClientesFrecuentes(desde, hasta, Number(topN)),
+      fetchTiempoPromedioCobro(desde, hasta),
+      fetchDeudaTotal(),
+      fetchClientesSaldoDeudor(),
     ]);
 
     setTvData(tv.status   === "fulfilled" ? tv.value   : null);
@@ -469,8 +536,13 @@ export default function ReportesPage() {
     setAmData(am.status   === "fulfilled" ? am.value   : null);
     setPmData(pm.status   === "fulfilled" ? pm.value   : null);
     setCatData(cat.status === "fulfilled" ? cat.value  : null);
+    setMuData(mu.status   === "fulfilled" ? mu.value   : null);
+    setCfData(cf.status   === "fulfilled" ? cf.value   : null);
+    setTcData(tc.status   === "fulfilled" ? tc.value   : null);
+    setDtData(dt.status   === "fulfilled" ? dt.value   : null);
+    setCdData(cd.status   === "fulfilled" ? cd.value   : null);
 
-    if ([tv, vp, am, pm, cat].some((r) => r.status === "rejected")) {
+    if ([tv, vp, am, pm, cat, mu, cf, tc, dt, cd].some((r) => r.status === "rejected")) {
       toast.error("Algunos reportes no pudieron cargarse");
     }
 
@@ -573,6 +645,22 @@ export default function ReportesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs">Categoría (productos)</Label>
+                <Select value={idCategoria} onValueChange={setIdCategoria}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {categorias.map((c) => (
+                      <SelectItem key={c.idCategoria} value={String(c.idCategoria)}>
+                        {c.categoria}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={buscar} disabled={loading} className="gap-2">
                 <Search className="h-4 w-4" />
                 {loading ? "Cargando..." : "Consultar"}
@@ -632,6 +720,27 @@ export default function ReportesPage() {
                 label="Artículo más vendido"
                 value={kpiProducto}
                 sub={kpiProductoSub}
+                loading={loading}
+              />
+              <KpiCard
+                icon={Percent}
+                label="Margen de utilidad"
+                value={muData != null ? `${(muData.margenPorcentaje ?? 0).toFixed(1)}%` : null}
+                sub={muData?.gananciaBruta != null ? `Ganancia bruta: ${formatCurrency(muData.gananciaBruta)}` : null}
+                loading={loading}
+              />
+              <KpiCard
+                icon={Clock}
+                label="Tiempo promedio de cobro"
+                value={tcData != null ? `${tcData.diasPromedio ?? 0} días` : null}
+                sub="Promedio en CC"
+                loading={loading}
+              />
+              <KpiCard
+                icon={CreditCard}
+                label="Deuda total CC"
+                value={dtData != null ? formatCurrency(dtData.totalDeuda ?? dtData) : null}
+                sub="Saldo deudor acumulado"
                 loading={loading}
               />
             </div>
@@ -771,6 +880,92 @@ export default function ReportesPage() {
                   ) : (
                     <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
                       No hay datos para el período
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* ── Clientes: frecuentes + deudores ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Clientes frecuentes */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-base">Clientes más frecuentes</CardTitle>
+                  </div>
+                  <CardDescription>Ordenados por cantidad de compras en el período</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <LoadingRows count={5} />
+                  ) : cfData && cfData.length > 0 ? (
+                    <ClientesFrecuentesChart data={cfData} />
+                  ) : (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                      No hay datos para el período
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Clientes con saldo deudor */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                    <CardTitle className="text-base">Clientes con saldo deudor</CardTitle>
+                  </div>
+                  <CardDescription>Clientes con deuda pendiente en cuenta corriente</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {loading ? (
+                    <LoadingRows count={5} />
+                  ) : cdData && cdData.length > 0 ? (() => {
+                    const maxSaldo = Math.max(...cdData.map((c) => c.saldoDeudor ?? c.saldo ?? 0), 1);
+                    return (
+                      <div className="overflow-hidden rounded-b-md">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50 hover:bg-muted/50">
+                              <TableHead>Cliente</TableHead>
+                              <TableHead className="text-right">Saldo deudor</TableHead>
+                              <TableHead className="text-right">Estado</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {cdData.map((row, i) => {
+                              const saldo  = row.saldoDeudor ?? row.saldo ?? 0;
+                              const nombre = row.nombreCliente ?? row.nombre ?? `Cliente ${row.idCliente}`;
+                              const esAlto = saldo > maxSaldo * 0.5;
+                              return (
+                                <TableRow key={row.idCliente ?? i} className="hover:bg-muted/30 transition-colors">
+                                  <TableCell className="font-medium text-sm">{nombre}</TableCell>
+                                  <TableCell className="text-right text-sm font-mono">
+                                    {formatCurrency(saldo)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {esAlto ? (
+                                      <Badge className="bg-red-700 text-white text-xs hover:bg-red-700">
+                                        Alto
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-400">
+                                        Pendiente
+                                      </Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })() : (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                      No hay clientes con saldo deudor
                     </div>
                   )}
                 </CardContent>

@@ -10,7 +10,9 @@
       "Bash(timeout 3 dotnet run:*)",
       "Bash(cd C:\\\\Users\\\\enzo_\\\\OneDrive\\\\Documentos\\\\Facultad\\\\ProyectoFinal\\\\ProyectoFerreteria:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

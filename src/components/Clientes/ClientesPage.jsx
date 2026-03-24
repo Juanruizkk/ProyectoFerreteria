@@ -13,8 +13,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, AlertTriangle, UserCircle } from "lucide-react";
+import EmptyState from "@/components/Common/EmptyState";
 import { toast } from "sonner";
 import SearchBar from "../Common/SearchBar";
+import PageHeader from "../Common/PageHeader";
 import { AuditPagination } from "@/components/Audit/AuditPagination";
 import ClientTable from "./ClientTable";
 import ClientTableInactive from "./ClientTableInactive";
@@ -22,7 +24,6 @@ import ClientForm from "./ClientForm";
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
-import { usePermission } from "@/hooks/usePermission";
 import {
   fetchClientes,
   getClienteById,
@@ -34,7 +35,6 @@ import {
 
 export default function ClientesPage() {
   const navigate = useNavigate();
-  const { hasPermission } = usePermission();
   const [activeTab, setActiveTab] = useState("activos");
 
   // Clientes activos
@@ -264,29 +264,24 @@ export default function ClientesPage() {
       <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col gap-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserCircle className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold">Clientes</h1>
-              <p className="text-muted-foreground">Administrá tus clientes activos e inactivos</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
-              <Button variant="outline" onClick={() => navigate("/clientes/morosos")}>
-                <AlertTriangle className="mr-2 h-4 w-4 text-amber-500" />
-                Clientes en Mora
-              </Button>
-            </PermissionGuard>
-            <PermissionGuard permission="CLI_CREATE">
-              <Button onClick={handleCreate}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Cliente
-              </Button>
-            </PermissionGuard>
-          </div>
-        </div>
+        <PageHeader
+          icon={<UserCircle className="h-8 w-8 text-primary" />}
+          title="Clientes"
+          description="Administrá tus clientes activos e inactivos"
+        >
+          <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
+            <Button variant="outline" onClick={() => navigate("/clientes/morosos")}>
+              <AlertTriangle className="mr-2 h-4 w-4 text-amber-500" />
+              Clientes en Mora
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard permission="CLI_CREATE">
+            <Button onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Cliente
+            </Button>
+          </PermissionGuard>
+        </PageHeader>
 
         {/* Form */}
         <PermissionGuard anyOf={["CLI_CREATE", "CLI_UPDATE"]}>
@@ -302,8 +297,8 @@ export default function ClientesPage() {
         {/* Filtros */}
         <div className="grid grid-cols-2 gap-3">
           {[
-            { key: "activos",   label: "Activos",   color: "border-primary" },
-            { key: "inactivos", label: "Inactivos", color: "border-red-500" },
+            { key: "activos",   label: "Activos",   color: "border-primary",   count: totalCountActivos },
+            { key: "inactivos", label: "Inactivos", color: "border-red-500",   count: totalCountInactivos },
           ].map((card) => {
             const isActive = activeTab === card.key;
             const border = isActive ? card.color : "border-muted";
@@ -311,10 +306,13 @@ export default function ClientesPage() {
               <Card
                 key={card.key}
                 onClick={() => setActiveTab(card.key)}
-                className={`cursor-pointer border ${border} hover:shadow-sm transition rounded-xl p-3 text-center`}
+                className={`cursor-pointer border transition rounded-md p-3 text-center ${isActive ? `${border} bg-accent/60 shadow-sm` : "border-muted hover:bg-muted/40 hover:shadow-sm"}`}
               >
                 <CardHeader className="p-1">
                   <CardTitle className="text-lg font-medium">{card.label}</CardTitle>
+                  {card.count > 0 && (
+                    <p className="text-sm text-muted-foreground">{card.count}</p>
+                  )}
                 </CardHeader>
               </Card>
             );
@@ -386,14 +384,11 @@ export default function ClientesPage() {
                 </span>
               </div>
             ) : clientesInactivos.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">No se encontraron clientes inactivos</p>
-                {searchTermInactivos && (
-                  <p className="text-sm mt-2">
-                    Intenta con otro término de búsqueda
-                  </p>
-                )}
-              </div>
+              <EmptyState
+                icon={UserCircle}
+                title="No se encontraron clientes inactivos"
+                description={searchTermInactivos ? "Intentá con otro término de búsqueda" : undefined}
+              />
             ) : (
               <ClientTableInactive
                 clientes={clientesInactivos}
