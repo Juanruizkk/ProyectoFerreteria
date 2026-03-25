@@ -4,10 +4,9 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  FileSpreadsheet,
-  FileText,
   XCircle,
 } from "lucide-react";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 import SearchBar from "../Common/SearchBar";
 import PageHeader from "../Common/PageHeader";
 import DateRangeFilter from "../Common/DateRangeFilter";
@@ -310,7 +309,7 @@ export default function ComprasPage() {
                               <TooltipTrigger asChild>
                                 <Button size="icon" variant="ghost" className="h-7 w-7"
                                   onClick={() => { toast.promise(exportarCompraPdf(c.idCompraProveedor), { loading: "Generando PDF...", success: "PDF descargado", error: (e) => e.message }); }}>
-                                  <FileText className="h-4 w-4" />
+                                  <FaFilePdf className="h-4 w-4 text-red-500" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>Exportar PDF</TooltipContent>
@@ -319,7 +318,7 @@ export default function ComprasPage() {
                               <TooltipTrigger asChild>
                                 <Button size="icon" variant="ghost" className="h-7 w-7"
                                   onClick={() => { toast.promise(exportarCompraExcel(c.idCompraProveedor), { loading: "Generando Excel...", success: "Excel descargado", error: (e) => e.message }); }}>
-                                  <FileSpreadsheet className="h-4 w-4" />
+                                  <FaFileExcel className="h-4 w-4 text-green-600" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>Exportar Excel</TooltipContent>
@@ -379,7 +378,7 @@ export default function ComprasPage() {
                   <TooltipTrigger asChild>
                     <Button variant="outline" size="sm" onClick={() => openExportDialog("excel")}
                       disabled={exporting !== null}>
-                      <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                      <FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" />
                       {exporting === "excel" ? "Exportando..." : "Excel"}
                     </Button>
                   </TooltipTrigger>
@@ -389,7 +388,7 @@ export default function ComprasPage() {
                   <TooltipTrigger asChild>
                     <Button variant="outline" size="sm" onClick={() => openExportDialog("pdf")}
                       disabled={exporting !== null}>
-                      <FileText className="h-4 w-4 mr-1.5" />
+                      <FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" />
                       {exporting === "pdf" ? "Exportando..." : "PDF"}
                     </Button>
                   </TooltipTrigger>
@@ -566,8 +565,8 @@ export default function ComprasPage() {
             <Button variant="outline" onClick={() => setExportDialog(false)}>Cancelar</Button>
             <Button onClick={handleExportConfirm}>
               {exportType === "excel"
-                ? <><FileSpreadsheet className="h-4 w-4 mr-1.5" /> Exportar Excel</>
-                : <><FileText className="h-4 w-4 mr-1.5" /> Exportar PDF</>}
+                ? <><FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" /> Exportar Excel</>
+                : <><FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" /> Exportar PDF</>}
             </Button>
           </DialogFooter>
         </DialogContent>

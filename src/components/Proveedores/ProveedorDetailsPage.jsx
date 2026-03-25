@@ -6,8 +6,6 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  FileText,
-  FileSpreadsheet,
   Download,
   Pencil,
   Plus,
@@ -18,6 +16,7 @@ import {
   Upload,
   XCircle,
 } from "lucide-react";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -472,7 +471,7 @@ function CompraRow({ compra, onRepetir, onAnular }) {
                 <TooltipTrigger asChild>
                   <Button size="icon" variant="ghost" className="h-7 w-7"
                     onClick={() => toast.promise(exportarCompraPdf(compra.idCompraProveedor), { loading: "Generando PDF...", success: "PDF descargado", error: (e) => e.message })}>
-                    <FileText className="h-3.5 w-3.5" />
+                    <FaFilePdf className="h-3.5 w-3.5 text-red-500" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Exportar PDF</TooltipContent>
@@ -481,7 +480,7 @@ function CompraRow({ compra, onRepetir, onAnular }) {
                 <TooltipTrigger asChild>
                   <Button size="icon" variant="ghost" className="h-7 w-7"
                     onClick={() => toast.promise(exportarCompraExcel(compra.idCompraProveedor), { loading: "Generando Excel...", success: "Excel descargado", error: (e) => e.message })}>
-                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                    <FaFileExcel className="h-3.5 w-3.5 text-green-600" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Exportar Excel</TooltipContent>
@@ -981,10 +980,10 @@ export default function ProveedorDetailsPage() {
           {/* Botones superiores */}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setExportProvType("pdf"); setExportProvDesde(""); setExportProvHasta(""); setExportProvDialog(true); }}>
-              <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+              <FaFilePdf className="mr-2 h-4 w-4 text-red-500" /> Exportar PDF
             </Button>
             <Button variant="outline" onClick={() => { setExportProvType("excel"); setExportProvDesde(""); setExportProvHasta(""); setExportProvDialog(true); }}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel
+              <FaFileExcel className="mr-2 h-4 w-4 text-green-600" /> Exportar Excel
             </Button>
             <PermissionGuard permission="COMP_CREATE">
               <Button onClick={handleNuevaCompra}>
@@ -1194,7 +1193,7 @@ export default function ProveedorDetailsPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {exportProvType === "pdf" ? <FileText className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
+              {exportProvType === "pdf" ? <FaFilePdf className="h-4 w-4 text-red-500" /> : <FaFileExcel className="h-4 w-4 text-green-600" />}
               Exportar compras — {exportProvType === "pdf" ? "PDF" : "Excel"}
             </DialogTitle>
             <DialogDescription>
