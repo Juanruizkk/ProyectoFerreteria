@@ -11,13 +11,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, User, CreditCard, Calendar, FileText, Download, Ban, XCircle, CheckCircle, AlertTriangle } from "lucide-react";
 import { fetchSaleById, downloadSalePdf, downloadCreditNotePdf } from "@/services/SaleQueries";
-import { formatCantidad } from "@/utils/unidadesMedida";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 import { toast } from "sonner";
 import { usePermission } from "@/hooks/usePermission";
 import AnnulSaleDialog from "./AnnulSaleDialog";
 
 export default function SaleDetailModal({ open, onOpenChange, saleId, onSaleAnnulled }) {
   const { hasPermission } = usePermission();
+  const { formatCantidad } = useUnidadesMedida();
   const [saleDetail, setSaleDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);

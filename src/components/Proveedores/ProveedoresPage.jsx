@@ -292,7 +292,7 @@ export default function ProveedoresPage() {
           <div className="grid grid-cols-2 gap-3">
             {[
               { key: "activos",    label: "Activos",    color: "border-primary" },
-              { key: "eliminados", label: "Eliminados", color: "border-red-500" },
+              { key: "eliminados", label: "Inactivos", color: "border-red-500" },
             ].map((card) => {
               const isActive = activeTab === card.key;
               const border = isActive ? card.color : "border-muted";

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import LoadingButton from "@/components/ui/loading-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Save, X } from "lucide-react"
 
-export default function CategoryForm({ categoria, onSubmit, onCancel }) {
+export default function CategoryForm({ categoria, onSubmit, onCancel, isSubmitting = false }) {
   const [formData, setFormData] = useState({
     categoria: "",
     descripcion: ""
@@ -101,14 +102,20 @@ export default function CategoryForm({ categoria, onSubmit, onCancel }) {
 
       {/* Botones */}
       <div className="flex gap-3 pt-4">
-        <Button type="submit" className="gap-2">
+        <LoadingButton
+          type="submit"
+          loading={isSubmitting}
+          loadingText={categoria ? "Actualizando..." : "Guardando..."}
+          className="gap-2"
+        >
           <Save className="h-4 w-4" />
           {categoria ? "Actualizar" : "Guardar"} Categoría
-        </Button>
+        </LoadingButton>
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
+          disabled={isSubmitting}
           className="gap-2 bg-transparent"
         >
           <X className="h-4 w-4" />

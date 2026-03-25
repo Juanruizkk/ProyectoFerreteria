@@ -10,6 +10,7 @@ import ClientesPage from "./components/Clientes/ClientesPage";
 import ClientDetailsPage from "./components/Clientes/ClientDetailsPage";
 import OverdueClientsPage from "./components/Clientes/OverdueClientsPage";
 import AccountConfigPage from "./components/AccountConfig/AccountConfigPage";
+import FerreteriaConfigPage from "./components/Configuration/FerreteriaConfigPage";
 import CategoryPage from "./components/Category/CategoryPage";
 import AuditPage from "./components/Audit/AuditPage";
 import Sales from "./components/Sales/Sales";
@@ -18,9 +19,11 @@ import ComprasPage from "./components/Compras/ComprasPage";
 import ProveedorDetailsPage from "./components/Proveedores/ProveedorDetailsPage";
 import ReportesPage from "./components/Reportes/ReportesPage";
 import { isAuthenticated } from "@/services/AuthService";
+import { UnidadesMedidaProvider } from "@/contexts/UnidadesMedidaContext"
 
 function App() {
   return (
+    <UnidadesMedidaProvider>
     <>
       <Routes>
         {/* Ruta de Login - Sin Layout y sin protección */}
@@ -45,6 +48,7 @@ function App() {
                   <Route path="/clientes/morosos" element={<OverdueClientsPage />} />
                   <Route path="/clientes/:id" element={<ClientDetailsPage />} />
                   <Route path="/configuracion-cc" element={<AccountConfigPage />} />
+                  <Route path="/configuracion-ferreteria" element={<FerreteriaConfigPage />} />
                   <Route path="/categorias" element={<CategoryPage />} />
                   <Route path="/auditoria" element={<AuditPage />} />
                   <Route path="/ventas" element={<Sales />} />
@@ -62,6 +66,7 @@ function App() {
       {/* Toaster global para todas las páginas */}
       <Toaster position="top-right" richColors expand theme="system" />
     </>
+    </UnidadesMedidaProvider>
   );
 }
 

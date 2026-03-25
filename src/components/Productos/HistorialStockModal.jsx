@@ -26,7 +26,7 @@ import { History, Package } from "lucide-react";
 import { toast } from "sonner";
 import PaginationControls from "@/components/Common/PaginationControls";
 import { fetchTiposMovimientoStock, fetchHistorialStock } from "@/services/StockMovementQueries";
-import { formatCantidad } from "@/utils/unidadesMedida";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 
 const PAGE_SIZE = 10;
 
@@ -43,6 +43,7 @@ function SkeletonRows() {
 }
 
 export default function HistorialStockModal({ open, producto, onClose }) {
+  const { formatCantidad } = useUnidadesMedida();
   const [tipos, setTipos] = useState([]);
   const [tipoFiltro, setTipoFiltro] = useState("todos");
   const [pageIndex, setPageIndex] = useState(1);

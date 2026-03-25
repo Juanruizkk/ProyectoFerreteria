@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,13 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Sliders } from "lucide-react";
 import { toast } from "sonner";
-import { registrarAjusteStock } from "@/services/StockMovementQueries";
-
-const TIPOS_AJUSTE = [
-  { id: 5,  label: "Sobrante de stock (+)",         signo: 1  },
-  { id: 6,  label: "Faltante / Rotura (-)",          signo: -1 },
-  { id: 7,  label: "Consumo Interno / Retiro (-)",   signo: -1 },
-];
+import { registrarAjusteStock, fetchTiposMovimientoStock } from "@/services/StockMovementQueries";
 
 const initialForm = { idTipoMovimiento: "", cantidad: "", motivo: "" };
 
@@ -33,6 +27,17 @@ export default function AjusteStockModal({ open, producto, onClose, onSuccess })
   const [form, setForm] = useState(initialForm);
   const [errores, setErrores] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [tiposAjuste, setTiposAjuste] = useState([]);
+  const [loadingTipos, setLoadingTipos] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingTipos(true);
+    fetchTiposMovimientoStock()
+      .then((data) => setTiposAjuste((data ?? []).filter((t) => !t.esSistema)))
+      .catch(() => toast.error("Error al cargar tipos de ajuste"))
+      .finally(() => setLoadingTipos(false));
+  }, [open]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -54,15 +59,15 @@ export default function AjusteStockModal({ open, producto, onClose, onSuccess })
     e.preventDefault();
     if (!validar()) return;
 
-    const tipo = TIPOS_AJUSTE.find((t) => t.id === Number(form.idTipoMovimiento));
-    const cantidadFinal = tipo.signo * parseInt(form.cantidad, 10);
+    const tipo = tiposAjuste.find((t) => t.idTipoMovimientoStock === Number(form.idTipoMovimiento));
+    const cant = parseInt(form.cantidad, 10);
 
     try {
       setSubmitting(true);
       await registrarAjusteStock({
         idProducto: producto.id,
-        cantidad: cantidadFinal,
-        idTipoMovimiento: tipo.id,
+        cantidad: cant,
+        idTipoMovimiento: tipo.idTipoMovimientoStock,
         motivo: form.motivo.trim(),
       });
 
@@ -70,6 +75,7 @@ export default function AjusteStockModal({ open, producto, onClose, onSuccess })
         description: `Stock de "${producto.nombre}" actualizado correctamente.`,
       });
 
+      const cantidadFinal = tipo.esPositivo ? cant : -cant;
       const nuevoStock = (producto.stock ?? 0) + cantidadFinal;
       onSuccess?.({ ...producto, stock: nuevoStock });
       handleClose();
@@ -115,13 +121,16 @@ export default function AjusteStockModal({ open, producto, onClose, onSuccess })
               value={form.idTipoMovimiento}
               onValueChange={(v) => handleChange("idTipoMovimiento", v)}
             >
-              <SelectTrigger className={errores.idTipoMovimiento ? "border-destructive" : ""}>
-                <SelectValue placeholder="Seleccionar tipo..." />
+              <SelectTrigger
+                disabled={loadingTipos || submitting}
+                className={errores.idTipoMovimiento ? "border-destructive" : ""}
+              >
+                <SelectValue placeholder={loadingTipos ? "Cargando tipos..." : "Seleccionar tipo..."} />
               </SelectTrigger>
               <SelectContent>
-                {TIPOS_AJUSTE.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.label}
+                {tiposAjuste.map((t) => (
+                  <SelectItem key={t.idTipoMovimientoStock} value={String(t.idTipoMovimientoStock)}>
+                    {t.nombre}{t.esPositivo ? " (+)" : " (-)"}
                   </SelectItem>
                 ))}
               </SelectContent>

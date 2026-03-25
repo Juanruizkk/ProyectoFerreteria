@@ -63,6 +63,7 @@ export default function ProductosPage() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [mostrarImportacion, setMostrarImportacion] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
+  const [submittingForm, setSubmittingForm] = useState(false);
   const [vista, setVista] = useState(() => {
     const vistaGuardada = localStorage.getItem("productos-vista-preferencia");
     return vistaGuardada || "cards";
@@ -226,20 +227,23 @@ export default function ProductosPage() {
   // CRUD
   const handleCrearProducto = async (nuevoProducto) => {
     try {
+      setSubmittingForm(true);
       const creado = await createProduct(nuevoProducto);
       setProductos((prev) => [...prev, creado]);
       toast.success("Producto creado", {
         description: `${creado.nombre} ha sido agregado exitosamente.`,
       });
+      setMostrarFormulario(false);
     } catch {
       toast.error("Error", { description: "No se pudo crear el producto" });
     } finally {
-      setMostrarFormulario(false);
+      setSubmittingForm(false);
     }
   };
 
   const handleEditarProducto = async (productoActualizado) => {
     try {
+      setSubmittingForm(true);
       const actualizado = await updateProduct(productoActualizado);
       setProductos((prev) =>
         prev.map((p) => (p.id === actualizado.id ? { ...p, ...actualizado } : p))
@@ -247,11 +251,12 @@ export default function ProductosPage() {
       toast.success("Producto actualizado", {
         description: `${actualizado.nombre} ha sido actualizado exitosamente.`,
       });
+      setProductoEditando(null);
+      setMostrarFormulario(false);
     } catch {
       toast.error("Error", { description: "No se pudo actualizar el producto" });
     } finally {
-      setProductoEditando(null);
-      setMostrarFormulario(false);
+      setSubmittingForm(false);
     }
   };
 
@@ -585,6 +590,7 @@ export default function ProductosPage() {
                 ubicaciones={ubicaciones}
                 onSubmit={productoEditando ? handleEditarProducto : handleCrearProducto}
                 onCancel={cerrarFormulario}
+                isSubmitting={submittingForm}
               />
             </CardContent>
           </Card>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { formatCantidad } from "@/utils/unidadesMedida"
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import BarcodeManagerDialog from "./BarcodeManagerDialog"
 import EmptyState from "@/components/Common/EmptyState"
 
 function StockCell({ stock, stockMinimo, idUnidadMedida }) {
+  const { formatCantidad } = useUnidadesMedida()
   const minimo = stockMinimo ?? 0
   const sinStock = stock === 0
   const bajoMinimo = stock <= minimo

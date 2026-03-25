@@ -11,8 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Save, X, Barcode, Plus, Trash2 } from "lucide-react";
-import { UNIDADES_MEDIDA } from "@/utils/unidadesMedida";
+import { Save, X, Barcode, Plus, Trash2, Loader2 } from "lucide-react";
+import { fetchUnidadesMedida } from "@/services/UnidadMedidaQueries";
 
 export default function ProductForm({
   producto,
@@ -20,6 +20,7 @@ export default function ProductForm({
   ubicaciones,
   onSubmit,
   onCancel,
+  isSubmitting = false,
 }) {
   const esEdicion = Boolean(producto);
 
@@ -62,6 +63,11 @@ export default function ProductForm({
     setCodigoBarraInput("");
     setErrorCodigoBarra("");
   }, [producto]);
+
+  const [unidades, setUnidades] = useState([]);
+  useEffect(() => {
+    fetchUnidadesMedida().then(setUnidades).catch(() => {});
+  }, []);
 
   // ¿La unidad elegida permite decimales?
   const esDecimal = formData.idUnidadMedida !== "1";
@@ -241,8 +247,8 @@ export default function ProductForm({
               <SelectValue placeholder="Seleccionar unidad" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(UNIDADES_MEDIDA).map(([id, u]) => (
-                <SelectItem key={id} value={id}>
+              {unidades.map((u) => (
+                <SelectItem key={String(u.idUnidadMedida)} value={String(u.idUnidadMedida)}>
                   {u.nombre} ({u.abreviatura})
                 </SelectItem>
               ))}
@@ -403,11 +409,20 @@ export default function ProductForm({
       )}
 
       <div className="flex gap-3 pt-4">
-        <Button type="submit" className="gap-2">
-          <Save className="h-4 w-4" />
-          {esEdicion ? "Actualizar" : "Crear"} Producto
+        <Button type="submit" className="gap-2" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {esEdicion ? "Actualizando..." : "Creando..."}
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              {esEdicion ? "Actualizar" : "Crear"} Producto
+            </>
+          )}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="gap-2 bg-transparent">
+        <Button type="button" variant="outline" onClick={onCancel} className="gap-2 bg-transparent" disabled={isSubmitting}>
           <X className="h-4 w-4" />
           Cancelar
         </Button>

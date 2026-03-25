@@ -7,20 +7,28 @@ import AccessDenied from "@/components/Common/AccessDenied"
 import { PermissionGroups } from "@/config/permissions"
 import CategoryManager from "./CategoryManager"
 import LocationManager from "./LocationManager"
+import TipoMovimientoManager from "./TipoMovimientoManager"
+import UnidadesMedidaManager from "./UnidadesMedidaManager"
 
 const NEW_BUTTON_LABEL = {
   "categorias": "Nueva Categoría",
   "ubicaciones": "Nueva Ubicación",
+  "tipos-movimiento": "Nuevo Tipo",
+  "unidades-medida": "Nueva Unidad",
 }
 
 export default function CategoryPage() {
   const [activeTab, setActiveTab] = useState("categorias")
   const catRef = useRef(null)
   const locRef = useRef(null)
+  const tiposRef = useRef(null)
+  const unidadesRef = useRef(null)
 
   const handleNew = () => {
     if (activeTab === "categorias") catRef.current?.openCreate()
     if (activeTab === "ubicaciones") locRef.current?.openCreate()
+    if (activeTab === "tipos-movimiento") tiposRef.current?.openCreate()
+    if (activeTab === "unidades-medida") unidadesRef.current?.openCreate()
   }
 
   return (
@@ -36,7 +44,7 @@ export default function CategoryPage() {
             <div>
               <h1 className="text-3xl font-bold">Categorías de Productos</h1>
               <p className="text-muted-foreground">
-                Administra categorías y ubicaciones para clasificar productos
+                Administra categorías, ubicaciones y tipos de movimiento de stock
               </p>
             </div>
           </div>
@@ -47,10 +55,12 @@ export default function CategoryPage() {
         </div>
 
         {/* Filtros */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           {[
-            { key: "categorias",  label: "Categorías",  color: "border-primary" },
-            { key: "ubicaciones", label: "Ubicaciones", color: "border-amber-500" },
+            { key: "categorias",       label: "Categorías",           color: "border-primary" },
+            { key: "ubicaciones",      label: "Ubicaciones",          color: "border-amber-500" },
+            { key: "tipos-movimiento", label: "Tipos de Movimiento",  color: "border-violet-500" },
+            { key: "unidades-medida",  label: "Unidades de Medida",   color: "border-teal-500" },
           ].map((tab) => {
             const isActive = activeTab === tab.key
             return (
@@ -69,6 +79,8 @@ export default function CategoryPage() {
 
         {activeTab === "categorias" && <CategoryManager ref={catRef} />}
         {activeTab === "ubicaciones" && <LocationManager ref={locRef} />}
+        {activeTab === "tipos-movimiento" && <TipoMovimientoManager ref={tiposRef} />}
+        {activeTab === "unidades-medida" && <UnidadesMedidaManager ref={unidadesRef} />}
       </div>
     </PermissionGuard>
   )

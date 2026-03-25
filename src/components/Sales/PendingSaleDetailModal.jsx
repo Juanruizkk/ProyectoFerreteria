@@ -23,10 +23,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, User, CreditCard, Calendar, FileText, AlertTriangle, CheckCircle, XCircle, Download } from "lucide-react";
 import { fetchPendingSaleById, approvePendingSale, rejectPendingSale, downloadPendingSalePdf } from "@/services/SaleQueries";
-import { formatCantidad } from "@/utils/unidadesMedida";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 import { toast } from "sonner";
 
 export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onActionCompleted }) {
+  const { formatCantidad } = useUnidadesMedida();
   const [saleDetail, setSaleDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [observaciones, setObservaciones] = useState("");

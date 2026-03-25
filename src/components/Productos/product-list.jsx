@@ -2,9 +2,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Trash2, Package, AlertTriangle, MapPin, Tag, Sliders, History } from "lucide-react"
-import { formatCantidad } from "@/utils/unidadesMedida"
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext"
 
 export default function ProductList({ productos, onEditar, onEliminar, onToggleEstado, onAjustarStock, onVerHistorial, isLoading }) {
+  const { formatCantidad } = useUnidadesMedida()
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

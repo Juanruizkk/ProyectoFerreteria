@@ -13,7 +13,12 @@
       "Bash(node -e \":*)",
       "Bash(npx eslint:*)",
       "Bash(npm run:*)",
-      "Bash(grep -E \"\\\\.\\(cs|csproj\\)$\")"
+      "Bash(grep -E \"\\\\.\\(cs|csproj\\)$\")",
+      "Bash(xargs grep:*)",
+      "Bash(grep -l \"handleSubmit\\\\|type=\"\"submit\"\"\" /c/Users/enzo_/OneDrive/Documentos/Facultad/ProyectoFinal/ProyectoFerreteria/src/components/Clientes/*.jsx)",
+      "Bash(grep -l \"handleSubmit\\\\|type=\"\"submit\"\"\" /c/Users/enzo_/OneDrive/Documentos/Facultad/ProyectoFinal/ProyectoFerreteria/src/components/Productos/*.jsx)",
+      "Bash(find C:/Users/enzo_/OneDrive/Documentos/Facultad/ProyectoFinal/ProyectoFerreteria/src/components -name CuentaCorriente*.jsx -o -name *CC*.jsx -o -name *cc*.jsx)",
+      "Bash(node --input-type=module --eval \"import\\(''''./src/components/Proveedores/ProveedorDetailsPage.jsx''''\\)\")"
     ],
     "deny": [],
     "ask": []
