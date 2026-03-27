@@ -21,7 +21,7 @@ import {
 export function AppSidebar() {
   const { pathname } = useLocation();
 
-  const configRoutes = ["/categorias", "/configuracion-cc"];
+  const configRoutes = ["/categorias", "/configuracion-cc", "/configuracion-ferreteria"];
   const isConfigActive = configRoutes.some((r) => pathname.startsWith(r));
 
   const [configOpen, setConfigOpen] = useState(isConfigActive);
@@ -159,6 +159,16 @@ export function AppSidebar() {
                           <SidebarMenuSubButton asChild isActive={pathname.startsWith("/categorias")}>
                             <Link to="/categorias">
                               <span>Categorías productos</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </PermissionGuard>
+
+                      <PermissionGuard anyOf={Object.values(PermissionGroups.USERS.permissions)}>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton asChild isActive={pathname.startsWith("/configuracion-ferreteria")}>
+                            <Link to="/configuracion-ferreteria">
+                              <span>Datos de Empresa</span>
                             </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>

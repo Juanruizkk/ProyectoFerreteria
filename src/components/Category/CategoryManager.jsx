@@ -38,6 +38,7 @@ const CategoryManager = forwardRef(function CategoryManager(_, ref) {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [categoriaEditando, setCategoriaEditando] = useState(null)
+  const [submittingForm, setSubmittingForm] = useState(false)
 
   const [mostrarDialogoEliminar, setMostrarDialogoEliminar] = useState(false)
   const [categoriaAEliminar, setCategoriaAEliminar] = useState(null)
@@ -91,6 +92,7 @@ const CategoryManager = forwardRef(function CategoryManager(_, ref) {
 
   const handleSubmitFormulario = async (data) => {
     try {
+      setSubmittingForm(true)
       if (categoriaEditando) {
         await updateCategoria(categoriaEditando.idCategoria ?? categoriaEditando.id, data)
         toast.success("Categoría actualizada exitosamente")
@@ -103,6 +105,8 @@ const CategoryManager = forwardRef(function CategoryManager(_, ref) {
       await cargarCategorias()
     } catch (error) {
       toast.error(errorMessages[error.message] || error.message || "Error al guardar la categoría")
+    } finally {
+      setSubmittingForm(false)
     }
   }
 
@@ -165,6 +169,7 @@ const CategoryManager = forwardRef(function CategoryManager(_, ref) {
             categoria={categoriaEditando}
             onSubmit={handleSubmitFormulario}
             onCancel={handleCancelarModal}
+            isSubmitting={submittingForm}
           />
         </DialogContent>
       </Dialog>

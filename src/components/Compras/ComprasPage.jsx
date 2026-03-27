@@ -4,16 +4,24 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  FileSpreadsheet,
-  FileText,
   XCircle,
 } from "lucide-react";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 import SearchBar from "../Common/SearchBar";
 import PageHeader from "../Common/PageHeader";
+import DateRangeFilter from "../Common/DateRangeFilter";
+import { AuditPagination } from "@/components/Audit/AuditPagination";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -35,7 +43,8 @@ import { PermissionGroups } from "@/config/permissions";
 import { usePermission } from "@/hooks/usePermission";
 
 import AnularCompraDialog from "./AnularCompraDialog";
-import { fetchCompras, exportarComprasExcel, exportarComprasPdf } from "@/services/CompraProveedorQueries";
+import { fetchCompras, exportarComprasExcel, exportarComprasPdf, exportarCompraExcel, exportarCompraPdf } from "@/services/CompraProveedorQueries";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,6 +73,7 @@ function useDebouncedValue(value, delay = 400) {
 
 // ── Detalle expandible de compra ──────────────────────────────────────────────
 function CompraExpandContent({ compra }) {
+  const { getAbreviatura } = useUnidadesMedida();
   if (!compra.detalles || compra.detalles.length === 0) {
     return <p className="text-sm text-muted-foreground">Sin detalle de productos disponible.</p>;
   }
@@ -86,7 +96,9 @@ function CompraExpandContent({ compra }) {
             {compra.detalles.map((d, i) => (
               <TableRow key={i}>
                 <TableCell className="text-sm">{d.nombreProducto}</TableCell>
-                <TableCell className="text-sm text-right">{d.cantidad}</TableCell>
+                <TableCell className="text-sm text-right">
+                  {d.cantidad} <span className="text-muted-foreground text-xs">{getAbreviatura(d.idUnidadMedida)}</span>
+                </TableCell>
                 <TableCell className="text-sm text-right font-mono">{fmt(d.precioUnitario)}</TableCell>
                 <TableCell className="text-sm text-right">{d.descuentoPorcentaje > 0 ? `${d.descuentoPorcentaje}%` : "-"}</TableCell>
                 <TableCell className="text-sm text-right">{d.ivaPorcentaje > 0 ? `${d.ivaPorcentaje}%` : "-"}</TableCell>
@@ -106,6 +118,7 @@ function CompraExpandContent({ compra }) {
           {compra.descuentoTotal > 0 && (
             <p className="text-muted-foreground">Descuento: {fmt(compra.descuentoTotal)}</p>
           )}
+          <p className="text-muted-foreground">Total sin IVA: {fmt(compra.subtotal - compra.descuentoTotal)}</p>
           {compra.ivaTotal > 0 && (
             <p className="text-muted-foreground">IVA: {fmt(compra.ivaTotal)}</p>
           )}
@@ -118,18 +131,39 @@ function CompraExpandContent({ compra }) {
 
 // ── Página ────────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 10;
+
 export default function ComprasPage() {
   const { hasPermission } = usePermission();
 
   const [activeTab, setActiveTab] = useState("activas");
-  const [todasLasCompras, setTodasLasCompras] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(null); // "excel" | "pdf" | null
 
+  // Export dialog
+  const [exportDialog, setExportDialog] = useState(false);
+  const [exportType, setExportType] = useState(null); // "excel" | "pdf"
+  const [exportFechaDesde, setExportFechaDesde] = useState("");
+  const [exportFechaHasta, setExportFechaHasta] = useState("");
+
+  // Estado por tab
   const [searchActivas, setSearchActivas] = useState("");
   const [searchAnuladas, setSearchAnuladas] = useState("");
   const dqActivas = useDebouncedValue(searchActivas);
   const dqAnuladas = useDebouncedValue(searchAnuladas);
+
+  const [pageActivas, setPageActivas] = useState(1);
+  const [pageAnuladas, setPageAnuladas] = useState(1);
+
+  // Filtros de fecha por tab
+  const [fechaDesdeActivas, setFechaDesdeActivas] = useState("");
+  const [fechaHastaActivas, setFechaHastaActivas] = useState("");
+  const [fechaDesdeAnuladas, setFechaDesdeAnuladas] = useState("");
+  const [fechaHastaAnuladas, setFechaHastaAnuladas] = useState("");
+
+  const [dataActivas, setDataActivas] = useState({ items: [], totalPages: 0, totalCount: 0 });
+  const [dataAnuladas, setDataAnuladas] = useState({ items: [], totalPages: 0, totalCount: 0 });
+  const [loadingActivas, setLoadingActivas] = useState(false);
+  const [loadingAnuladas, setLoadingAnuladas] = useState(false);
 
   const [expandedRows, setExpandedRows] = useState({});
   const toggleExpand = (key) =>
@@ -139,45 +173,81 @@ export default function ComprasPage() {
   const [anularDialog, setAnularDialog] = useState(false);
   const [compraAAnular, setCompraAAnular] = useState(null);
 
-  const cargarCompras = async () => {
+  const cargarActivas = async (page = pageActivas, search = dqActivas, desde = fechaDesdeActivas, hasta = fechaHastaActivas) => {
     try {
-      setLoading(true);
-      setTodasLasCompras(await fetchCompras() ?? []);
+      setLoadingActivas(true);
+      const data = await fetchCompras({ pageIndex: page, pageSize: PAGE_SIZE, search, activo: "true", fechaDesde: desde, fechaHasta: hasta });
+      setDataActivas(data);
     } catch (err) {
       toast.error("Error al cargar compras: " + err.message);
     } finally {
-      setLoading(false);
+      setLoadingActivas(false);
     }
   };
 
-  useEffect(() => { cargarCompras(); }, []);
-
-  const handleExport = async (type) => {
+  const cargarAnuladas = async (page = pageAnuladas, search = dqAnuladas, desde = fechaDesdeAnuladas, hasta = fechaHastaAnuladas) => {
     try {
-      setExporting(type);
-      if (type === "excel") await exportarComprasExcel();
-      else await exportarComprasPdf();
+      setLoadingAnuladas(true);
+      const data = await fetchCompras({ pageIndex: page, pageSize: PAGE_SIZE, search, activo: "false", fechaDesde: desde, fechaHasta: hasta });
+      setDataAnuladas(data);
+    } catch (err) {
+      toast.error("Error al cargar compras anuladas: " + err.message);
+    } finally {
+      setLoadingAnuladas(false);
+    }
+  };
+
+  // Carga inicial de activas
+  useEffect(() => { cargarActivas(1, ""); }, []);
+
+  // Refetch al cambiar búsqueda o página — activas
+  useEffect(() => {
+    setPageActivas(1);
+    cargarActivas(1, dqActivas);
+  }, [dqActivas]);
+
+  useEffect(() => {
+    cargarActivas(pageActivas, dqActivas);
+  }, [pageActivas]);
+
+  // Refetch al cambiar búsqueda o página — anuladas (lazy: solo si el tab está activo)
+  useEffect(() => {
+    if (activeTab !== "anuladas") return;
+    setPageAnuladas(1);
+    cargarAnuladas(1, dqAnuladas);
+  }, [dqAnuladas]);
+
+  useEffect(() => {
+    if (activeTab !== "anuladas") return;
+    cargarAnuladas(pageAnuladas, dqAnuladas);
+  }, [pageAnuladas]);
+
+  // Al cambiar al tab anuladas por primera vez, cargar datos
+  useEffect(() => {
+    if (activeTab === "anuladas" && dataAnuladas.items.length === 0 && !loadingAnuladas) {
+      cargarAnuladas(1, dqAnuladas);
+    }
+  }, [activeTab]);
+
+  const openExportDialog = (type) => {
+    setExportType(type);
+    setExportFechaDesde("");
+    setExportFechaHasta("");
+    setExportDialog(true);
+  };
+
+  const handleExportConfirm = async () => {
+    try {
+      setExporting(exportType);
+      setExportDialog(false);
+      if (exportType === "excel") await exportarComprasExcel({ fechaDesde: exportFechaDesde, fechaHasta: exportFechaHasta });
+      else await exportarComprasPdf({ fechaDesde: exportFechaDesde, fechaHasta: exportFechaHasta });
     } catch (err) {
       toast.error("Error al exportar: " + err.message);
     } finally {
       setExporting(null);
     }
   };
-
-  function filtrar(lista, search) {
-    if (!search.trim()) return lista;
-    const q = search.toLowerCase();
-    return lista.filter(
-      (c) =>
-        c.nombreProveedor?.toLowerCase().includes(q) ||
-        c.numeroComprobante?.toLowerCase().includes(q) ||
-        c.tipoComprobante?.toLowerCase().includes(q) ||
-        c.fecha?.includes(q)
-    );
-  }
-
-  const comprasActivas = filtrar(todasLasCompras.filter((c) => c.activo), dqActivas);
-  const comprasAnuladas = filtrar(todasLasCompras.filter((c) => !c.activo), dqAnuladas);
 
   const handleAnular = (compra) => {
     setCompraAAnular(compra);
@@ -199,13 +269,13 @@ export default function ComprasPage() {
                   <TableHead>Comprobante</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  {showAnular && <TableHead className="text-right w-24">Acciones</TableHead>}
+                  <TableHead className="text-right w-28">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {compras.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={showAnular ? 7 : 6} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                       {emptyMsg}
                     </TableCell>
                   </TableRow>
@@ -232,27 +302,47 @@ export default function ComprasPage() {
                       <TableCell className="text-right font-semibold text-sm font-mono">
                         {fmt(c.total)}
                       </TableCell>
-                      {showAnular && (
-                        <TableCell className="text-right">
-                          <TooltipProvider>
+                      <TableCell className="text-right">
+                        <TooltipProvider>
+                          <div className="flex items-center justify-end gap-1">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button size="icon" variant="ghost"
-                                  className="h-7 w-7 text-destructive hover:text-destructive"
-                                  onClick={() => handleAnular(c)}>
-                                  <XCircle className="h-4 w-4" />
+                                <Button size="icon" variant="ghost" className="h-7 w-7"
+                                  onClick={() => { toast.promise(exportarCompraPdf(c.idCompraProveedor), { loading: "Generando PDF...", success: "PDF descargado", error: (e) => e.message }); }}>
+                                  <FaFilePdf className="h-4 w-4 text-red-500" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Anular compra</TooltipContent>
+                              <TooltipContent>Exportar PDF</TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
-                        </TableCell>
-                      )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7"
+                                  onClick={() => { toast.promise(exportarCompraExcel(c.idCompraProveedor), { loading: "Generando Excel...", success: "Excel descargado", error: (e) => e.message }); }}>
+                                  <FaFileExcel className="h-4 w-4 text-green-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Exportar Excel</TooltipContent>
+                            </Tooltip>
+                            {showAnular && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="icon" variant="ghost"
+                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                    onClick={() => handleAnular(c)}>
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Anular compra</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
+                      </TableCell>
                     </TableRow>
 
                     {expandedRows[rowKey(c)] && (
                       <TableRow>
-                        <TableCell colSpan={showAnular ? 7 : 6} className="bg-muted/30 px-6 py-4">
+                        <TableCell colSpan={7} className="bg-muted/30 px-6 py-4">
                           <CompraExpandContent compra={c} />
                         </TableCell>
                       </TableRow>
@@ -286,9 +376,9 @@ export default function ComprasPage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => handleExport("excel")}
+                    <Button variant="outline" size="sm" onClick={() => openExportDialog("excel")}
                       disabled={exporting !== null}>
-                      <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                      <FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" />
                       {exporting === "excel" ? "Exportando..." : "Excel"}
                     </Button>
                   </TooltipTrigger>
@@ -296,9 +386,9 @@ export default function ComprasPage() {
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => handleExport("pdf")}
+                    <Button variant="outline" size="sm" onClick={() => openExportDialog("pdf")}
                       disabled={exporting !== null}>
-                      <FileText className="h-4 w-4 mr-1.5" />
+                      <FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" />
                       {exporting === "pdf" ? "Exportando..." : "PDF"}
                     </Button>
                   </TooltipTrigger>
@@ -308,11 +398,11 @@ export default function ComprasPage() {
             </div>
           </div>
 
-          {/* Filtros */}
+          {/* Tabs */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { key: "activas",   label: "Activas",   color: "border-primary" },
-              { key: "anuladas",  label: "Anuladas",  color: "border-red-500" },
+              { key: "activas",  label: "Activas",  color: "border-primary",   count: dataActivas.totalCount },
+              { key: "anuladas", label: "Anuladas", color: "border-red-500",   count: dataAnuladas.totalCount },
             ].map((card) => {
               const isActive = activeTab === card.key;
               return (
@@ -328,9 +418,11 @@ export default function ComprasPage() {
                   <CardHeader className="p-1">
                     <CardTitle className="text-lg font-medium">
                       {card.label}
-                      {card.key === "activas" && comprasActivas.length > 0 && (
-                        <span className="ml-2 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                          {comprasActivas.length}
+                      {card.count > 0 && (
+                        <span className={`ml-2 text-xs rounded-full px-1.5 py-0.5 ${
+                          isActive ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-foreground"
+                        }`}>
+                          {card.count}
                         </span>
                       )}
                     </CardTitle>
@@ -345,18 +437,47 @@ export default function ComprasPage() {
             <div className="space-y-4">
               <Card>
                 <CardContent className="py-4">
-                  <SearchBar value={searchActivas} onChange={setSearchActivas}
-                    placeholder="Buscar por proveedor, comprobante o fecha..." />
+                  <div className="flex gap-3 flex-wrap items-end">
+                    <div className="flex-1 min-w-[200px]">
+                      <SearchBar value={searchActivas} onChange={setSearchActivas}
+                        placeholder="Buscar por proveedor, comprobante o fecha..." />
+                    </div>
+                    <DateRangeFilter
+                      desde={fechaDesdeActivas}
+                      hasta={fechaHastaActivas}
+                      onDesdeChange={(v) => { setFechaDesdeActivas(v); setPageActivas(1); cargarActivas(1, dqActivas, v, fechaHastaActivas); }}
+                      onHastaChange={(v) => { setFechaHastaActivas(v); setPageActivas(1); cargarActivas(1, dqActivas, fechaDesdeActivas, v); }}
+                      onClear={() => { setFechaDesdeActivas(""); setFechaHastaActivas(""); setPageActivas(1); cargarActivas(1, dqActivas, "", ""); }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
-              {loading ? (
+              {loadingActivas ? (
                 <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Cargando...</CardContent></Card>
               ) : (
-                <ComprasTable
-                  compras={comprasActivas}
-                  showAnular={hasPermission("COMP_UPDATE")}
-                  emptyMsg="No se encontraron compras activas"
-                />
+                <>
+                  <ComprasTable
+                    compras={dataActivas.items}
+                    showAnular={hasPermission("COMP_UPDATE")}
+                    emptyMsg="No se encontraron compras activas"
+                  />
+                  {dataActivas.totalCount > 0 && (
+                    <Card className="border-border/50 shadow-sm">
+                      <AuditPagination
+                        metadata={{
+                          pagedIndex: pageActivas,
+                          totalPages: dataActivas.totalPages,
+                          totalCount: dataActivas.totalCount,
+                          hasPreviousPage: pageActivas > 1,
+                          hasNextPage: pageActivas < dataActivas.totalPages,
+                        }}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={setPageActivas}
+                        showPageSize={false}
+                      />
+                    </Card>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -366,19 +487,48 @@ export default function ComprasPage() {
             <div className="space-y-4">
               <Card>
                 <CardContent className="py-4">
-                  <SearchBar value={searchAnuladas} onChange={setSearchAnuladas}
-                    placeholder="Buscar por proveedor, comprobante o fecha..." />
+                  <div className="flex gap-3 flex-wrap items-end">
+                    <div className="flex-1 min-w-[200px]">
+                      <SearchBar value={searchAnuladas} onChange={setSearchAnuladas}
+                        placeholder="Buscar por proveedor, comprobante o fecha..." />
+                    </div>
+                    <DateRangeFilter
+                      desde={fechaDesdeAnuladas}
+                      hasta={fechaHastaAnuladas}
+                      onDesdeChange={(v) => { setFechaDesdeAnuladas(v); setPageAnuladas(1); cargarAnuladas(1, dqAnuladas, v, fechaHastaAnuladas); }}
+                      onHastaChange={(v) => { setFechaHastaAnuladas(v); setPageAnuladas(1); cargarAnuladas(1, dqAnuladas, fechaDesdeAnuladas, v); }}
+                      onClear={() => { setFechaDesdeAnuladas(""); setFechaHastaAnuladas(""); setPageAnuladas(1); cargarAnuladas(1, dqAnuladas, "", ""); }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
-              {loading ? (
+              {loadingAnuladas ? (
                 <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Cargando...</CardContent></Card>
               ) : (
-                <ComprasTable
-                  compras={comprasAnuladas}
-                  rowKey={(c) => `a-${c.idCompraProveedor}`}
-                  showAnular={false}
-                  emptyMsg="No hay compras anuladas"
-                />
+                <>
+                  <ComprasTable
+                    compras={dataAnuladas.items}
+                    rowKey={(c) => `a-${c.idCompraProveedor}`}
+                    showAnular={false}
+                    emptyMsg="No hay compras anuladas"
+                  />
+                  {dataAnuladas.totalCount > 0 && (
+                    <Card className="border-border/50 shadow-sm">
+                      <AuditPagination
+                        metadata={{
+                          pagedIndex: pageAnuladas,
+                          totalPages: dataAnuladas.totalPages,
+                          totalCount: dataAnuladas.totalCount,
+                          hasPreviousPage: pageAnuladas > 1,
+                          hasNextPage: pageAnuladas < dataAnuladas.totalPages,
+                        }}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={setPageAnuladas}
+                        showPageSize={false}
+                      />
+                    </Card>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -389,8 +539,38 @@ export default function ComprasPage() {
         open={anularDialog}
         onOpenChange={setAnularDialog}
         compra={compraAAnular}
-        onSuccess={cargarCompras}
+        onSuccess={() => cargarActivas(1, dqActivas, fechaDesdeActivas, fechaHastaActivas)}
       />
+
+      {/* Dialog exportar */}
+      <Dialog open={exportDialog} onOpenChange={setExportDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Exportar Compras — {exportType === "excel" ? "Excel" : "PDF"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Dejá los campos vacíos para exportar todas las compras.
+            </p>
+            <DateRangeFilter
+              desde={exportFechaDesde}
+              hasta={exportFechaHasta}
+              onDesdeChange={setExportFechaDesde}
+              onHastaChange={setExportFechaHasta}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialog(false)}>Cancelar</Button>
+            <Button onClick={handleExportConfirm}>
+              {exportType === "excel"
+                ? <><FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" /> Exportar Excel</>
+                : <><FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" /> Exportar PDF</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PermissionGuard>
   );
 }

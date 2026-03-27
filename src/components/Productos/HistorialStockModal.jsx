@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -26,7 +26,7 @@ import { History, Package } from "lucide-react";
 import { toast } from "sonner";
 import PaginationControls from "@/components/Common/PaginationControls";
 import { fetchTiposMovimientoStock, fetchHistorialStock } from "@/services/StockMovementQueries";
-import { formatCantidad } from "@/utils/unidadesMedida";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 
 const PAGE_SIZE = 10;
 
@@ -43,6 +43,7 @@ function SkeletonRows() {
 }
 
 export default function HistorialStockModal({ open, producto, onClose }) {
+  const { formatCantidad } = useUnidadesMedida();
   const [tipos, setTipos] = useState([]);
   const [tipoFiltro, setTipoFiltro] = useState("todos");
   const [pageIndex, setPageIndex] = useState(1);
@@ -60,29 +61,33 @@ export default function HistorialStockModal({ open, producto, onClose }) {
   }, [open]);
 
   // Cargar historial cuando cambia producto, página o filtro
-  const cargarHistorial = useCallback(async () => {
-    if (!producto?.id) return;
-    try {
-      setLoading(true);
-      const data = await fetchHistorialStock(
-        producto.id,
-        pageIndex,
-        PAGE_SIZE,
-        tipoFiltro !== "todos" ? Number(tipoFiltro) : null
-      );
-      setMovimientos(data.items ?? []);
-      setTotalPages(data.totalPages ?? 1);
-      setTotalCount(data.totalCount ?? 0);
-    } catch {
-      toast.error("Error al cargar el historial de stock");
-    } finally {
-      setLoading(false);
-    }
-  }, [producto?.id, pageIndex, tipoFiltro]);
-
   useEffect(() => {
-    if (open) cargarHistorial();
-  }, [open, cargarHistorial]);
+    if (!open || !producto?.id) return;
+    let cancelled = false;
+
+    const cargar = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchHistorialStock(
+          producto.id,
+          pageIndex,
+          PAGE_SIZE,
+          tipoFiltro !== "todos" ? Number(tipoFiltro) : null
+        );
+        if (cancelled) return;
+        setMovimientos(data.items ?? []);
+        setTotalPages(data.totalPages ?? 1);
+        setTotalCount(data.totalCount ?? 0);
+      } catch {
+        if (!cancelled) toast.error("Error al cargar el historial de stock");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    cargar();
+    return () => { cancelled = true; };
+  }, [open, producto?.id, pageIndex, tipoFiltro]);
 
   const handleTipoChange = (val) => {
     setTipoFiltro(val);
@@ -143,7 +148,7 @@ export default function HistorialStockModal({ open, producto, onClose }) {
             <SelectContent>
               <SelectItem value="todos">Todos los tipos</SelectItem>
               {tipos.map((t) => (
-                <SelectItem key={t.idTipoMovimiento} value={String(t.idTipoMovimiento)}>
+                <SelectItem key={t.idTipoMovimientoStock} value={String(t.idTipoMovimientoStock)}>
                   {t.nombre}
                 </SelectItem>
               ))}

@@ -16,8 +16,12 @@ async function parseError(response, defaultMessage) {
   return defaultMessage;
 }
 
-export async function fetchCompras() {
-  const res = await fetchWithAuth(`${API_URL}/with-details`);
+export async function fetchCompras({ pageIndex = 1, pageSize = 10, search = "", activo = "true", fechaDesde = "", fechaHasta = "" } = {}) {
+  const params = new URLSearchParams({ pageIndex, pageSize, activo });
+  if (search) params.append("search", search);
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const res = await fetchWithAuth(`${API_URL}?${params}`);
   if (!res.ok) throw new Error(await parseError(res, "Error al obtener las compras"));
   return res.json();
 }
@@ -28,8 +32,11 @@ export async function getCompraById(id) {
   return res.json();
 }
 
-export async function getComprasByProveedor(idProveedor) {
-  const res = await fetchWithAuth(`${API_URL}/proveedor/${idProveedor}`);
+export async function getComprasByProveedor(idProveedor, { pageIndex = 1, pageSize = 10, activo = "true", fechaDesde = "", fechaHasta = "" } = {}) {
+  const params = new URLSearchParams({ pageIndex, pageSize, activo });
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const res = await fetchWithAuth(`${API_URL}/proveedor/${idProveedor}?${params}`);
   if (!res.ok) throw new Error(await parseError(res, "Error al obtener las compras del proveedor"));
   return res.json();
 }
@@ -65,14 +72,54 @@ function triggerDownload(blob, filename) {
   window.URL.revokeObjectURL(url);
 }
 
-export async function exportarComprasExcel() {
-  const res = await fetchWithAuth(`${API_URL}/export/excel`);
+export async function exportarCompraExcel(idCompraProveedor) {
+  const res = await fetchWithAuth(`${API_URL}/${idCompraProveedor}/export/excel`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar la compra"));
+  triggerDownload(await res.blob(), `compra_${idCompraProveedor}.xlsx`);
+}
+
+export async function exportarCompraPdf(idCompraProveedor) {
+  const res = await fetchWithAuth(`${API_URL}/${idCompraProveedor}/export/pdf`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar la compra"));
+  triggerDownload(await res.blob(), `compra_${idCompraProveedor}.pdf`);
+}
+
+export async function exportarComprasPorProveedorExcel(idProveedor, { fechaDesde = "", fechaHasta = "" } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const qs = params.toString();
+  const res = await fetchWithAuth(`${API_URL}/proveedor/${idProveedor}/export/excel${qs ? `?${qs}` : ""}`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar compras del proveedor"));
+  triggerDownload(await res.blob(), `compras_proveedor_${idProveedor}.xlsx`);
+}
+
+export async function exportarComprasPorProveedorPdf(idProveedor, { fechaDesde = "", fechaHasta = "" } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const qs = params.toString();
+  const res = await fetchWithAuth(`${API_URL}/proveedor/${idProveedor}/export/pdf${qs ? `?${qs}` : ""}`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al exportar compras del proveedor"));
+  triggerDownload(await res.blob(), `compras_proveedor_${idProveedor}.pdf`);
+}
+
+export async function exportarComprasExcel({ fechaDesde = "", fechaHasta = "" } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const qs = params.toString();
+  const res = await fetchWithAuth(`${API_URL}/export/excel${qs ? `?${qs}` : ""}`);
   if (!res.ok) throw new Error(await parseError(res, "Error al exportar compras"));
   triggerDownload(await res.blob(), "compras.xlsx");
 }
 
-export async function exportarComprasPdf() {
-  const res = await fetchWithAuth(`${API_URL}/export/pdf`);
+export async function exportarComprasPdf({ fechaDesde = "", fechaHasta = "" } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const qs = params.toString();
+  const res = await fetchWithAuth(`${API_URL}/export/pdf${qs ? `?${qs}` : ""}`);
   if (!res.ok) throw new Error(await parseError(res, "Error al exportar compras"));
   triggerDownload(await res.blob(), "compras.pdf");
 }

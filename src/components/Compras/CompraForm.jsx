@@ -37,6 +37,7 @@ import {
 import { fetchProveedores, fetchListasByProveedor, fetchItemsByLista } from "@/services/ProveedorQueries";
 import { fetchProductsWithDetails } from "@/services/ProductQueries";
 import { getCurrentUser } from "@/services/AuthService";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ function useDebouncedValue(value, delay = 350) {
 // compraParaRepetir: compra completa — pre-carga datos como base para nueva compra
 export default function CompraForm({ initialData, proveedorInicial, compraParaRepetir, onSubmit, onCancel }) {
   const isEditing = !!initialData;
+  const { getAbreviatura } = useUnidadesMedida();
 
   // ── Encabezado ────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
@@ -215,6 +217,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           _key: crypto.randomUUID(),
           idProducto: d.idProducto,
           nombreProducto: d.nombreProducto,
+          idUnidadMedida: d.idUnidadMedida ?? null,
           cantidad: d.cantidad,
           precioUnitario: d.precioUnitario,
           descuentoPorcentaje: d.descuentoPorcentaje,
@@ -243,6 +246,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           _key: crypto.randomUUID(),
           idProducto: d.idProducto,
           nombreProducto: d.nombreProducto,
+          idUnidadMedida: d.idUnidadMedida ?? null,
           cantidad: d.cantidad,
           precioUnitario: d.precioUnitario,
           descuentoPorcentaje: d.descuentoPorcentaje,
@@ -279,6 +283,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           _key: crypto.randomUUID(),
           idProducto: item.idProducto,
           nombreProducto: item.nombreProducto,
+          idUnidadMedida: item.idUnidadMedida ?? null,
           cantidad: 1,
           precioUnitario: item.precio ?? 0,
           descuentoPorcentaje: 0,
@@ -307,6 +312,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           _key: crypto.randomUUID(),
           idProducto: producto.id,
           nombreProducto: producto.nombre,
+          idUnidadMedida: producto.idUnidadMedida ?? null,
           cantidad: 1,
           precioUnitario: producto.precio ?? 0,
           descuentoPorcentaje: 0,
@@ -756,7 +762,12 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold">{fmt(prod.precio)}</p>
+                      <p className="text-sm font-semibold">
+                        {fmt(prod.precio)}
+                        <span className="text-xs text-muted-foreground font-normal ml-1">
+                          / {getAbreviatura(prod.idUnidadMedida)}
+                        </span>
+                      </p>
                       <p className="text-xs text-muted-foreground">Stock: {prod.stock ?? 0}</p>
                     </div>
                   </button>
@@ -832,13 +843,18 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
                         </TableCell>
 
                         <TableCell>
-                          <Input
-                            type="number"
-                            min="1"
-                            className="h-8 w-20"
-                            value={det.cantidad}
-                            onChange={(e) => actualizarDetalle(det._key, "cantidad", e.target.value)}
-                          />
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type="number"
+                              min="1"
+                              className="h-8 w-20"
+                              value={det.cantidad}
+                              onChange={(e) => actualizarDetalle(det._key, "cantidad", e.target.value)}
+                            />
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {getAbreviatura(det.idUnidadMedida)}
+                            </span>
+                          </div>
                         </TableCell>
 
                         <TableCell>
@@ -920,6 +936,10 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
                       <span>- {fmt(totales.descuento)}</span>
                     </div>
                   )}
+                  <div className="flex justify-between text-sm font-medium">
+                    <span>Total sin IVA</span>
+                    <span>{fmt(totales.subtotal - totales.descuento)}</span>
+                  </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">IVA</span>
                     <span>{fmt(totales.iva)}</span>

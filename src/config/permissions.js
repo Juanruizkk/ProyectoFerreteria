@@ -173,6 +173,11 @@ export const RoutePermissions = {
     permissionGroup: PermissionGroups.CURRENT_ACCOUNT,
     requireAny: true,
   },
+  "/configuracion-ferreteria": {
+    module: "Configuración de Ferretería",
+    permissionGroup: PermissionGroups.USERS,
+    requireAny: true,
+  },
   "/ventas": {
     module: "Ventas",
     permissionGroup: PermissionGroups.SALES,

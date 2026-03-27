@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 import {
   BarChart2,
   TrendingUp,
@@ -135,10 +136,10 @@ function DonutChart({ data }) {
     );
   }
 
-  const cx = 110;
-  const cy = 110;
-  const outerR = 88;
-  const innerR = 52;
+  const cx = 150;
+  const cy = 150;
+  const outerR = 128;
+  const innerR = 76;
   const GAP = data.length > 1 ? 1.8 : 0;
 
   const total = data.reduce((s, d) => s + d.totalFacturado, 0);
@@ -159,7 +160,7 @@ function DonutChart({ data }) {
     <div className="flex flex-col sm:flex-row items-center gap-6">
       {/* SVG */}
       <div className="shrink-0">
-        <svg viewBox="0 0 220 220" width={220} height={220}>
+        <svg viewBox="0 0 300 300" width={300} height={300}>
           {slices.map((s, i) => {
             const isActive = hovered === i;
             const isFull   = s.end - s.start >= 359;
@@ -202,49 +203,49 @@ function DonutChart({ data }) {
           {active ? (
             <>
               <text
-                x={cx} y={cy - 14}
-                textAnchor="middle" fontSize={10}
+                x={cx} y={cy - 18}
+                textAnchor="middle" fontSize={12}
                 fill="currentColor" fillOpacity={0.55}
                 style={{ pointerEvents: "none" }}
               >
-                {active.categoria.length > 14
-                  ? active.categoria.slice(0, 13) + "…"
+                {active.categoria.length > 16
+                  ? active.categoria.slice(0, 15) + "…"
                   : active.categoria}
               </text>
               <text
-                x={cx} y={cy + 5}
-                textAnchor="middle" fontSize={14} fontWeight="bold"
+                x={cx} y={cy + 6}
+                textAnchor="middle" fontSize={18} fontWeight="bold"
                 fill="currentColor"
                 style={{ pointerEvents: "none" }}
               >
                 {(active.pct * 100).toFixed(1)}%
               </text>
               <text
-                x={cx} y={cy + 22}
-                textAnchor="middle" fontSize={9}
+                x={cx} y={cy + 26}
+                textAnchor="middle" fontSize={11}
                 fill="currentColor" fillOpacity={0.5}
                 style={{ pointerEvents: "none" }}
               >
-                {formatCurrencyShort(active.totalFacturado)}
+                {formatCurrency(active.totalFacturado)}
               </text>
             </>
           ) : (
             <>
               <text
-                x={cx} y={cy - 7}
-                textAnchor="middle" fontSize={11}
+                x={cx} y={cy - 8}
+                textAnchor="middle" fontSize={13}
                 fill="currentColor" fillOpacity={0.4}
                 style={{ pointerEvents: "none" }}
               >
                 Total
               </text>
               <text
-                x={cx} y={cy + 13}
-                textAnchor="middle" fontSize={13} fontWeight="bold"
+                x={cx} y={cy + 16}
+                textAnchor="middle" fontSize={15} fontWeight="bold"
                 fill="currentColor"
                 style={{ pointerEvents: "none" }}
               >
-                {formatCurrencyShort(total)}
+                {formatCurrency(total)}
               </text>
             </>
           )}
@@ -278,7 +279,7 @@ function DonutChart({ data }) {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground leading-tight">
-                {formatCurrency(s.totalFacturado)} · {s.cantidadVendida} u.
+                {formatCurrency(s.totalFacturado)}
               </p>
             </div>
           </div>
@@ -293,19 +294,22 @@ function DonutChart({ data }) {
 function BarChartSVG({ data }) {
   if (!data || data.length === 0) return null;
 
-  const W = 620;
-  const H = 240;
-  const PL = 74;
-  const PB = 46;
-  const PT = 16;
-  const PR = 16;
+  const W = 800;
+  const H = 320;
+  const PL = 115;
+  const PB = 50;
+  const PT = 20;
+  const PR = 20;
   const cW = W - PL - PR;
   const cH = H - PB - PT;
 
   const maxVal = Math.max(...data.map((d) => d.totalVendido), 1);
-  const barW   = Math.min(38, (cW / data.length) * 0.55);
+  const barW   = Math.min(60, (cW / data.length) * 0.55);
   const step   = cW / data.length;
-  const yTicks = 4;
+  const yTicks = 5;
+
+  const formatYTick = (n) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 
   return (
     <svg
@@ -325,11 +329,11 @@ function BarChartSVG({ data }) {
               strokeDasharray={i === 0 ? undefined : "4 4"}
             />
             <text
-              x={PL - 6} y={y + 4}
-              textAnchor="end" fontSize={9}
-              fill="currentColor" fillOpacity={0.45}
+              x={PL - 8} y={y + 4}
+              textAnchor="end" fontSize={10}
+              fill="currentColor" fillOpacity={0.5}
             >
-              {formatCurrencyShort(val)}
+              {formatYTick(val)}
             </text>
           </g>
         );
@@ -349,16 +353,16 @@ function BarChartSVG({ data }) {
             <title>{`${d.periodo}: ${formatCurrency(d.totalVendido)} — ${d.cantidadVentas} ventas`}</title>
             <rect
               x={x} y={y} width={barW} height={Math.max(barH, 1)}
-              rx={3}
+              rx={4}
               className="fill-primary"
               style={{ opacity: 0.82 }}
             />
             <text
-              x={x + barW / 2} y={H - PB + 15}
-              textAnchor="middle" fontSize={9}
-              fill="currentColor" fillOpacity={0.5}
+              x={x + barW / 2} y={H - PB + 18}
+              textAnchor="middle" fontSize={11}
+              fill="currentColor" fillOpacity={0.55}
             >
-              {truncate(d.periodo, 9)}
+              {truncate(d.periodo, 10)}
             </text>
           </g>
         );
@@ -372,6 +376,7 @@ function BarChartSVG({ data }) {
 function HorizontalBarChart({ data }) {
   if (!data || data.length === 0) return null;
   const maxVal = Math.max(...data.map((d) => d.cantidadVendida), 1);
+  const { formatCantidad } = useUnidadesMedida();
 
   return (
     <div className="flex flex-col gap-3">
@@ -388,7 +393,7 @@ function HorizontalBarChart({ data }) {
                   {row.nombreProducto}
                 </span>
                 <span className="text-xs text-muted-foreground shrink-0 ml-1">
-                  {row.cantidadVendida} u.
+                  {formatCantidad(row.cantidadVendida, row.idUnidadMedida)}
                 </span>
               </div>
               <div className="h-4 bg-muted rounded overflow-hidden">
@@ -552,8 +557,9 @@ export default function ReportesPage() {
   const kpiTotal    = tvData ? formatCurrency(tvData.totalVendido) : null;
   const kpiVentas   = tvData != null ? String(tvData.cantidadVentas) : null;
   const kpiProducto = amData?.nombreProducto ?? null;
+  const { formatCantidad } = useUnidadesMedida();
   const kpiProductoSub = amData
-    ? `${amData.cantidadVendida} unidades · ${formatCurrency(amData.totalFacturado)}`
+    ? `${formatCantidad(amData.cantidadVendida, amData.idUnidadMedida)} · ${formatCurrency(amData.totalFacturado)}`
     : null;
 
   const agrupacionLabel =
@@ -745,60 +751,57 @@ export default function ReportesPage() {
               />
             </div>
 
-            {/* ── Gráfico principal + Donut ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Bar chart — ocupa 2/3 del ancho */}
-              <Card className="lg:col-span-2">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <BarChart2 className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-base">Ventas por período</CardTitle>
+            {/* ── Gráfico principal ── */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">Ventas por período</CardTitle>
+                </div>
+                <CardDescription>
+                  Total facturado agrupado por {agrupacionLabel}. Pasá el cursor
+                  por las barras para ver el detalle.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="h-52 bg-muted animate-pulse rounded" />
+                ) : vpData && vpData.length > 0 ? (
+                  <BarChartSVG data={vpData} />
+                ) : (
+                  <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
+                    No hay ventas en el período seleccionado
                   </div>
-                  <CardDescription>
-                    Total facturado agrupado por {agrupacionLabel}. Pasá el cursor
-                    por las barras para ver el detalle.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="h-52 bg-muted animate-pulse rounded" />
-                  ) : vpData && vpData.length > 0 ? (
-                    <BarChartSVG data={vpData} />
-                  ) : (
-                    <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
-                      No hay ventas en el período seleccionado
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                )}
+              </CardContent>
+            </Card>
 
-              {/* Donut chart — ocupa 1/3 del ancho */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-base">Por categoría</CardTitle>
-                  </div>
-                  <CardDescription>
-                    Distribución del total facturado por categoría. Hover para ver el detalle.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-44 h-44 bg-muted animate-pulse rounded-full" />
-                      <div className="w-full flex flex-col gap-2">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                          <div key={i} className="h-6 bg-muted animate-pulse rounded" />
-                        ))}
-                      </div>
+            {/* ── Donut categorías ── */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">Ventas por categoría</CardTitle>
+                </div>
+                <CardDescription>
+                  Distribución del total facturado por categoría. Hover para ver el detalle.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-44 h-44 bg-muted animate-pulse rounded-full" />
+                    <div className="w-full flex flex-col gap-2">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="h-6 bg-muted animate-pulse rounded" />
+                      ))}
                     </div>
-                  ) : (
-                    <DonutChart data={catData} />
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                  </div>
+                ) : (
+                  <DonutChart data={catData} />
+                )}
+              </CardContent>
+            </Card>
 
             {/* ── Bottom: chart + tabla ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -867,7 +870,7 @@ export default function ReportesPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right text-sm">
-                                {row.cantidadVendida}
+                                {formatCantidad(row.cantidadVendida, row.idUnidadMedida)}
                               </TableCell>
                               <TableCell className="text-right text-sm">
                                 {formatCurrency(row.totalFacturado)}

@@ -30,3 +30,44 @@ export async function registrarAjusteStock({ idProducto, cantidad, idTipoMovimie
 
   return res.json();
 }
+
+export async function fetchTiposMovimientoAdmin() {
+  const res = await fetchWithAuth(`${API_URL}/tipos/admin`);
+  if (!res.ok) throw new Error(`Error ${res.status}`);
+  return res.json();
+}
+
+export async function createTipoMovimiento({ nombre, descripcion, esPositivo }) {
+  const res = await fetchWithAuth(`${API_URL}/tipos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nombre, descripcion, esPositivo }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.mensaje ?? err?.message ?? `Error ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function updateTipoMovimiento(id, { nombre, descripcion }) {
+  const res = await fetchWithAuth(`${API_URL}/tipos/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nombre, descripcion }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.mensaje ?? err?.message ?? `Error ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function toggleTipoMovimiento(id) {
+  const res = await fetchWithAuth(`${API_URL}/tipos/${id}/toggle`, { method: "PATCH" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.mensaje ?? err?.message ?? `Error ${res.status}`);
+  }
+  return res.json();
+}

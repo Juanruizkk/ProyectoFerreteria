@@ -37,7 +37,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { UNIDADES_MEDIDA, formatCantidad, esUnidadDecimal } from "@/utils/unidadesMedida";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 import { createSale, fetchAvailableProducts, fetchAllClients, downloadSalePdf, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { createCliente } from "@/services/ClienteQueries";
 import { getCurrentAccountSummary } from "@/services/CurrentAccountQueries";
@@ -77,6 +77,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdSale, setCreatedSale] = useState(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const { getAbreviatura, esDecimal, formatCantidad } = useUnidadesMedida();
 
   useEffect(() => {
     if (open) {
@@ -662,10 +663,11 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                                 </div>
 
                                 {/* Precio */}
-                                <p className="text-lg font-bold text-primary">
-                                  {formatCurrency(
-                                    product.precio || product.price || 0
-                                  )}
+                                <p className="text-lg font-bold text-primary flex items-baseline gap-1">
+                                  {formatCurrency(product.precio || product.price || 0)}
+                                  <span className="text-sm font-bold text-foreground">
+                                    / {getAbreviatura(product.idUnidadMedida)}
+                                  </span>
                                 </p>
                               </div>
 
@@ -729,12 +731,12 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                                 <Badge
                                   variant="outline"
                                   className={`text-xs px-1.5 py-0 h-4 ${
-                                    esUnidadDecimal(item.idUnidadMedida)
+                                    esDecimal(item.idUnidadMedida)
                                       ? "bg-primary/10 text-primary border-primary/30 font-bold"
                                       : "bg-muted text-muted-foreground font-medium"
                                   }`}
                                 >
-                                  {UNIDADES_MEDIDA[item.idUnidadMedida ?? 1]?.abreviatura ?? "u"}
+                                  {getAbreviatura(item.idUnidadMedida)}
                                 </Badge>
                               </p>
                             </div>
@@ -751,7 +753,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                             <div className="flex items-center gap-1.5">
                               <Button
                                 onClick={() => {
-                                  const step = esUnidadDecimal(item.idUnidadMedida) ? 0.1 : 1;
+                                  const step = esDecimal(item.idUnidadMedida) ? 0.1 : 1;
                                   const next = parseFloat((item.quantity - step).toFixed(2));
                                   updateQuantity(item.id || item.idProducto, next);
                                 }}
@@ -763,8 +765,8 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                               </Button>
                               <Input
                                 type="number"
-                                min={esUnidadDecimal(item.idUnidadMedida) ? "0.01" : "1"}
-                                step={esUnidadDecimal(item.idUnidadMedida) ? "0.01" : "1"}
+                                min={esDecimal(item.idUnidadMedida) ? "0.01" : "1"}
+                                step={esDecimal(item.idUnidadMedida) ? "0.01" : "1"}
                                 value={item.quantity}
                                 onChange={(e) => {
                                   const val = parseFloat(e.target.value);
@@ -776,16 +778,16 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                               <Badge
                                 variant="outline"
                                 className={`text-xs font-bold shrink-0 ${
-                                  esUnidadDecimal(item.idUnidadMedida)
+                                  esDecimal(item.idUnidadMedida)
                                     ? "bg-amber-50 text-amber-700 border-amber-300"
                                     : "bg-muted text-muted-foreground border-border"
                                 }`}
                               >
-                                {UNIDADES_MEDIDA[item.idUnidadMedida ?? 1]?.abreviatura ?? "u"}
+                                {getAbreviatura(item.idUnidadMedida)}
                               </Badge>
                               <Button
                                 onClick={() => {
-                                  const step = esUnidadDecimal(item.idUnidadMedida) ? 0.1 : 1;
+                                  const step = esDecimal(item.idUnidadMedida) ? 0.1 : 1;
                                   const next = parseFloat((item.quantity + step).toFixed(2));
                                   updateQuantity(item.id || item.idProducto, next);
                                 }}
@@ -872,7 +874,12 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
               onClick={handleFinalizeSale}
               disabled={!canFinalizeSale() || loading}
             >
-              {loading ? "Procesando..." : "Finalizar Venta"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Procesando...
+                </>
+              ) : "Finalizar Venta"}
             </Button>
           </DialogFooter>
         </DialogContent>

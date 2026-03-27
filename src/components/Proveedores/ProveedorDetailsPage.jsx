@@ -6,7 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  FileText,
+  Download,
   Pencil,
   Plus,
   Power,
@@ -16,6 +16,7 @@ import {
   Upload,
   XCircle,
 } from "lucide-react";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -80,12 +82,23 @@ import {
   deleteItem,
 } from "@/services/ProveedorQueries";
 import { fetchAvailableProducts } from "@/services/SaleQueries";
-import { getComprasByProveedor, createCompra } from "@/services/CompraProveedorQueries";
+import {
+  getComprasByProveedor,
+  createCompra,
+  exportarCompraExcel,
+  exportarCompraPdf,
+  exportarComprasPorProveedorExcel,
+  exportarComprasPorProveedorPdf,
+} from "@/services/CompraProveedorQueries";
 import CompraForm from "@/components/Compras/CompraForm";
 import AnularCompraDialog from "@/components/Compras/AnularCompraDialog";
 import ProveedorForm from "./ProveedorForm";
 import ImportarListaModal from "./ImportarListaModal";
 import { getCurrentUser } from "@/services/AuthService";
+import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
+import DateRangeFilter from "@/components/Common/DateRangeFilter";
+import SearchBar from "@/components/Common/SearchBar";
+import { AuditPagination } from "@/components/Audit/AuditPagination";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -427,6 +440,7 @@ function ListaItemsPanel({ idLista, listaNombre }) {
 // ── Fila expandible de compra ─────────────────────────────────────────────────
 function CompraRow({ compra, onRepetir, onAnular }) {
   const [expanded, setExpanded] = useState(false);
+  const { getAbreviatura } = useUnidadesMedida();
 
   return (
     <>
@@ -452,7 +466,25 @@ function CompraRow({ compra, onRepetir, onAnular }) {
         </TableCell>
         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
           <TooltipProvider>
-            <div className="flex gap-1.5 justify-end">
+            <div className="flex gap-1 justify-end">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7"
+                    onClick={() => toast.promise(exportarCompraPdf(compra.idCompraProveedor), { loading: "Generando PDF...", success: "PDF descargado", error: (e) => e.message })}>
+                    <FaFilePdf className="h-3.5 w-3.5 text-red-500" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exportar PDF</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7"
+                    onClick={() => toast.promise(exportarCompraExcel(compra.idCompraProveedor), { loading: "Generando Excel...", success: "Excel descargado", error: (e) => e.message })}>
+                    <FaFileExcel className="h-3.5 w-3.5 text-green-600" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exportar Excel</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onRepetir(compra)}>
@@ -479,7 +511,7 @@ function CompraRow({ compra, onRepetir, onAnular }) {
 
       {expanded && compra.detalles && (
         <TableRow>
-          <TableCell colSpan={6} className="bg-muted/20 px-6 pb-4 pt-2">
+          <TableCell colSpan={7} className="bg-muted/20 px-6 pb-4 pt-2">
             <div className="rounded-md border overflow-hidden">
               <Table>
                 <TableHeader>
@@ -496,15 +528,33 @@ function CompraRow({ compra, onRepetir, onAnular }) {
                   {compra.detalles.map((d, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-sm">{d.nombreProducto}</TableCell>
-                      <TableCell className="text-sm text-right">{d.cantidad}</TableCell>
+                      <TableCell className="text-sm text-right">
+                          {d.cantidad} <span className="text-muted-foreground text-xs">{getAbreviatura(d.idUnidadMedida)}</span>
+                        </TableCell>
                       <TableCell className="text-sm text-right font-mono">{fmt(d.precioUnitario)}</TableCell>
                       <TableCell className="text-sm text-right">{d.descuentoPorcentaje > 0 ? `${d.descuentoPorcentaje}%` : "-"}</TableCell>
                       <TableCell className="text-sm text-right">{d.ivaPorcentaje > 0 ? `${d.ivaPorcentaje}%` : "-"}</TableCell>
                       <TableCell className="text-sm text-right font-mono font-medium">{fmt(d.total)}</TableCell>
                     </TableRow>
                   ))}
+                  {compra.descuentoTotal > 0 && (
+                    <TableRow className="bg-muted/30">
+                      <TableCell colSpan={5} className="text-right text-sm text-muted-foreground">Descuento</TableCell>
+                      <TableCell className="text-right text-sm font-mono text-muted-foreground">- {fmt(compra.descuentoTotal)}</TableCell>
+                    </TableRow>
+                  )}
                   <TableRow className="bg-muted/30">
-                    <TableCell colSpan={5} className="text-right text-sm font-semibold">Total compra</TableCell>
+                    <TableCell colSpan={5} className="text-right text-sm font-medium">Total sin IVA</TableCell>
+                    <TableCell className="text-right text-sm font-mono font-medium">{fmt(compra.subtotal - compra.descuentoTotal)}</TableCell>
+                  </TableRow>
+                  {compra.ivaTotal > 0 && (
+                    <TableRow className="bg-muted/30">
+                      <TableCell colSpan={5} className="text-right text-sm text-muted-foreground">IVA</TableCell>
+                      <TableCell className="text-right text-sm font-mono text-muted-foreground">{fmt(compra.ivaTotal)}</TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow className="bg-muted/30">
+                    <TableCell colSpan={5} className="text-right text-sm font-semibold">Total</TableCell>
                     <TableCell className="text-right text-sm font-bold font-mono">{fmt(compra.total)}</TableCell>
                   </TableRow>
                 </TableBody>
@@ -557,8 +607,21 @@ export default function ProveedorDetailsPage() {
   });
 
   // Compras
-  const [compras, setCompras] = useState([]);
+  const [comprasData, setComprasData] = useState({ items: [], totalPages: 0, totalCount: 0 });
   const [loadingCompras, setLoadingCompras] = useState(false);
+  const [activoFiltro, setActivoFiltro] = useState("true");
+  const [pageCompras, setPageCompras] = useState(1);
+  const PAGE_SIZE_COMPRAS = 10;
+  const [searchCompras, setSearchCompras] = useState("");
+  const [fechaDesdeCompras, setFechaDesdeCompras] = useState("");
+  const [fechaHastaCompras, setFechaHastaCompras] = useState("");
+
+  // Dialog exportación global proveedor
+  const [exportProvDialog, setExportProvDialog] = useState(false);
+  const [exportProvType, setExportProvType] = useState("pdf");
+  const [exportProvDesde, setExportProvDesde] = useState("");
+  const [exportProvHasta, setExportProvHasta] = useState("");
+  const [exportProvLoading, setExportProvLoading] = useState(false);
 
   // Dialog compra
   const [compraFormOpen, setCompraFormOpen] = useState(false);
@@ -597,10 +660,11 @@ export default function ProveedorDetailsPage() {
     }
   };
 
-  const loadCompras = async () => {
+  const loadCompras = async (page = pageCompras, activo = activoFiltro, desde = fechaDesdeCompras, hasta = fechaHastaCompras, search = searchCompras) => {
     try {
       setLoadingCompras(true);
-      setCompras(await getComprasByProveedor(id) ?? []);
+      const data = await getComprasByProveedor(id, { pageIndex: page, pageSize: PAGE_SIZE_COMPRAS, activo, fechaDesde: desde, fechaHasta: hasta, search });
+      setComprasData(data);
     } catch (err) {
       toast.error("Error al cargar las compras: " + err.message);
     } finally {
@@ -669,7 +733,21 @@ export default function ProveedorDetailsPage() {
     toast.success("Compra registrada exitosamente");
     setCompraFormOpen(false);
     setCompraParaRepetir(null);
-    loadCompras();
+    loadCompras(1, activoFiltro, fechaDesdeCompras, fechaHastaCompras, searchCompras);
+  };
+
+  const handleExportProvConfirm = async () => {
+    try {
+      setExportProvLoading(true);
+      const opts = { fechaDesde: exportProvDesde, fechaHasta: exportProvHasta };
+      if (exportProvType === "pdf") await exportarComprasPorProveedorPdf(id, opts);
+      else await exportarComprasPorProveedorExcel(id, opts);
+      setExportProvDialog(false);
+    } catch (err) {
+      toast.error("Error al exportar: " + err.message);
+    } finally {
+      setExportProvLoading(false);
+    }
   };
 
   const handleEditProveedorSubmit = async (payload) => {
@@ -710,68 +788,78 @@ export default function ProveedorDetailsPage() {
         <Button variant="outline" onClick={() => navigate("/proveedores")}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver
         </Button>
-        <h1 className="text-2xl font-bold flex-1">Detalle del Proveedor</h1>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">{proveedor.nombre}</h1>
+          <p className="text-sm text-muted-foreground">{proveedor.direccion || "Sin dirección registrada"}</p>
+        </div>
       </div>
 
-      {/* Card proveedor */}
-      {showEditProveedor ? (
-        <PermissionGuard anyOf={["PROV_UPDATE"]}>
-          <ProveedorForm
-            initialData={proveedor}
-            onSubmit={handleEditProveedorSubmit}
-            onCancel={() => setShowEditProveedor(false)}
-          />
-        </PermissionGuard>
-      ) : (
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-xl">{proveedor.nombre}</CardTitle>
-                <CardDescription>{proveedor.direccion || "Sin dirección registrada"}</CardDescription>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={proveedor.activo ? "default" : "secondary"}>
-                  {proveedor.activo ? "Activo" : "Inactivo"}
-                </Badge>
-                {hasPermission("PROV_UPDATE") && (
-                  <Button size="sm" variant="outline" onClick={() => setShowEditProveedor(true)}>
-                    <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Nombre</p>
-                <p className="text-base">{proveedor.nombre}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Teléfono</p>
-                <p className="text-base">{proveedor.telefono || "-"}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Dirección</p>
-                <p className="text-base">{proveedor.direccion || "-"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Tabs */}
-      <Tabs defaultValue="listas" className="w-full">
-        <TabsList className="grid w-full max-w-sm grid-cols-2">
-          <TabsTrigger value="listas">Listas de Precios</TabsTrigger>
-          <TabsTrigger value="compras" onClick={() => { if (compras.length === 0 && !loadingCompras) loadCompras(); }}>
+      <Tabs defaultValue="detalle" className="w-full">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 mb-4">
+          <TabsTrigger value="detalle">Detalle</TabsTrigger>
+          <TabsTrigger
+            value="listas"
+            onClick={() => { if (listas.length === 0 && !loadingListas) loadListas(); }}
+          >
+            Listas de Precios
+          </TabsTrigger>
+          <TabsTrigger
+            value="compras"
+            onClick={() => { if (comprasData.items.length === 0 && !loadingCompras) loadCompras(1, activoFiltro); }}
+          >
             Compras
           </TabsTrigger>
         </TabsList>
 
+        {/* ── Tab Detalle ──────────────────────────────────────────────────── */}
+        <TabsContent value="detalle">
+          {showEditProveedor ? (
+            <PermissionGuard anyOf={["PROV_UPDATE"]}>
+              <ProveedorForm
+                initialData={proveedor}
+                onSubmit={handleEditProveedorSubmit}
+                onCancel={() => setShowEditProveedor(false)}
+              />
+            </PermissionGuard>
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-xl">{proveedor.nombre}</CardTitle>
+                    <CardDescription>{proveedor.direccion || "Sin dirección registrada"}</CardDescription>
+                  </div>
+                  {hasPermission("PROV_UPDATE") && (
+                    <Button size="sm" variant="outline" onClick={() => setShowEditProveedor(true)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Nombre</p>
+                    <p className="text-base">{proveedor.nombre}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Teléfono</p>
+                    <p className="text-base">{proveedor.telefono || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Dirección</p>
+                    <p className="text-base">{proveedor.direccion || "-"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* ── Tab Listas ───────────────────────────────────────────────────── */}
-        <TabsContent value="listas" className="space-y-3 mt-4">
+        <TabsContent value="listas">
+          <div className="space-y-3">
           <PermissionGuard permission="LP_CREATE">
             <div className="flex justify-end">
               <Button onClick={openCreateLista}>
@@ -875,7 +963,7 @@ export default function ProveedorDetailsPage() {
 
                   {/* Panel expandido con productos */}
                   {expandedListas[lista.idLista] && (
-                    <CardContent className="pt-0 pb-4 px-4 border-t bg-muted/10">
+                    <CardContent className="pt-4 pb-4 px-4 border-t bg-muted/10">
                       <ListaItemsPanel idLista={lista.idLista} listaNombre={lista.nombre} />
                     </CardContent>
                   )}
@@ -883,56 +971,126 @@ export default function ProveedorDetailsPage() {
               ))}
             </div>
           )}
+        </div>
         </TabsContent>
 
         {/* ── Tab Compras ──────────────────────────────────────────────────── */}
-        <TabsContent value="compras" className="space-y-4 mt-4">
-          <PermissionGuard permission="COMP_CREATE">
-            <div className="flex justify-end">
+        <TabsContent value="compras">
+          <div className="space-y-4">
+          {/* Botones superiores */}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => { setExportProvType("pdf"); setExportProvDesde(""); setExportProvHasta(""); setExportProvDialog(true); }}>
+              <FaFilePdf className="mr-2 h-4 w-4 text-red-500" /> Exportar PDF
+            </Button>
+            <Button variant="outline" onClick={() => { setExportProvType("excel"); setExportProvDesde(""); setExportProvHasta(""); setExportProvDialog(true); }}>
+              <FaFileExcel className="mr-2 h-4 w-4 text-green-600" /> Exportar Excel
+            </Button>
+            <PermissionGuard permission="COMP_CREATE">
               <Button onClick={handleNuevaCompra}>
                 <ShoppingCart className="mr-2 h-4 w-4" /> Realizar compra
               </Button>
-            </div>
-          </PermissionGuard>
+            </PermissionGuard>
+          </div>
 
+          {/* Buscador + estado + fechas */}
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex gap-3 flex-wrap items-end">
+                <div className="flex-1 min-w-[200px]">
+                  <SearchBar
+                    value={searchCompras}
+                    onChange={(v) => { setSearchCompras(v); setPageCompras(1); loadCompras(1, activoFiltro, fechaDesdeCompras, fechaHastaCompras, v); }}
+                    placeholder="Buscar por comprobante..."
+                  />
+                </div>
+                <Select
+                  value={activoFiltro}
+                  onValueChange={(v) => {
+                    setActivoFiltro(v);
+                    setPageCompras(1);
+                    setSearchCompras("");
+                    loadCompras(1, v, fechaDesdeCompras, fechaHastaCompras, "");
+                  }}
+                >
+                  <SelectTrigger className="w-44 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Realizadas</SelectItem>
+                    <SelectItem value="false">Anuladas</SelectItem>
+                  </SelectContent>
+                </Select>
+                <DateRangeFilter
+                  desde={fechaDesdeCompras}
+                  hasta={fechaHastaCompras}
+                  onDesdeChange={(v) => { setFechaDesdeCompras(v); setPageCompras(1); loadCompras(1, activoFiltro, v, fechaHastaCompras, searchCompras); }}
+                  onHastaChange={(v) => { setFechaHastaCompras(v); setPageCompras(1); loadCompras(1, activoFiltro, fechaDesdeCompras, v, searchCompras); }}
+                  onClear={() => { setFechaDesdeCompras(""); setFechaHastaCompras(""); setPageCompras(1); loadCompras(1, activoFiltro, "", "", searchCompras); }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tabla */}
           {loadingCompras ? (
-            <div className="text-center py-10 text-muted-foreground text-sm">Cargando compras...</div>
-          ) : compras.length === 0 ? (
+            <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Cargando compras...</CardContent></Card>
+          ) : comprasData.items.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-muted-foreground text-sm">
-                Sin compras registradas para este proveedor
+                {activoFiltro === "true" ? "Sin compras realizadas para este proveedor" : "Sin compras anuladas para este proveedor"}
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="rounded-md border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted">
-                        <TableHead className="w-10" />
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Comprobante</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {compras.map((c) => (
-                        <CompraRow
-                          key={c.idCompraProveedor}
-                          compra={c}
-                          onRepetir={handleRepetirCompra}
-                          onAnular={handleAnularCompra}
-                        />
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <>
+              <Card>
+                <CardContent className="p-0">
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted">
+                          <TableHead className="w-10" />
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Comprobante</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {comprasData.items.map((c) => (
+                          <CompraRow
+                            key={c.idCompraProveedor}
+                            compra={c}
+                            onRepetir={handleRepetirCompra}
+                            onAnular={handleAnularCompra}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Paginación */}
+              {comprasData.totalCount > 0 && (
+                <Card className="border-border/50 shadow-sm">
+                  <AuditPagination
+                    metadata={{
+                      pagedIndex: pageCompras,
+                      totalPages: comprasData.totalPages,
+                      totalCount: comprasData.totalCount,
+                      hasPreviousPage: pageCompras > 1,
+                      hasNextPage: pageCompras < comprasData.totalPages,
+                    }}
+                    pageSize={PAGE_SIZE_COMPRAS}
+                    onPageChange={(p) => { setPageCompras(p); loadCompras(p, activoFiltro, fechaDesdeCompras, fechaHastaCompras, searchCompras); }}
+                    showPageSize={false}
+                  />
+                </Card>
+              )}
+            </>
           )}
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -1030,12 +1188,45 @@ export default function ProveedorDetailsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Dialog: exportar compras del proveedor ───────────────────────────── */}
+      <Dialog open={exportProvDialog} onOpenChange={setExportProvDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {exportProvType === "pdf" ? <FaFilePdf className="h-4 w-4 text-red-500" /> : <FaFileExcel className="h-4 w-4 text-green-600" />}
+              Exportar compras — {exportProvType === "pdf" ? "PDF" : "Excel"}
+            </DialogTitle>
+            <DialogDescription>
+              Seleccioná el período. Si no elegís fechas se exportan todas las compras de este proveedor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <DateRangeFilter
+              desde={exportProvDesde}
+              hasta={exportProvHasta}
+              onDesdeChange={setExportProvDesde}
+              onHastaChange={setExportProvHasta}
+              onClear={() => { setExportProvDesde(""); setExportProvHasta(""); }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportProvDialog(false)} disabled={exportProvLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleExportProvConfirm} disabled={exportProvLoading}>
+              <Download className="mr-2 h-4 w-4" />
+              {exportProvLoading ? "Generando..." : "Descargar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Dialog: anular compra ────────────────────────────────────────────── */}
       <AnularCompraDialog
         open={anularDialog}
         onOpenChange={setAnularDialog}
         compra={compraAAnular}
-        onSuccess={loadCompras}
+        onSuccess={() => loadCompras(1, activoFiltro, fechaDesdeCompras, fechaHastaCompras, searchCompras)}
       />
 
       {/* ── Modal: importar lista desde Excel ────────────────────────────────── */}
