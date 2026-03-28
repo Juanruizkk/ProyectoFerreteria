@@ -21,7 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, User, CreditCard, Calendar, FileText, AlertTriangle, CheckCircle, XCircle, Download } from "lucide-react";
+import { Loader2, Package, User, CreditCard, Calendar, FileText, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { FaFilePdf } from "react-icons/fa";
 import { fetchPendingSaleById, approvePendingSale, rejectPendingSale, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 import { toast } from "sonner";
@@ -130,8 +131,8 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
 
   const getEstadoBadgeClass = (estado) => {
     const lower = estado?.toLowerCase() ?? "";
-    if (lower.includes("aprobada")) return "bg-green-100 text-green-800";
-    if (lower.includes("rechazada")) return "bg-red-100 text-red-800";
+    if (lower.includes("aprobad")) return "bg-green-100 text-green-800";
+    if (lower.includes("rechazad")) return "bg-red-100 text-red-800";
     return "bg-yellow-100 text-yellow-800";
   };
 
@@ -150,27 +151,47 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {saleDetail?.estado?.toLowerCase().includes("aprobada") ? (
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              ) : saleDetail?.estado?.toLowerCase().includes("rechazada") ? (
-                <XCircle className="h-5 w-5 text-red-600" />
-              ) : (
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
+            <div className="flex items-start justify-between">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  {saleDetail?.estado?.toLowerCase().includes("aprobad") ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : saleDetail?.estado?.toLowerCase().includes("rechazad") ? (
+                    <XCircle className="h-5 w-5 text-red-600" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  )}
+                  {saleDetail?.estado?.toLowerCase().includes("aprobad")
+                    ? "Venta Aprobada"
+                    : saleDetail?.estado?.toLowerCase().includes("rechazad")
+                    ? "Venta Rechazada"
+                    : "Venta Pendiente de Autorización"}
+                </DialogTitle>
+                <DialogDescription>
+                  {saleDetail?.estado?.toLowerCase().includes("aprobad")
+                    ? "Esta venta fue aprobada y procesada exitosamente."
+                    : saleDetail?.estado?.toLowerCase().includes("rechazad")
+                    ? "Esta venta fue rechazada y nunca se efectuó."
+                    : "Revise los detalles y apruebe o rechace esta venta que excede el límite de crédito"}
+                </DialogDescription>
+              </div>
+              {saleDetail && (
+                <div className="flex gap-2 shrink-0 mr-8">
+                  <Button
+                    onClick={handleDownloadPdf}
+                    disabled={isDownloading}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {isDownloading ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Descargando...</>
+                    ) : (
+                      <><FaFilePdf className="h-4 w-4 mr-2 text-red-500" />Descargar comprobante</>
+                    )}
+                  </Button>
+                </div>
               )}
-              {saleDetail?.estado?.toLowerCase().includes("aprobada")
-                ? "Venta Aprobada"
-                : saleDetail?.estado?.toLowerCase().includes("rechazada")
-                ? "Venta Rechazada"
-                : "Venta Pendiente de Autorización"}
-            </DialogTitle>
-            <DialogDescription>
-              {saleDetail?.estado?.toLowerCase().includes("aprobada")
-                ? "Esta venta fue aprobada y procesada exitosamente."
-                : saleDetail?.estado?.toLowerCase().includes("rechazada")
-                ? "Esta venta fue rechazada y nunca se efectuó."
-                : "Revise los detalles y apruebe o rechace esta venta que excede el límite de crédito"}
-            </DialogDescription>
+            </div>
           </DialogHeader>
 
           {isLoading ? (
@@ -374,23 +395,6 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
               disabled={isProcessing || isDownloading}
             >
               Cancelar
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleDownloadPdf}
-              disabled={isProcessing || isDownloading || !saleDetail}
-            >
-              {isDownloading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Descargando...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Descargar Comprobante
-                </>
-              )}
             </Button>
             {saleDetail && saleDetail.estado && saleDetail.estado.toLowerCase().includes("pendiente") && (
               <>

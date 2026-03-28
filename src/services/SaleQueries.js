@@ -125,7 +125,8 @@ export async function fetchSales(
   clienteFilter = null,
   fechaDesde = null,
   fechaHasta = null,
-  estado = null
+  estado = null,
+  idCliente = null
 ) {
   let url = `${API_URL}?pageNumber=${pageNumber}&pageSize=${pageSize}`;
 
@@ -143,6 +144,10 @@ export async function fetchSales(
 
   if (estado) {
     url += `&estado=${encodeURIComponent(estado)}`;
+  }
+
+  if (idCliente) {
+    url += `&idCliente=${idCliente}`;
   }
 
   const response = await fetchWithAuth(url);
@@ -602,4 +607,59 @@ export async function downloadPendingSalePdf(id, codigoVenta) {
   } catch (error) {
     throw error;
   }
+}
+
+// ── Exportación ───────────────────────────────────────────────────────────────
+
+function triggerDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportarVentasExcel({ fechaDesde, fechaHasta, estadoVenta } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  if (estadoVenta) params.append("estadoVenta", estadoVenta);
+  const res = await fetchWithAuth(`${API_URL}/export/excel?${params}`);
+  if (!res.ok) throw new Error("Error al exportar ventas a Excel");
+  triggerDownload(await res.blob(), "ventas.xlsx");
+}
+
+export async function exportarVentasPdf({ fechaDesde, fechaHasta, estadoVenta } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  if (estadoVenta) params.append("estadoVenta", estadoVenta);
+  const res = await fetchWithAuth(`${API_URL}/export/pdf?${params}`);
+  if (!res.ok) throw new Error("Error al exportar ventas a PDF");
+  triggerDownload(await res.blob(), "ventas.pdf");
+}
+
+export async function exportarVentasClienteExcel(idCliente) {
+  const res = await fetchWithAuth(`${API_URL}/cliente/${idCliente}/export/excel`);
+  if (!res.ok) throw new Error("Error al exportar historial de ventas a Excel");
+  triggerDownload(await res.blob(), `ventas_cliente_${idCliente}.xlsx`);
+}
+
+export async function exportarVentasClientePdf(idCliente) {
+  const res = await fetchWithAuth(`${API_URL}/cliente/${idCliente}/export/pdf`);
+  if (!res.ok) throw new Error("Error al exportar historial de ventas a PDF");
+  triggerDownload(await res.blob(), `ventas_cliente_${idCliente}.pdf`);
+}
+
+export async function exportarVentaExcel(idVenta) {
+  const res = await fetchWithAuth(`${API_URL}/${idVenta}/export/excel`);
+  if (!res.ok) throw new Error("Error al exportar comprobante a Excel");
+  triggerDownload(await res.blob(), `venta_${idVenta}.xlsx`);
+}
+
+export async function exportarVentaPdf(idVenta) {
+  const res = await fetchWithAuth(`${API_URL}/${idVenta}/export/pdf`);
+  if (!res.ok) throw new Error("Error al exportar comprobante a PDF");
+  triggerDownload(await res.blob(), `venta_${idVenta}.pdf`);
 }

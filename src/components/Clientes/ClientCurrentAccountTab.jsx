@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
-import { Plus, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
+import { Plus, RefreshCw, Settings, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,10 +17,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
   createCurrentAccount,
   getAccountMovements,
   getCurrentAccountSummary,
   getPaymentReceipt,
+  exportarCCClientePdf,
+  exportarCCClienteExcel,
 } from "@/services/CurrentAccountQueries";
 import CreateAccountForm from "./CreateAccountForm";
 import ManageAccountMovementForm from "./ManageAccountMovementForm";
@@ -175,6 +193,34 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
     handleMovementRegistered();
   };
 
+  // ── Export Estado de Cuenta ─────────────────────────────────────────────────
+  const [exportCCDialog, setExportCCDialog] = useState(false);
+  const [exportCCType, setExportCCType] = useState(null); // "pdf" | "excel"
+  const [exportCCDesde, setExportCCDesde] = useState("");
+  const [exportCCHasta, setExportCCHasta] = useState("");
+  const [exportingCC, setExportingCC] = useState(null);
+
+  const openExportCCDialog = (type) => {
+    setExportCCType(type);
+    setExportCCDesde("");
+    setExportCCHasta("");
+    setExportCCDialog(true);
+  };
+
+  const handleExportCCConfirm = async () => {
+    const fn = exportCCType === "pdf" ? exportarCCClientePdf : exportarCCClienteExcel;
+    setExportingCC(exportCCType);
+    try {
+      await fn(clientId, { fechaDesde: exportCCDesde, fechaHasta: exportCCHasta });
+      toast.success(exportCCType === "pdf" ? "PDF descargado" : "Excel descargado");
+      setExportCCDialog(false);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setExportingCC(null);
+    }
+  };
+
   const handleViewReceiptForConsumption = (consumo) => {
     // Si ya sabemos que está pagado o parcial, los pagos estarán en baseMovements 
     // pero como ahora están paginados, tal vez no estén en esta página.
@@ -278,7 +324,9 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
         onClose={() => setShowManageMovementForm(false)}
         clientId={parseInt(clientId)}
         currentBalance={latest?.saldoActual ?? 0}
+        limiteTotal={limiteTotal}
         onMovementRegistered={handleMovementRegistered}
+        onModificarLimite={() => setShowUpdateLimitModal(true)}
       />
 
       <Card className="mt-6">
@@ -290,7 +338,25 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
                 Historial y estado de la cuenta
               </CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" size="sm">
+                    Exportar
+                    <ChevronDown className="h-4 w-4 ml-1.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openExportCCDialog("pdf")}>
+                    <FaFilePdf className="h-4 w-4 mr-2 text-red-500" />
+                    Estado de cuenta PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openExportCCDialog("excel")}>
+                    <FaFileExcel className="h-4 w-4 mr-2 text-green-600" />
+                    Estado de cuenta Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 type="button"
                 variant="default"
@@ -304,27 +370,12 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                onClick={() => setShowUpdateLimitModal(true)}
+                size="icon"
+                onClick={() => { loadSummary(); loadMovements(); }}
                 disabled={loadingSummary || loadingMovements}
+                title="Actualizar"
               >
-                <SlidersHorizontal className="h-4 w-4 mr-2" />
-                Modificar Límite
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  loadSummary();
-                  loadMovements();
-                }}
-                disabled={loadingSummary || loadingMovements}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 mr-2 ${(loadingSummary || loadingMovements) ? "animate-spin" : ""}`}
-                />
-                {(loadingSummary || loadingMovements) ? "Actualizando..." : "Actualizar"}
+                <RefreshCw className={`h-4 w-4 ${(loadingSummary || loadingMovements) ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>
@@ -378,6 +429,43 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
           )}
         </CardContent>
       </Card>
+
+      {/* ── Dialog exportación Estado de Cuenta ────────────────────────────── */}
+      <Dialog open={exportCCDialog} onOpenChange={setExportCCDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {exportCCType === "pdf"
+                ? <FaFilePdf className="h-4 w-4 text-red-500" />
+                : <FaFileExcel className="h-4 w-4 text-green-600" />}
+              Estado de Cuenta — {exportCCType === "pdf" ? "PDF" : "Excel"}
+            </DialogTitle>
+            <DialogDescription>
+              Filtrá el período del estado de cuenta. Dejá vacío para exportar todo el historial.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Fecha desde</label>
+              <Input type="date" value={exportCCDesde} onChange={(e) => setExportCCDesde(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Fecha hasta</label>
+              <Input type="date" value={exportCCHasta} onChange={(e) => setExportCCHasta(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportCCDialog(false)}>Cancelar</Button>
+            <Button onClick={handleExportCCConfirm} disabled={exportingCC !== null}>
+              {exportingCC !== null ? "Exportando..." : (
+                exportCCType === "excel"
+                  ? <><FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" /> Exportar Excel</>
+                  : <><FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" /> Exportar PDF</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
