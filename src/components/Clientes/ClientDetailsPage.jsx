@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getClienteById } from "@/services/ClienteQueries";
 import ClientCurrentAccountTab from "./ClientCurrentAccountTab";
+import ClientSalesTab from "./ClientSalesTab";
 
 export default function ClientDetailsPage() {
   const { id } = useParams();
@@ -105,8 +106,9 @@ export default function ClientDetailsPage() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-4">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 mb-4">
           <TabsTrigger value="general">Información General</TabsTrigger>
+          <TabsTrigger value="ventas">Ventas</TabsTrigger>
           <TabsTrigger value="cc">Cuenta Corriente</TabsTrigger>
         </TabsList>
 
@@ -172,6 +174,10 @@ export default function ClientDetailsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="ventas">
+          <ClientSalesTab clientId={id} />
         </TabsContent>
 
         <TabsContent value="cc">

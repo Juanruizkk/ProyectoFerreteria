@@ -5,13 +5,29 @@ import PageHeader from "@/components/Common/PageHeader";
 import EmptyState from "@/components/Common/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ShoppingCart, Plus, AlertCircle, Search, Calendar, Eye } from "lucide-react";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 import { CartProvider } from "@/contexts/CartContext";
 import CreateSaleModal from "./CreateSaleModal";
 import SaleDetailModal from "./SaleDetailModal";
 import PendingSaleDetailModal from "./PendingSaleDetailModal";
 import PermissionGuard from "@/components/PermissionGuard";
-import { fetchSales, fetchPendingSales } from "@/services/SaleQueries";
+import {
+  fetchSales,
+  fetchPendingSales,
+  exportarVentasExcel,
+  exportarVentasPdf,
+} from "@/services/SaleQueries";
 import { AuditPagination } from "@/components/Audit/AuditPagination";
 import { toast } from "sonner";
 
@@ -130,6 +146,40 @@ export default function Sales() {
     setPageNumber(1);
   };
 
+  // ── Export ─────────────────────────────────────────────────────────────────
+  const [exportDialog, setExportDialog] = useState(false);
+  const [exportType, setExportType] = useState(null); // "excel" | "pdf"
+  const [exportDesde, setExportDesde] = useState("");
+  const [exportHasta, setExportHasta] = useState("");
+  const [exportEstado, setExportEstado] = useState("");
+  const [exporting, setExporting] = useState(null);
+
+  const openExportDialog = (type) => {
+    setExportType(type);
+    setExportDesde(fechaDesde);
+    setExportHasta(fechaHasta);
+    setExportEstado(estadoFilter || "todos");
+    setExportDialog(true);
+  };
+
+  const handleExportConfirm = async () => {
+    const fn = exportType === "excel" ? exportarVentasExcel : exportarVentasPdf;
+    setExporting(exportType);
+    try {
+      await fn({
+        fechaDesde: exportDesde,
+        fechaHasta: exportHasta,
+        estadoVenta: exportEstado === "todos" ? "" : exportEstado,
+      });
+      toast.success(exportType === "excel" ? "Excel descargado" : "PDF descargado");
+      setExportDialog(false);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleFilterClick = (filter) => {
     setActiveTab(filter.tab);
     setEstadoFilter(filter.estadoValue);
@@ -186,6 +236,26 @@ export default function Sales() {
             title="Ventas"
             description="Gestión de ventas y punto de venta"
           >
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => openExportDialog("excel")}>
+                    <FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" />
+                    Ventas Excel
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exportar listado de ventas a Excel</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => openExportDialog("pdf")}>
+                    <FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" />
+                    Ventas PDF
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exportar listado de ventas a PDF</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <PermissionGuard permission="VEN_CREATE">
               <Button onClick={() => setIsCreateModalOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -485,6 +555,58 @@ export default function Sales() {
           saleId={selectedPendingSaleId}
           onActionCompleted={handlePendingActionCompleted}
         />
+
+        {/* ── Dialog exportación global ───────────────────────────────────── */}
+        <Dialog open={exportDialog} onOpenChange={setExportDialog}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {exportType === "pdf"
+                  ? <FaFilePdf className="h-4 w-4 text-red-500" />
+                  : <FaFileExcel className="h-4 w-4 text-green-600" />}
+                Exportar ventas — {exportType === "pdf" ? "PDF" : "Excel"}
+              </DialogTitle>
+              <DialogDescription>
+                Filtrá el período y estado antes de exportar.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Fecha desde</label>
+                  <Input type="date" value={exportDesde} onChange={(e) => setExportDesde(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Fecha hasta</label>
+                  <Input type="date" value={exportHasta} onChange={(e) => setExportHasta(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Estado</label>
+                <Select value={exportEstado} onValueChange={setExportEstado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los estados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="aprobado">Aprobadas</SelectItem>
+                    <SelectItem value="Anulada">Anuladas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setExportDialog(false)}>Cancelar</Button>
+              <Button onClick={handleExportConfirm} disabled={exporting !== null}>
+                {exporting !== null ? "Exportando..." : (
+                  exportType === "excel"
+                    ? <><FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" /> Exportar Excel</>
+                    : <><FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" /> Exportar PDF</>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </CartProvider>
   );

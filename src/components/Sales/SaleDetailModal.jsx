@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, User, CreditCard, Calendar, FileText, Download, Ban, XCircle, CheckCircle, AlertTriangle } from "lucide-react";
-import { fetchSaleById, downloadSalePdf, downloadCreditNotePdf } from "@/services/SaleQueries";
+import { FaFilePdf } from "react-icons/fa";
+import { fetchSaleById, downloadSalePdf, downloadCreditNotePdf, exportarVentaPdf } from "@/services/SaleQueries";
 import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 import { toast } from "sonner";
 import { usePermission } from "@/hooks/usePermission";
@@ -52,17 +53,16 @@ export default function SaleDetailModal({ open, onOpenChange, saleId, onSaleAnnu
       if (isAnulada) {
         await downloadCreditNotePdf(id, saleDetail.codigoVenta);
       } else {
-        await downloadSalePdf(id, saleDetail.codigoVenta);
+        await exportarVentaPdf(id);
       }
       toast.success("Comprobante descargado exitosamente");
     } catch (err) {
-      toast.error("Error al descargar el comprobante", {
-        description: err.message,
-      });
+      toast.error("Error al descargar el comprobante", { description: err.message });
     } finally {
       setIsDownloading(false);
     }
   };
+
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat("es-AR", {
@@ -138,15 +138,9 @@ export default function SaleDetailModal({ open, onOpenChange, saleId, onSaleAnnu
                   variant="outline"
                 >
                   {isDownloading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Descargando...
-                    </>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Descargando...</>
                   ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      {isAnulada ? "Descargar NC" : "Descargar PDF"}
-                    </>
+                    <><FaFilePdf className="h-4 w-4 mr-2 text-red-500" />{isAnulada ? "Descargar NC" : "Descargar comprobante"}</>
                   )}
                 </Button>
               </div>

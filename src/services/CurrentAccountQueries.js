@@ -511,6 +511,35 @@ export const updateAccountLimit = async (body) => {
  * @param {number} clientId - Client ID
  * @returns {Promise<Array>} List of pending sales with payment information
  */
+// ── Exportación Estado de Cuenta ─────────────────────────────────────────────
+
+function triggerDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportarCCClientePdf(idCliente, { fechaDesde, fechaHasta } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const res = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/cliente/${idCliente}/export/pdf?${params}`);
+  if (!res.ok) throw new Error("Error al exportar estado de cuenta a PDF");
+  triggerDownload(await res.blob(), `estado_cuenta_cliente_${idCliente}.pdf`);
+}
+
+export async function exportarCCClienteExcel(idCliente, { fechaDesde, fechaHasta } = {}) {
+  const params = new URLSearchParams();
+  if (fechaDesde) params.append("fechaDesde", fechaDesde);
+  if (fechaHasta) params.append("fechaHasta", fechaHasta);
+  const res = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/cliente/${idCliente}/export/excel?${params}`);
+  if (!res.ok) throw new Error("Error al exportar estado de cuenta a Excel");
+  triggerDownload(await res.blob(), `estado_cuenta_cliente_${idCliente}.xlsx`);
+}
+
 export const getPendingSales = async (clientId) => {
   try {
     const response = await fetchWithAuth(`${BASE_URL}/api/CurrentAccount/pending-sales/${clientId}`, {

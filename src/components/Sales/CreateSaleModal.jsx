@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
-import { createSale, fetchAvailableProducts, fetchAllClients, downloadSalePdf, downloadPendingSalePdf } from "@/services/SaleQueries";
+import { createSale, fetchAvailableProducts, fetchAllClients, exportarVentaPdf, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { createCliente } from "@/services/ClienteQueries";
 import { getCurrentAccountSummary } from "@/services/CurrentAccountQueries";
 import ClientForm from "@/components/Clientes/ClientForm";
@@ -68,7 +68,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCCBalance, setLoadingCCBalance] = useState(false);
   // Datos reales de la CC del cliente seleccionado (cargados desde movements)
-  const [ccData, setCCData] = useState({ saldoActual: 0, limiteCredito: 0 });
+  const [ccData, setCCData] = useState({ saldoActual: 0, limiteCredito: 0, creditoDisponible: 0 });
 
   // Modal secundario para crear cliente
   const [isCreateClientModalOpen, setIsCreateClientModalOpen] = useState(false);
@@ -85,7 +85,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
       loadClients();
       setSelectedClient(null);
       setPaymentMethod("");
-      setCCData({ saldoActual: 0, limiteCredito: 0 });
+      setCCData({ saldoActual: 0, limiteCredito: 0, creditoDisponible: 0 });
       clearCart();
     }
   }, [open]);
@@ -168,13 +168,17 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     try {
       setLoadingCCBalance(true);
       const summary = await getCurrentAccountSummary(clientId);
+      const saldoActual = summary?.latest?.saldoActual ?? 0;
+      const limiteCuenta = summary?.latest?.limiteCuenta ?? summary?.opening?.limiteCuenta ?? 0;
+      const limiteTotal = saldoActual + limiteCuenta;
       setCCData({
-        saldoActual: summary?.latest?.saldoActual ?? 0,
-        limiteCredito: summary?.opening?.limiteCuenta ?? 0,
+        saldoActual,
+        limiteCredito: limiteTotal,
+        creditoDisponible: limiteTotal - saldoActual,
       });
     } catch (error) {
       console.error("Error al cargar datos de cuenta corriente:", error);
-      setCCData({ saldoActual: 0, limiteCredito: 0 });
+      setCCData({ saldoActual: 0, limiteCredito: 0, creditoDisponible: 0 });
     } finally {
       setLoadingCCBalance(false);
     }
@@ -184,7 +188,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     const client = clients.find(c => (c.id || c.idCliente).toString() === clientId);
     setSelectedClient(client);
     setSearchClient("");
-    setCCData({ saldoActual: 0, limiteCredito: 0 });
+    setCCData({ saldoActual: 0, limiteCredito: 0, creditoDisponible: 0 });
     if (client?.tieneCuentaCorriente) {
       loadCCData(client.id || client.idCliente);
     }
@@ -366,10 +370,7 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
           createdSale.codigoVenta
         );
       } else {
-        await downloadSalePdf(
-          createdSale.idVenta || createdSale.id,
-          createdSale.codigoVenta
-        );
+        await exportarVentaPdf(createdSale.idVenta || createdSale.id);
       }
       toast.success("Comprobante descargado exitosamente");
     } catch (error) {
@@ -509,21 +510,15 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                                 ) : (
                                   <>
                                     <div>
-                                      <span className="text-muted-foreground">Deuda: </span>
-                                      <span className="font-bold text-orange-600">
-                                        {formatCurrency(ccData.saldoActual)}
+                                      <span className="text-muted-foreground">Crédito disponible: </span>
+                                      <span className="font-bold text-green-700">
+                                        {formatCurrency(ccData.creditoDisponible)}
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-muted-foreground">Disponible: </span>
-                                      <span className="font-medium text-green-700">
-                                        {formatCurrency(ccData.limiteCredito - ccData.saldoActual)}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">Límite: </span>
-                                      <span className="font-medium">
-                                        {formatCurrency(ccData.limiteCredito)}
+                                      <span className="text-muted-foreground">Deuda actual: </span>
+                                      <span className={`font-medium ${ccData.saldoActual > 0 ? "text-orange-600" : "text-muted-foreground"}`}>
+                                        {formatCurrency(Math.max(ccData.saldoActual, 0))}
                                       </span>
                                     </div>
                                   </>

@@ -35,6 +35,7 @@ import {
   Banknote,
   TrendingUp,
   FileMinus,
+  SlidersHorizontal,
   X,
   AlertCircle,
 } from "lucide-react";
@@ -95,7 +96,9 @@ export default function ManageAccountMovementForm({
   onClose,
   clientId,
   currentBalance,
+  limiteTotal,
   onMovementRegistered,
+  onModificarLimite,
 }) {
   const [selectedMode, setSelectedMode] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -292,21 +295,39 @@ export default function ManageAccountMovementForm({
         </DialogHeader>
 
         <div className="space-y-6">
-        {/* Saldo actual */}
+        {/* Saldo actual + Modificar Límite */}
         <div className="flex justify-between items-center rounded-lg border bg-muted/40 px-4 py-3">
-          <span className="text-sm font-medium text-muted-foreground">Saldo actual</span>
-          <span
-            className={cn(
-              "text-xl font-bold",
-              currentBalance > 0
-                ? "text-destructive"
-                : currentBalance < 0
-                ? "text-green-600"
-                : "text-muted-foreground"
+          <div className="space-y-0.5">
+            <span className="text-sm font-medium text-muted-foreground">Saldo actual</span>
+            {limiteTotal !== undefined && (
+              <p className="text-xs text-muted-foreground">Límite total: {formatCurrency(limiteTotal)}</p>
             )}
-          >
-            {formatCurrency(currentBalance)}
-          </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span
+              className={cn(
+                "text-xl font-bold",
+                currentBalance > 0
+                  ? "text-destructive"
+                  : currentBalance < 0
+                  ? "text-green-600"
+                  : "text-muted-foreground"
+              )}
+            >
+              {formatCurrency(currentBalance)}
+            </span>
+            {onModificarLimite && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => { onClose(); onModificarLimite(); }}
+              >
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
+                Modificar límite
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Cards de acción */}
