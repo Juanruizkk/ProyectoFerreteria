@@ -1,9 +1,6 @@
 # Prompt Claude Code: Modal con Plantillas de Importación (Frontend)
 
-Copia este texto y pégalo en tu sesión de Claude Code apuntando a la carpeta del Frontend (`ProyectoFerreteria`).
-
-```md
-Hola Claude. Actúa como un Desarrollador UI/UX Senior experto en React y Tailwind CSS.
+Actúa como un Desarrollador UI/UX Senior experto en React y Tailwind CSS.
 
 Tenemos que armar la UX definitiva para el **"Caso de Uso Rey"**: La carga masiva de precios mediante Plantillas Estandarizadas.
 

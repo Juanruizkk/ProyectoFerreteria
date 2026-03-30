@@ -154,6 +154,32 @@ export async function importarListaExcel(idLista, file) {
   return res.json();
 }
 
+// ── Plantilla + Importación masiva con precio de venta ───────────────────────
+
+export async function descargarPlantillaExcel(idLista, listaNombre) {
+  const res = await fetchWithAuth(`${LP_URL}/${idLista}/items/plantilla-excel`);
+  if (!res.ok) throw new Error(await parseError(res, "Error al descargar la plantilla"));
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `plantilla_${listaNombre ?? idLista}.xlsx`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function importarPlantillaExcel(idLista, file, actualizarPrecioVenta) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("actualizarPrecioVenta", actualizarPrecioVenta ? "true" : "false");
+  const res = await fetchWithAuth(`${LP_URL}/${idLista}/items/import`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await parseError(res, "Error al importar la plantilla"));
+  return res.json();
+}
+
 // ── Exportación ───────────────────────────────────────────────────────────────
 
 function triggerDownload(blob, filename) {

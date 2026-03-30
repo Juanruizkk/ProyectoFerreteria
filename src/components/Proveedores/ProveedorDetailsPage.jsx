@@ -93,7 +93,7 @@ import {
 import CompraForm from "@/components/Compras/CompraForm";
 import AnularCompraDialog from "@/components/Compras/AnularCompraDialog";
 import ProveedorForm from "./ProveedorForm";
-import ImportarListaModal from "./ImportarListaModal";
+import BulkPriceImportModal from "./BulkPriceImportModal";
 import { getCurrentUser } from "@/services/AuthService";
 import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
 import DateRangeFilter from "@/components/Common/DateRangeFilter";
@@ -918,12 +918,17 @@ export default function ProveedorDetailsPage() {
                         {hasPermission("LP_ITEM_ADD") && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button size="icon" variant="ghost" className="h-7 w-7"
-                                onClick={() => { setListaParaImportar(lista); setImportarModal(true); }}>
-                                <Upload className="h-3.5 w-3.5" />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1.5 px-2 text-xs border-green-500 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/40"
+                                onClick={() => { setListaParaImportar(lista); setImportarModal(true); }}
+                              >
+                                <Upload className="h-3 w-3" />
+                                Carga Masiva
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Importar desde Excel</TooltipContent>
+                            <TooltipContent>Carga Masiva (Excel)</TooltipContent>
                           </Tooltip>
                         )}
                         {hasPermission("LP_UPDATE") && (
@@ -980,10 +985,10 @@ export default function ProveedorDetailsPage() {
           {/* Botones superiores */}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => { setExportProvType("pdf"); setExportProvDesde(""); setExportProvHasta(""); setExportProvDialog(true); }}>
-              <FaFilePdf className="mr-2 h-4 w-4 text-red-500" /> Exportar PDF
+              <FaFilePdf className="mr-2 h-4 w-4 text-red-500" /> Historial PDF
             </Button>
             <Button variant="outline" onClick={() => { setExportProvType("excel"); setExportProvDesde(""); setExportProvHasta(""); setExportProvDialog(true); }}>
-              <FaFileExcel className="mr-2 h-4 w-4 text-green-600" /> Exportar Excel
+              <FaFileExcel className="mr-2 h-4 w-4 text-green-600" /> Historial Excel
             </Button>
             <PermissionGuard permission="COMP_CREATE">
               <Button onClick={handleNuevaCompra}>
@@ -1229,9 +1234,9 @@ export default function ProveedorDetailsPage() {
         onSuccess={() => loadCompras(1, activoFiltro, fechaDesdeCompras, fechaHastaCompras, searchCompras)}
       />
 
-      {/* ── Modal: importar lista desde Excel ────────────────────────────────── */}
+      {/* ── Modal: carga masiva de precios ────────────────────────────────────── */}
       {listaParaImportar && (
-        <ImportarListaModal
+        <BulkPriceImportModal
           open={importarModal}
           onOpenChange={(v) => { setImportarModal(v); if (!v) setListaParaImportar(null); }}
           idLista={listaParaImportar.idLista}
