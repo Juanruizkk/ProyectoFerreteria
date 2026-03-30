@@ -29,15 +29,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  FileSpreadsheet,
-  FileText,
-  Pencil,
-  Plus,
-  Power,
-  ShoppingCart,
-  Truck,
-} from "lucide-react";
+import { FileText, Pencil, Plus, Power, ShoppingCart, Truck } from "lucide-react";
+import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 import {
   Dialog,
   DialogContent,
@@ -250,8 +243,8 @@ export default function ProveedoresPage() {
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="sm" onClick={() => handleExport("excel")}
                     disabled={exporting !== null}>
-                    <FileSpreadsheet className="h-4 w-4 mr-1.5" />
-                    {exporting === "excel" ? "Exportando..." : "Excel"}
+                    <FaFileExcel className="h-4 w-4 mr-1.5 text-green-600" />
+                    {exporting === "excel" ? "Exportando..." : "Proveedores Excel"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Exportar a Excel</TooltipContent>
@@ -262,8 +255,8 @@ export default function ProveedoresPage() {
                 <TooltipTrigger asChild>
                   <Button variant="outline" size="sm" onClick={() => handleExport("pdf")}
                     disabled={exporting !== null}>
-                    <FileText className="h-4 w-4 mr-1.5" />
-                    {exporting === "pdf" ? "Exportando..." : "PDF"}
+                    <FaFilePdf className="h-4 w-4 mr-1.5 text-red-500" />
+                    {exporting === "pdf" ? "Exportando..." : "Proveedores PDF"}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Exportar a PDF</TooltipContent>

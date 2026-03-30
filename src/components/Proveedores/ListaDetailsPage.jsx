@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,7 @@ import {
   deleteItem,
 } from "@/services/ProveedorQueries";
 import { fetchAvailableProducts } from "@/services/SaleQueries";
+import BulkPriceImportModal from "./BulkPriceImportModal";
 
 // ── Buscador de productos con dropdown ──────────────────────────────────────
 function ProductSearch({ value, onChange, disabled }) {
@@ -159,6 +160,9 @@ export default function ListaDetailsPage() {
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
   const [itemFormError, setItemFormError] = useState("");
   const [savingItem, setSavingItem] = useState(false);
+
+  // Modal carga masiva
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   // Dialog eliminar item
   const deleteItemDialog = useConfirmDialog(async (item) => {
@@ -324,13 +328,24 @@ export default function ListaDetailsPage() {
 
       {/* Tabla de items */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Productos en la lista</h2>
-          <PermissionGuard permission="LP_ITEM_ADD">
-            <Button onClick={openAdd}>
-              <Plus className="mr-2 h-4 w-4" /> Agregar producto
-            </Button>
-          </PermissionGuard>
+          <div className="flex gap-2">
+            <PermissionGuard permission="LP_ITEM_ADD">
+              <Button
+                variant="outline"
+                className="gap-2 border-green-500 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/40"
+                onClick={() => setBulkImportOpen(true)}
+              >
+                <Upload className="h-4 w-4" /> Carga Masiva (Excel)
+              </Button>
+            </PermissionGuard>
+            <PermissionGuard permission="LP_ITEM_ADD">
+              <Button onClick={openAdd}>
+                <Plus className="mr-2 h-4 w-4" /> Agregar producto
+              </Button>
+            </PermissionGuard>
+          </div>
         </div>
 
         <Card>
@@ -513,6 +528,17 @@ export default function ListaDetailsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ── Modal: carga masiva de precios ───────────────────────────────────── */}
+      {lista && (
+        <BulkPriceImportModal
+          open={bulkImportOpen}
+          onOpenChange={setBulkImportOpen}
+          idLista={idLista}
+          listaNombre={lista.nombre}
+          onSuccess={loadItems}
+        />
+      )}
 
       {/* ── AlertDialog: eliminar item ─────────────────────────────────────── */}
       <AlertDialog open={deleteItemDialog.open} onOpenChange={deleteItemDialog.closeDialog}>
