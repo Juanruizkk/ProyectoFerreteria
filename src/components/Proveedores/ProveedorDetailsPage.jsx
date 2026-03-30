@@ -16,7 +16,7 @@ import {
   Upload,
   XCircle,
 } from "lucide-react";
-import { FaFilePdf, FaFileExcel } from "react-icons/fa";
+import { FileText as FaFilePdf, Sheet as FaFileExcel } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

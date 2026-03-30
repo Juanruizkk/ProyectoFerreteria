@@ -6,7 +6,7 @@ import {
   ClipboardList,
   XCircle,
 } from "lucide-react";
-import { FaFilePdf, FaFileExcel } from "react-icons/fa";
+import { FileText as FaFilePdf, Sheet as FaFileExcel } from "lucide-react";
 import SearchBar from "../Common/SearchBar";
 import PageHeader from "../Common/PageHeader";
 import DateRangeFilter from "../Common/DateRangeFilter";
