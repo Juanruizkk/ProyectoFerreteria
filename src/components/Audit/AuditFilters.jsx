@@ -15,19 +15,88 @@ import { searchUsers } from "@/services/UsersQueries";
 import { toast } from "sonner";
 
 const ENTIDADES = [
-  { value: "todas", label: "Todas las entidades" },
-  { value: "CLIENTE", label: "Cliente" },
-  { value: "PRODUCTO", label: "Producto" },
-  { value: "VENTA", label: "Venta" },
-  { value: "USUARIO", label: "Usuario" },
+  { value: "todas",     label: "Todas las entidades" },
+  { value: "CLIENTE",   label: "Cliente"             },
+  { value: "PRODUCTO",  label: "Producto"            },
+  { value: "VENTA",     label: "Venta"               },
+  { value: "USUARIO",   label: "Usuario"             },
+  { value: "PROVEEDOR", label: "Proveedor"           },
+  { value: "COMPRA",    label: "Compra a proveedor"  },
 ];
 
-const ACCIONES = [
-  { value: "todas", label: "Todas las acciones" },
-  { value: "INSERT", label: "Creación" },
-  { value: "UPDATE", label: "Actualización" },
-  { value: "DELETE", label: "Eliminación" },
-];
+// Acciones disponibles por entidad
+const ACCIONES_POR_ENTIDAD = {
+  todas: [
+    { value: "todas",               label: "Todas las acciones"          },
+    { value: "CREACION",            label: "Creación"                    },
+    { value: "ACTUALIZACION",       label: "Actualización"               },
+    { value: "BAJA",                label: "Baja"                        },
+    { value: "REACTIVACION",        label: "Reactivación"                },
+    { value: "PRECIO_ACTUALIZADO",  label: "Precio actualizado"          },
+    { value: "NOMBRE_ACTUALIZADO",  label: "Nombre actualizado"          },
+    { value: "STOCK_INGRESO",       label: "Ingreso de stock"            },
+    { value: "STOCK_EGRESO",        label: "Egreso de stock"             },
+    { value: "AJUSTE_STOCK",        label: "Ajuste de stock"             },
+    { value: "IMPORTACION_PRECIOS", label: "Importación de precios"      },
+    { value: "CC_CREADA",           label: "Cuenta corriente creada"     },
+    { value: "VENTA_REGISTRADA",    label: "Venta registrada"            },
+    { value: "VENTA_PENDIENTE",     label: "Venta pendiente"             },
+    { value: "VENTA_ANULADA",        label: "Venta anulada"               },
+    { value: "COMPRA_REGISTRADA",   label: "Compra registrada"           },
+    { value: "COMPRA_ANULADA",      label: "Compra anulada"              },
+    { value: "CAMBIO_CONTRASEÑA",   label: "Cambio de contraseña"        },
+    { value: "CONSULTA_REPORTE",    label: "Consulta de reporte"         },
+    { value: "INSERT",              label: "Inserción (sistema)"         },
+    { value: "UPDATE",              label: "Actualización (sistema)"     },
+    { value: "DELETE",              label: "Eliminación (sistema)"       },
+  ],
+  PRODUCTO: [
+    { value: "todas",               label: "Todas las acciones"          },
+    { value: "CREACION",            label: "Creación"                    },
+    { value: "ACTUALIZACION",       label: "Actualización"               },
+    { value: "BAJA",                label: "Baja"                        },
+    { value: "REACTIVACION",        label: "Reactivación"                },
+    { value: "PRECIO_ACTUALIZADO",  label: "Precio actualizado"          },
+    { value: "NOMBRE_ACTUALIZADO",  label: "Nombre actualizado"          },
+    { value: "STOCK_INGRESO",       label: "Ingreso de stock"            },
+    { value: "STOCK_EGRESO",        label: "Egreso de stock"             },
+    { value: "AJUSTE_STOCK",        label: "Ajuste de stock"             },
+    { value: "IMPORTACION_PRECIOS", label: "Importación de precios"      },
+  ],
+  CLIENTE: [
+    { value: "todas",               label: "Todas las acciones"          },
+    { value: "CREACION",            label: "Creación"                    },
+    { value: "ACTUALIZACION",       label: "Actualización"               },
+    { value: "BAJA",                label: "Baja"                        },
+    { value: "REACTIVACION",        label: "Reactivación"                },
+    { value: "CC_CREADA",           label: "Cuenta corriente creada"     },
+  ],
+  VENTA: [
+    { value: "todas",               label: "Todas las acciones"          },
+    { value: "VENTA_REGISTRADA",    label: "Venta registrada"            },
+    { value: "VENTA_PENDIENTE",     label: "Venta pendiente"             },
+    { value: "VENTA_ANULADA",       label: "Venta anulada"               },
+  ],
+  USUARIO: [
+    { value: "todas",               label: "Todas las acciones"          },
+    { value: "CREACION",            label: "Creación"                    },
+    { value: "ACTUALIZACION",       label: "Actualización"               },
+    { value: "BAJA",                label: "Baja"                        },
+    { value: "REACTIVACION",        label: "Reactivación"                },
+    { value: "CAMBIO_CONTRASEÑA",   label: "Cambio de contraseña"        },
+  ],
+  PROVEEDOR: [
+    { value: "todas",  label: "Todas las acciones"       },
+    { value: "INSERT", label: "Alta de proveedor"        },
+    { value: "UPDATE", label: "Modificación de proveedor"},
+    { value: "DELETE", label: "Baja de proveedor"        },
+  ],
+  COMPRA: [
+    { value: "todas",            label: "Todas las acciones" },
+    { value: "COMPRA_REGISTRADA", label: "Compra registrada" },
+    { value: "COMPRA_ANULADA",    label: "Compra anulada"    },
+  ],
+};
 
 export function AuditFilters({ onSearch, onClear, isLoading }) {
   const [filters, setFilters] = useState({
@@ -79,11 +148,20 @@ export function AuditFilters({ onSearch, onClear, isLoading }) {
     }
   }, [filters.from, filters.to]);
 
+  const accionesDisponibles =
+    ACCIONES_POR_ENTIDAD[filters.entidadTipo] ?? ACCIONES_POR_ENTIDAD.todas;
+
   const handleChange = (field, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFilters((prev) => {
+      const next = { ...prev, [field]: value };
+      // Si cambia la entidad, verificar si la acción actual sigue siendo válida
+      if (field === "entidadTipo") {
+        const acciones = ACCIONES_POR_ENTIDAD[value] ?? ACCIONES_POR_ENTIDAD.todas;
+        const accionValida = acciones.some((a) => a.value === prev.accion);
+        if (!accionValida) next.accion = "todas";
+      }
+      return next;
+    });
   };
 
   const handleSearch = () => {
@@ -156,7 +234,7 @@ export function AuditFilters({ onSearch, onClear, isLoading }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ACCIONES.map((accion) => (
+                {accionesDisponibles.map((accion) => (
                   <SelectItem key={accion.value} value={accion.value}>
                     {accion.label}
                   </SelectItem>
