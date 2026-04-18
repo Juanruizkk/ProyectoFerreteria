@@ -22,6 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { History, Package } from "lucide-react";
 import { toast } from "sonner";
 import PaginationControls from "@/components/Common/PaginationControls";
@@ -33,7 +39,7 @@ const PAGE_SIZE = 10;
 function SkeletonRows() {
   return Array.from({ length: 5 }).map((_, i) => (
     <TableRow key={i}>
-      {Array.from({ length: 6 }).map((__, j) => (
+      {Array.from({ length: 7 }).map((__, j) => (
         <TableCell key={j}>
           <div className="h-4 bg-muted animate-pulse rounded w-full" />
         </TableCell>
@@ -161,12 +167,13 @@ export default function HistorialStockModal({ open, producto, onClose }) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="w-[15%]">Fecha</TableHead>
-                <TableHead className="w-[22%]">Tipo</TableHead>
+                <TableHead className="w-[14%]">Fecha</TableHead>
+                <TableHead className="w-[20%]">Tipo</TableHead>
+                <TableHead className="w-[10%] text-center">Stock Anterior</TableHead>
                 <TableHead className="w-[10%] text-center">Cantidad</TableHead>
-                <TableHead className="w-[12%] text-center">Stock Final</TableHead>
-                <TableHead className="w-[25%]">Referencia / Motivo</TableHead>
-                <TableHead className="w-[16%]">Usuario</TableHead>
+                <TableHead className="w-[10%] text-center">Stock Final</TableHead>
+                <TableHead className="w-[22%]">Referencia / Motivo</TableHead>
+                <TableHead className="w-[14%]">Usuario</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -174,7 +181,7 @@ export default function HistorialStockModal({ open, producto, onClose }) {
                 <SkeletonRows />
               ) : movimientos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                     No se encontraron movimientos.
                   </TableCell>
                 </TableRow>
@@ -195,6 +202,11 @@ export default function HistorialStockModal({ open, producto, onClose }) {
                         </Badge>
                       </TableCell>
 
+                      {/* Stock anterior */}
+                      <TableCell className="text-center text-muted-foreground">
+                        {formatCantidad(m.stockAnterior, producto?.idUnidadMedida)}
+                      </TableCell>
+
                       {/* Cantidad */}
                       <TableCell className="text-center font-semibold">
                         <span className={esPositivo ? "text-green-600" : "text-red-600"}>
@@ -208,8 +220,21 @@ export default function HistorialStockModal({ open, producto, onClose }) {
                       </TableCell>
 
                       {/* Referencia / Motivo */}
-                      <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]">
-                        {m.referencia || "—"}
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px]">
+                        {m.referencia ? (
+                          <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="truncate block cursor-default">
+                                  {m.referencia}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs text-xs">
+                                {m.referencia}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : "—"}
                       </TableCell>
 
                       {/* Usuario */}

@@ -90,6 +90,8 @@ export default function ProductosPage() {
   const cacheRef = useRef({ activos: {}, inactivos: {} });
   // cache para el listado completo de stock bajo (paginado client-side)
   const stockBajoRef = useRef(null);
+  // forzar re-fetch sin cambiar filtros
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // modal historial de stock
   const [historialModal, setHistorialModal] = useState({ open: false, producto: null });
@@ -209,7 +211,7 @@ export default function ProductosPage() {
     };
 
     load();
-  }, [filtro, pageIndex, pageSize, busqueda, stockBajoSubFiltro, categoriaFiltro]);
+  }, [filtro, pageIndex, pageSize, busqueda, stockBajoSubFiltro, categoriaFiltro, refreshKey]);
 
   const aplicarPaginacionStockBajo = (items, subFiltro = stockBajoSubFiltro) => {
     const filtrados =
@@ -229,11 +231,12 @@ export default function ProductosPage() {
     try {
       setSubmittingForm(true);
       const creado = await createProduct(nuevoProducto);
-      setProductos((prev) => [...prev, creado]);
       toast.success("Producto creado", {
         description: `${creado.nombre} ha sido agregado exitosamente.`,
       });
       setMostrarFormulario(false);
+      limpiarCache();
+      setRefreshKey((k) => k + 1);
     } catch {
       toast.error("Error", { description: "No se pudo crear el producto" });
     } finally {

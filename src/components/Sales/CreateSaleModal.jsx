@@ -415,27 +415,30 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-7xl h-[90vh] p-0 gap-0 overflow-hidden">
-          <DialogHeader className="px-6 py-4 border-b">
+          <DialogHeader className="px-6 py-0 border-b min-h-[44px] flex justify-center">
             <DialogTitle className="text-2xl font-bold">
               Nueva Venta
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col h-[calc(90vh-140px)]">
-            {/* FILA 1: CLIENTE (Ocupa todo el ancho) */}
-            <div className="border-b bg-muted/30 shrink-0">
-              <div className="p-4">
+          {/* LAYOUT: dos columnas fijas */}
+          <div className="flex h-[calc(90vh-140px)] overflow-hidden">
+
+            {/* COLUMNA IZQUIERDA: Cliente + Productos */}
+            <div className="flex flex-col flex-1 border-r min-h-0 overflow-hidden">
+
+              {/* SECCIÓN CLIENTE */}
+              <div className="p-4 border-b bg-muted/30 shrink-0">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <User className="h-4 w-4" />
                   Cliente
                 </h3>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Selector de cliente */}
+                {!selectedClient ? (
                   <div className="space-y-2">
                     <div className="flex gap-2">
                       <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                           placeholder="Buscar cliente por nombre, DNI, CUIT..."
                           value={searchClient}
@@ -474,79 +477,54 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                       </Card>
                     )}
                   </div>
-
-                  {/* Info del cliente seleccionado */}
-                  <div>
-                    {!selectedClient ? (
-                      <div className="flex items-center justify-center h-full text-center border rounded-lg bg-card p-4">
-                        <div>
-                          <User className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            No hay cliente seleccionado
-                          </p>
+                ) : (
+                  <Card className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-semibold truncate">
+                            {selectedClient.nombre
+                              ? `${selectedClient.nombre} ${selectedClient.apellido}`
+                              : selectedClient.razonSocial}
+                          </span>
+                          <span className="text-muted-foreground shrink-0">·</span>
+                          <span className="text-sm text-muted-foreground font-mono shrink-0">
+                            {selectedClient.dni || selectedClient.cuit}
+                          </span>
                         </div>
-                      </div>
-                    ) : (
-                      <Card className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 space-y-2">
-                            <div>
-                              <p className="font-semibold text-lg">
-                                {selectedClient.nombre
-                                  ? `${selectedClient.nombre} ${selectedClient.apellido}`
-                                  : selectedClient.razonSocial}
-                              </p>
-                              <p className="text-sm text-muted-foreground font-mono">
-                                {selectedClient.dni || selectedClient.cuit}
-                              </p>
-                            </div>
 
-                            {selectedClient.tieneCuentaCorriente && (
-                              <div className="flex gap-4 text-sm">
-                                {loadingCCBalance ? (
-                                  <span className="text-muted-foreground text-xs">
-                                    Cargando datos de CC...
+                        {selectedClient.tieneCuentaCorriente && (
+                          <div className="flex gap-4 text-sm">
+                            {loadingCCBalance ? (
+                              <span className="text-muted-foreground text-xs">Cargando datos de CC...</span>
+                            ) : (
+                              <>
+                                <div>
+                                  <span className="text-muted-foreground">Crédito disponible: </span>
+                                  <span className="font-bold text-green-700">{formatCurrency(ccData.creditoDisponible)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Deuda actual: </span>
+                                  <span className={`font-medium ${ccData.saldoActual > 0 ? "text-orange-600" : "text-muted-foreground"}`}>
+                                    {formatCurrency(Math.max(ccData.saldoActual, 0))}
                                   </span>
-                                ) : (
-                                  <>
-                                    <div>
-                                      <span className="text-muted-foreground">Crédito disponible: </span>
-                                      <span className="font-bold text-green-700">
-                                        {formatCurrency(ccData.creditoDisponible)}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">Deuda actual: </span>
-                                      <span className={`font-medium ${ccData.saldoActual > 0 ? "text-orange-600" : "text-muted-foreground"}`}>
-                                        {formatCurrency(Math.max(ccData.saldoActual, 0))}
-                                      </span>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
+                                </div>
+                              </>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedClient(null)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </Card>
-                    )}
-                  </div>
-                </div>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedClient(null)} className="shrink-0">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Card>
+                )}
               </div>
-            </div>
 
-            {/* FILA 2: PRODUCTOS Y CARRITO (Dos columnas) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-1 gap-0 flex-1 min-h-0 overflow-hidden">
-              {/* COLUMNA 1: PRODUCTOS */}
-              <div className="border-r flex flex-col min-h-0">
-                <div className="p-3 border-b bg-muted/30 space-y-2">
-                  {/* Fila 1: título + contador */}
+              {/* SECCIÓN PRODUCTOS */}
+              <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="p-3 border-b bg-muted/30 space-y-2 shrink-0">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">Productos</h3>
                     {!loadingProducts && (
@@ -556,7 +534,6 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                     )}
                   </div>
 
-                  {/* Fila 2: buscador + categoría */}
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -584,16 +561,15 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                     </Select>
                   </div>
 
-                  {/* Fila 3: disponibilidad — botones compactos */}
                   <RadioGroup
                     value={availabilityFilter}
                     onValueChange={setAvailabilityFilter}
                     className="flex gap-3"
                   >
                     {[
-                      { value: "todos",            label: "Disponibles"   },
-                      { value: "con_stock",         label: "Con stock"     },
-                      { value: "venta_sin_stock",   label: "Sin stock"     },
+                      { value: "todos",           label: "Disponibles" },
+                      { value: "con_stock",        label: "Con stock"   },
+                      { value: "venta_sin_stock",  label: "Sin stock"   },
                     ].map(({ value, label }) => (
                       <div key={value} className="flex items-center gap-1.5">
                         <RadioGroupItem value={value} id={value} className="h-3.5 w-3.5" />
@@ -619,62 +595,65 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                   ) : (
                     <div className="space-y-2">
                       {filteredProducts.map((product) => {
-                        const badge = getProductAvailabilityBadge(product);
-                        const buttonInfo = getProductButton(product);
+                        const productId = product.id || product.idProducto;
+                        const cartItem = items.find(i => (i.id || i.idProducto) === productId);
+                        const stockEfectivo = Math.max(0, (product.stock ?? 0) - (cartItem?.quantity ?? 0));
+                        const productConStockEfectivo = { ...product, stock: stockEfectivo };
+
+                        const badge = getProductAvailabilityBadge(productConStockEfectivo);
+                        const buttonInfo = getProductButton(productConStockEfectivo);
                         const ButtonIcon = buttonInfo.icon;
                         const BadgeIcon = badge.icon;
 
                         return (
                           <Card
-                            key={product.id || product.idProducto}
-                            className="p-3 hover:shadow-md transition-shadow"
+                            key={productId}
+                            className="px-3 py-2 hover:shadow-md transition-shadow"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0 space-y-2">
-                                {/* Nombre y marca */}
-                                <div>
-                                  <h4 className="font-semibold truncate">
-                                    {product.nombre}
-                                  </h4>
-                                  {product.marca && (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {product.marca}
-                                    </p>
-                                  )}
-                                </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              {/* Nombre — absorbe el espacio sobrante */}
+                              <h4 className="font-semibold text-sm truncate flex-1 min-w-0">
+                                {product.nombre}
+                              </h4>
 
-                                {/* Badges: categoría y disponibilidad */}
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <Badge variant="outline" className="text-xs">
-                                    {product.categoria}
-                                  </Badge>
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-xs flex items-center gap-1 ${badge.className}`}
-                                  >
-                                    {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
-                                    {badge.text}
-                                  </Badge>
-                                </div>
+                              {/* Marca */}
+                              {product.marca && (
+                                <span className="text-xs text-muted-foreground shrink-0 hidden lg:block max-w-[100px] truncate">
+                                  {product.marca}
+                                </span>
+                              )}
 
-                                {/* Precio */}
-                                <p className="text-lg font-bold text-primary flex items-baseline gap-1">
-                                  {formatCurrency(product.precio || product.price || 0)}
-                                  <span className="text-sm font-bold text-foreground">
-                                    / {getAbreviatura(product.idUnidadMedida)}
-                                  </span>
-                                </p>
-                              </div>
+                              {/* Categoría */}
+                              <Badge variant="outline" className="text-xs shrink-0">
+                                {product.categoria}
+                              </Badge>
 
-                              {/* Botón dinámico */}
+                              {/* Stock */}
+                              <Badge
+                                variant="outline"
+                                className={`text-xs shrink-0 flex items-center gap-1 ${badge.className}`}
+                              >
+                                {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
+                                {badge.text}
+                              </Badge>
+
+                              {/* Precio */}
+                              <span className="text-sm font-bold text-primary shrink-0 whitespace-nowrap">
+                                {formatCurrency(product.precio || product.price || 0)}
+                                <span className="text-xs font-normal text-muted-foreground ml-0.5">
+                                  /{getAbreviatura(product.idUnidadMedida)}
+                                </span>
+                              </span>
+
+                              {/* Botón */}
                               <Button
                                 onClick={() => handleAddProduct(product)}
                                 variant={buttonInfo.variant}
                                 size="sm"
                                 disabled={buttonInfo.disabled}
-                                className="shrink-0"
+                                className="shrink-0 h-7 px-2 text-xs"
                               >
-                                <ButtonIcon className="w-4 h-4 mr-1" />
+                                <ButtonIcon className="w-3 h-3 mr-1" />
                                 {buttonInfo.text}
                               </Button>
                             </div>
@@ -685,179 +664,157 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* COLUMNA 2: CARRITO */}
-              <div className="flex flex-col min-h-0">
-                <div className="p-4 border-b bg-muted/30">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold">Carrito</h3>
-                    <Badge variant="outline">
-                      {totalItems}{" "}
-                      {totalItems === 1 ? "producto" : "productos"}
-                    </Badge>
-                  </div>
+            {/* COLUMNA DERECHA: Carrito + Pago */}
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+
+              {/* Header carrito */}
+              <div className="p-4 border-b bg-muted/30 shrink-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    Carrito
+                  </h3>
+                  <Badge variant="outline">
+                    {totalItems} {totalItems === 1 ? "producto" : "productos"}
+                  </Badge>
                 </div>
+              </div>
 
-                <div
-                  className={`px-4 py-2 flex-1 min-h-0 ${items.length > 0 ? 'overflow-y-auto' : 'flex items-center justify-center'}`}
-                >
-                  {items.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <ShoppingCart className="w-12 h-12 text-muted-foreground mb-3" />
-                      <p className="text-sm text-muted-foreground">
-                        Carrito vacío
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {items.map((item) => (
-                        <Card
-                          key={item.id || item.idProducto}
-                          className="p-3"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold text-sm truncate">
-                                {item.nombre || item.name}
-                              </h4>
-                              <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
-                                {formatCurrency(item.precio || item.price || 0)}
-                                <span className="text-muted-foreground/60">/</span>
-                                <Badge
-                                  variant="outline"
-                                  className={`text-xs px-1.5 py-0 h-4 ${
-                                    esDecimal(item.idUnidadMedida)
-                                      ? "bg-primary/10 text-primary border-primary/30 font-bold"
-                                      : "bg-muted text-muted-foreground font-medium"
-                                  }`}
-                                >
-                                  {getAbreviatura(item.idUnidadMedida)}
-                                </Badge>
-                              </p>
-                            </div>
+              {/* Items del carrito */}
+              <div className={`px-4 py-2 flex-1 min-h-0 ${items.length > 0 ? "overflow-y-auto" : "flex items-center justify-center"}`}>
+                {items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <ShoppingCart className="w-12 h-12 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Carrito vacío</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map((item) => (
+                      <Card key={item.id || item.idProducto} className="px-3 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h4 className="font-semibold text-sm truncate flex-1 min-w-0">
+                            {item.nombre || item.name}
+                          </h4>
+                          <span className="text-sm text-muted-foreground shrink-0 whitespace-nowrap">
+                            {formatCurrency(item.precio || item.price || 0)}
+                            <span className="text-muted-foreground/60 mx-0.5">/</span>
+                            <span className={`text-xs font-medium ${esDecimal(item.idUnidadMedida) ? "text-primary" : ""}`}>
+                              {getAbreviatura(item.idUnidadMedida)}
+                            </span>
+                          </span>
+                          <Button
+                            onClick={() => removeItem(item.id || item.idProducto)}
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex items-center gap-1.5">
                             <Button
-                              onClick={() => removeItem(item.id || item.idProducto)}
-                              variant="ghost"
+                              onClick={() => {
+                                const step = esDecimal(item.idUnidadMedida) ? 0.1 : 1;
+                                const next = parseFloat((item.quantity - step).toFixed(2));
+                                updateQuantity(item.id || item.idProducto, next);
+                              }}
+                              variant="outline"
                               size="icon"
-                              className="h-6 w-6 shrink-0"
+                              className="h-7 w-7"
                             >
-                              <X className="w-4 h-4" />
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <Input
+                              type="number"
+                              min={esDecimal(item.idUnidadMedida) ? "0.01" : "1"}
+                              step={esDecimal(item.idUnidadMedida) ? "0.01" : "1"}
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val > 0)
+                                  updateQuantity(item.id || item.idProducto, parseFloat(val.toFixed(2)));
+                              }}
+                              className="w-16 h-7 text-center text-sm px-1 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                            />
+                            <Badge
+                              variant="outline"
+                              className={`text-xs font-bold shrink-0 ${
+                                esDecimal(item.idUnidadMedida)
+                                  ? "bg-amber-50 text-amber-700 border-amber-300"
+                                  : "bg-muted text-muted-foreground border-border"
+                              }`}
+                            >
+                              {getAbreviatura(item.idUnidadMedida)}
+                            </Badge>
+                            <Button
+                              onClick={() => {
+                                const step = esDecimal(item.idUnidadMedida) ? 0.1 : 1;
+                                const next = parseFloat((item.quantity + step).toFixed(2));
+                                updateQuantity(item.id || item.idProducto, next);
+                              }}
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                            >
+                              <Plus className="w-3 h-3" />
                             </Button>
                           </div>
-                          <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-1.5">
-                              <Button
-                                onClick={() => {
-                                  const step = esDecimal(item.idUnidadMedida) ? 0.1 : 1;
-                                  const next = parseFloat((item.quantity - step).toFixed(2));
-                                  updateQuantity(item.id || item.idProducto, next);
-                                }}
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </Button>
-                              <Input
-                                type="number"
-                                min={esDecimal(item.idUnidadMedida) ? "0.01" : "1"}
-                                step={esDecimal(item.idUnidadMedida) ? "0.01" : "1"}
-                                value={item.quantity}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  if (!isNaN(val) && val > 0)
-                                    updateQuantity(item.id || item.idProducto, parseFloat(val.toFixed(2)));
-                                }}
-                                className="w-16 h-7 text-center text-sm px-1 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-                              />
-                              <Badge
-                                variant="outline"
-                                className={`text-xs font-bold shrink-0 ${
-                                  esDecimal(item.idUnidadMedida)
-                                    ? "bg-amber-50 text-amber-700 border-amber-300"
-                                    : "bg-muted text-muted-foreground border-border"
-                                }`}
-                              >
-                                {getAbreviatura(item.idUnidadMedida)}
-                              </Badge>
-                              <Button
-                                onClick={() => {
-                                  const step = esDecimal(item.idUnidadMedida) ? 0.1 : 1;
-                                  const next = parseFloat((item.quantity + step).toFixed(2));
-                                  updateQuantity(item.id || item.idProducto, next);
-                                }}
-                                variant="outline"
-                                size="icon"
-                                className="h-7 w-7"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </Button>
-                            </div>
-                            <p className="font-bold">
-                              {formatCurrency(
-                                (item.precio || item.price || 0) * parseFloat(item.quantity)
-                              )}
-                            </p>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                          <p className="font-bold">
+                            {formatCurrency((item.precio || item.price || 0) * parseFloat(item.quantity))}
+                          </p>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Forma de pago + Total */}
+              <div className="px-4 py-2 border-t space-y-2 bg-muted/30 shrink-0">
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-semibold shrink-0">Forma de Pago</label>
+                  <Select
+                    value={paymentMethod}
+                    onValueChange={setPaymentMethod}
+                    disabled={loadingCCBalance}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue
+                        placeholder={loadingCCBalance ? "Cargando cuenta corriente..." : "Seleccionar método"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Efectivo">Efectivo</SelectItem>
+                      {selectedClient?.tieneCuentaCorriente && (
+                        <SelectItem value="Cuenta Corriente">Cuenta Corriente</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="p-4 border-t space-y-4 bg-muted/30">
-                  <div>
-                    <label className="text-xs font-semibold mb-2 block">
-                      Forma de Pago
-                    </label>
-                    <Select
-                      value={paymentMethod}
-                      onValueChange={setPaymentMethod}
-                      disabled={loadingCCBalance}
-                    >
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={
-                            loadingCCBalance
-                              ? "Cargando cuenta corriente..."
-                              : "Seleccionar método"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Efectivo">Efectivo</SelectItem>
-                        {selectedClient?.tieneCuentaCorriente && (
-                          <SelectItem value="Cuenta Corriente">
-                            Cuenta Corriente
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {creditCheck.exceeds && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="w-4 h-4" />
+                    <AlertDescription className="text-sm">
+                      Excede el límite de crédito en{" "}
+                      <strong>{formatCurrency(creditCheck.excess)}</strong>.
+                      Quedará pendiente de autorización.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-                  {creditCheck.exceeds && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="w-4 h-4" />
-                      <AlertDescription className="text-sm">
-                        Excede el límite de crédito en{" "}
-                        <strong>{formatCurrency(creditCheck.excess)}</strong>.
-                        Quedará pendiente de autorización.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="flex items-center justify-between py-3 border-t">
-                    <span className="text-sm font-semibold">TOTAL</span>
-                    <span className="text-2xl font-bold">
-                      {formatCurrency(total)}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-sm font-semibold">TOTAL</span>
+                  <span className="text-2xl font-bold">{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-3 border-t">
+          <DialogFooter className="px-6 py-0 border-t min-h-[44px] flex items-center">
             <Button
               onClick={handleCancel}
               variant="outline"

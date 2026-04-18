@@ -24,7 +24,7 @@ export default function CreateAccountForm({ open, onClose, onSubmit }) {
     detalle: "Creación inicial de cuenta corriente",
     limiteCuenta: 0,
     tieneDueda: false,
-    saldoActual: 0,
+    saldoActual: "",
   });
   const [accountConfigs, setAccountConfigs] = useState([]);
   const [errors, setErrors] = useState({});
@@ -58,13 +58,11 @@ export default function CreateAccountForm({ open, onClose, onSubmit }) {
       newErrors.limiteCuenta = "El límite de cuenta no puede ser negativo";
     }
 
-    if (formData.tieneDueda && formData.saldoActual <= 0) {
+    const saldo = parseFloat(formData.saldoActual);
+    if (formData.tieneDueda && (isNaN(saldo) || saldo <= 0)) {
       newErrors.saldoActual = "Si tiene deuda, el saldo actual debe ser mayor a 0";
     }
 
-    if (formData.saldoActual < 0) {
-      newErrors.saldoActual = "El saldo actual no puede ser negativo";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -79,7 +77,10 @@ export default function CreateAccountForm({ open, onClose, onSubmit }) {
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      await onSubmit({
+        ...formData,
+        saldoActual: parseFloat(formData.saldoActual) || 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -189,7 +190,7 @@ export default function CreateAccountForm({ open, onClose, onSubmit }) {
                 id="tieneDueda"
                 checked={formData.tieneDueda}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, tieneDueda: checked, saldoActual: checked ? formData.saldoActual : 0 })
+                  setFormData({ ...formData, tieneDueda: checked, saldoActual: checked ? formData.saldoActual : "" })
                 }
               />
             </div>
@@ -202,14 +203,14 @@ export default function CreateAccountForm({ open, onClose, onSubmit }) {
                 </Label>
                 <Input
                   id="saldoActual"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={formData.saldoActual}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) =>
-                    setFormData({ ...formData, saldoActual: parseFloat(e.target.value) || 0 })
+                    setFormData({ ...formData, saldoActual: e.target.value })
                   }
-                  placeholder="Ingrese el saldo actual"
+                  placeholder="0.00"
                 />
                 {errors.saldoActual && (
                   <p className="text-sm text-destructive">{errors.saldoActual}</p>

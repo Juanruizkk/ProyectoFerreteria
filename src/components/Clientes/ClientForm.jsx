@@ -29,7 +29,7 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
     mail: "",
     tieneCuentaCorriente: false,
     limiteCuenta: null,
-    saldoInicial: 0,
+    saldoInicial: "",
     idUsuarioRegistra: currentUser?.userId || 1,
   });
 
@@ -58,7 +58,7 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
         mail: initialData.mail || "",
         tieneCuentaCorriente: initialData.tieneCuentaCorriente || false,
         limiteCuenta: initialData.limiteCuenta || null,
-        saldoInicial: initialData.saldoInicial || 0,
+        saldoInicial: initialData.saldoInicial ?? "",
         idUsuarioRegistra: initialData.idUsuarioRegistra || currentUser?.userId || 1,
       });
     } else {
@@ -74,7 +74,7 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
         mail: "",
         tieneCuentaCorriente: false,
         limiteCuenta: null,
-        saldoInicial: 0,
+        saldoInicial: "",
         idUsuarioRegistra: currentUser?.userId || 1,
       });
     }
@@ -210,8 +210,8 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
           "Debe seleccionar un límite de cuenta corriente";
       }
 
-      if (formData.saldoInicial < 0) {
-        newErrors.saldoInicial = "El saldo inicial no puede ser negativo";
+      if (formData.saldoInicial !== "" && isNaN(parseFloat(formData.saldoInicial))) {
+        newErrors.saldoInicial = "El saldo inicial debe ser un número válido";
       }
     }
 
@@ -274,7 +274,7 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
             ? formData.limiteCuenta
             : null,
           saldoInicial: formData.tieneCuentaCorriente
-            ? formData.saldoInicial
+            ? parseFloat(formData.saldoInicial) || 0
             : null,
 
           idUsuarioRegistra: formData.idUsuarioRegistra,
@@ -529,15 +529,11 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
                     <Label htmlFor="saldoInicial">Saldo Inicial</Label>
                     <Input
                       id="saldoInicial"
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       value={formData.saldoInicial}
-                      onChange={(e) =>
-                        handleChange(
-                          "saldoInicial",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => handleChange("saldoInicial", e.target.value)}
                       placeholder="0.00"
                     />
                     {errors.saldoInicial && (

@@ -130,13 +130,15 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
   const opening = summary?.opening ?? null;
   const latest = summary?.latest ?? null;
 
-  // Si latest es null (cuenta recién creada sin movimientos), usamos el límite de opening
-  const saldoActual = latest?.saldoActual ?? 0;
+  // Si latest es null (cuenta recién creada sin movimientos), usamos el saldo de opening
+  const saldoActual = latest?.saldoActual ?? opening?.saldoActual ?? 0;
   const limiteCuenta = latest?.limiteCuenta ?? opening?.limiteCuenta ?? 0;
-  const limiteTotal = saldoActual + limiteCuenta;
+  // El límite total de la cuenta es el asignado administrativamente
+  const limiteTotal = limiteCuenta; 
   const deudaActual = Math.max(saldoActual, 0);
   const saldoAFavor = Math.max(-saldoActual, 0);
-  const creditoDisponible = limiteTotal - saldoActual;
+  // El crédito disponible es el límite menos la deuda real. Si hay saldo a favor (saldo negativo), no suma al límite oficial.
+  const creditoDisponible = limiteCuenta - deudaActual;
   // ────────────────────────────────────────────────────────────────────────────
 
   const handleCreateAccount = async (accountData) => {
