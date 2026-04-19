@@ -342,7 +342,7 @@ export default function Sales() {
 
           {/* Banner informativo — solo en pendientes */}
           {activeTab === "pendientes" && (
-            <PermissionGuard permission="SALE_AUTHORIZE">
+            <PermissionGuard permission="VEN_READ">
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
@@ -449,7 +449,7 @@ export default function Sales() {
 
           {/* Tabla ventas pendientes */}
           {activeTab === "pendientes" && (
-            <PermissionGuard permission="SALE_AUTHORIZE">
+            <PermissionGuard permission="VEN_READ">
               <div className="rounded-md border bg-card shadow-sm">
                 <Table>
                   <TableHeader>

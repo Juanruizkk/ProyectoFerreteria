@@ -24,6 +24,60 @@ export const USER_ROLES = [
   "Control de stock y precios",
 ];
 
+const ROLE_PERMISSIONS = {
+  "Administracion": "ALL",
+  "Ventas": [
+    "CC_VIEW",
+    "VEN_CREATE",
+    "VEN_INVOICE",
+    "VEN_READ",
+    "CC_REGISTER_PAYMENT",
+    "VEN_NO_STOCK",
+    "PROD_READ",
+    "CLI_CREATE",
+    "CLI_UPDATE",
+    "CLI_READ",
+    "SEARCH_SALE",
+    "SEARCH_PRODUCT",
+    "SEARCH_CLIENT",
+  ],
+  "Control de stock y precios": [
+    // Productos — control total
+    "PROD_CREATE",
+    "PROD_READ",
+    "PROD_UPDATE",
+    "PROD_DELETE",
+    "PROD_BARCODE",
+    "PROD_PRICE_UPDATE",
+    "PROD_STOCK_LOW",
+    "PROD_STOCK_IN",
+    // Proveedores — control total
+    "PROV_CREATE",
+    "PROV_READ",
+    "PROV_UPDATE",
+    "PROV_DELETE",
+    // Listas de precios — control total
+    "LP_CREATE",
+    "LP_READ",
+    "LP_UPDATE",
+    "LP_DELETE",
+    "LP_TOGGLE",
+    "LP_ITEM_ADD",
+    "LP_ITEM_UPDATE",
+    "LP_ITEM_DELETE",
+    // Compras — control total
+    "COMP_CREATE",
+    "COMP_READ",
+    "COMP_UPDATE",
+    "COMP_DELETE",
+    // Búsquedas
+    "SEARCH_PRODUCT",
+    // Reportes
+    "REP_GENERATE",
+    "REP_EXPORT",
+  ],
+};
+
 export default function UserFormDrawer({
   open,
   onOpenChange,
@@ -138,6 +192,21 @@ export default function UserFormDrawer({
     const categoryPermIds = (category.permissions || []).map((p) => p.idPermiso);
     const selectedCount = categoryPermIds.filter((id) => selectedPerms.includes(id)).length;
     return selectedCount > 0 && selectedCount < categoryPermIds.length;
+  }
+
+  // Auto-seleccionar permisos según el rol elegido
+  function applyRolePermissions(rol) {
+    if (!permCategories || permissionsLockReason) return;
+    const allIds = permCategories.flatMap((c) => c.permissions.map((p) => p.idPermiso));
+    if (ROLE_PERMISSIONS[rol] === "ALL") {
+      setSelectedPerms(allIds);
+      return;
+    }
+    const codes = ROLE_PERMISSIONS[rol] ?? [];
+    const ids = permCategories.flatMap((c) =>
+      c.permissions.filter((p) => codes.includes(p.permiso)).map((p) => p.idPermiso)
+    );
+    setSelectedPerms(ids);
   }
 
   const validateForm = () => {
@@ -324,7 +393,10 @@ export default function UserFormDrawer({
                 <Select
                   key={`rol-${form.idUsuario || "new"}`}
                   value={form.rol}
-                  onValueChange={(value) => handleChange("rol", value)}
+                  onValueChange={(value) => {
+                    handleChange("rol", value);
+                    applyRolePermissions(value);
+                  }}
                 >
                   <SelectTrigger id="rol">
                     <SelectValue placeholder="Seleccionar rol" />

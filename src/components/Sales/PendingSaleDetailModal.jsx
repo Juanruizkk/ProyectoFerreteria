@@ -25,6 +25,7 @@ import { Loader2, Package, User, CreditCard, Calendar, FileText, AlertTriangle, 
 import { FaFilePdf } from "react-icons/fa";
 import { fetchPendingSaleById, approvePendingSale, rejectPendingSale, downloadPendingSalePdf } from "@/services/SaleQueries";
 import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext";
+import PermissionGuard from "@/components/PermissionGuard";
 import { toast } from "sonner";
 
 export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onActionCompleted }) {
@@ -397,7 +398,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
               Cancelar
             </Button>
             {saleDetail && saleDetail.estado && saleDetail.estado.toLowerCase().includes("pendiente") && (
-              <>
+              <PermissionGuard permission="SALE_AUTHORIZE">
                 <Button
                   variant="destructive"
                   onClick={() => setShowRejectConfirm(true)}
@@ -423,7 +424,7 @@ export default function PendingSaleDetailModal({ open, onOpenChange, saleId, onA
                     </>
                   )}
                 </Button>
-              </>
+              </PermissionGuard>
             )}
           </DialogFooter>
         </DialogContent>
