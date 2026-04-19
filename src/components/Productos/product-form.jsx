@@ -29,6 +29,8 @@ export default function ProductForm({
     marca: p?.marca ?? "",
     descripcion: p?.descripcion ?? "",
     precio: p?.precio?.toString() ?? "",
+    costo: p?.costo?.toString() ?? "0",
+    porcentajeGanancia: p?.porcentajeGanancia?.toString() ?? "30",
     stock: p?.stock?.toString() ?? "",
     stockMinimo: (p?.stockMinimo ?? p?.stock_minimo)?.toString() ?? "",
     idUbicacion: (p?.idUbicacion ?? p?.id_ubicacion)?.toString() ?? "",
@@ -76,6 +78,44 @@ export default function ProductForm({
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errores[field]) setErrores((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const handleCostoChange = (val) => {
+    const costo = parseFloat(val);
+    const margen = parseFloat(formData.porcentajeGanancia);
+    setFormData((prev) => ({
+      ...prev,
+      costo: val,
+      precio: Number.isFinite(costo) && Number.isFinite(margen)
+        ? (costo * (1 + margen / 100)).toFixed(2)
+        : prev.precio,
+    }));
+    if (errores.precio) setErrores((prev) => ({ ...prev, precio: "" }));
+  };
+
+  const handleMargenChange = (val) => {
+    const margen = parseFloat(val);
+    const costo = parseFloat(formData.costo);
+    setFormData((prev) => ({
+      ...prev,
+      porcentajeGanancia: val,
+      precio: Number.isFinite(costo) && costo > 0 && Number.isFinite(margen)
+        ? (costo * (1 + margen / 100)).toFixed(2)
+        : prev.precio,
+    }));
+  };
+
+  const handlePrecioChange = (val) => {
+    const precio = parseFloat(val);
+    const costo = parseFloat(formData.costo);
+    setFormData((prev) => ({
+      ...prev,
+      precio: val,
+      porcentajeGanancia: Number.isFinite(precio) && Number.isFinite(costo) && costo > 0
+        ? ((precio / costo - 1) * 100).toFixed(2)
+        : prev.porcentajeGanancia,
+    }));
+    if (errores.precio) setErrores((prev) => ({ ...prev, precio: "" }));
   };
 
   const handleAgregarCodigoBarra = () => {
@@ -158,6 +198,8 @@ export default function ProductForm({
       marca: formData.marca.trim(),
       descripcion: formData.descripcion?.trim() || "",
       precio: toMoney2(formData.precio, 0),
+      costo: toMoney2(formData.costo, 0),
+      porcentajeGanancia: toMoney2(formData.porcentajeGanancia, 30),
       stock: toCantidad(formData.stock, 0),
       stockMinimo: toCantidad(formData.stockMinimo, 0),
       ventaSinStock: Boolean(formData.ventaSinStock),
@@ -221,22 +263,8 @@ export default function ProductForm({
         {errores.descripcion && <p className="text-sm text-destructive">{errores.descripcion}</p>}
       </div>
 
-      {/* Precio + Unidad de Medida */}
+      {/* Unidad de Medida */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="precio">Precio *</Label>
-          <Input
-            id="precio"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.precio}
-            onChange={(e) => handleInputChange("precio", e.target.value)}
-            placeholder="0.00"
-            className={errores.precio ? "border-destructive" : ""}
-          />
-          {errores.precio && <p className="text-sm text-destructive">{errores.precio}</p>}
-        </div>
         <div className="space-y-2">
           <Label htmlFor="unidadMedida">Unidad de Medida *</Label>
           <Select
@@ -254,6 +282,51 @@ export default function ProductForm({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {/* Costo + Margen + Precio de venta */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="costo">Costo (con IVA)</Label>
+          <Input
+            id="costo"
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.costo}
+            onChange={(e) => handleCostoChange(e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="porcentajeGanancia">Margen (%)</Label>
+          <Input
+            id="porcentajeGanancia"
+            type="number"
+            step="0.1"
+            min="0"
+            value={formData.porcentajeGanancia}
+            onChange={(e) => handleMargenChange(e.target.value)}
+            placeholder="30"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="precio">
+            Precio de venta *
+            <span className="ml-1 text-xs text-muted-foreground font-normal">(o editalo para recalcular el margen)</span>
+          </Label>
+          <Input
+            id="precio"
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.precio}
+            onChange={(e) => handlePrecioChange(e.target.value)}
+            placeholder="0.00"
+            className={errores.precio ? "border-destructive" : ""}
+          />
+          {errores.precio && <p className="text-sm text-destructive">{errores.precio}</p>}
         </div>
       </div>
 

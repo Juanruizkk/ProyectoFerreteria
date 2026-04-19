@@ -11,12 +11,13 @@ import {
 } from "@/components/ui/dialog";
 import { importarListaExcel } from "@/services/ProveedorQueries";
 
-export default function ImportarListaModal({ open, onOpenChange, idLista, listaNombre, onSuccess }) {
+export default function ImportarListaModal({ open, onOpenChange, idLista, listaNombre, ivaPorDefecto = 21, onSuccess }) {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null); // { totalProcesados, errores, detalleErrores }
   const [error, setError] = useState("");
+  const [ivaAplicacion, setIvaAplicacion] = useState(ivaPorDefecto);
   const inputRef = useRef(null);
 
   const reset = () => {
@@ -55,7 +56,7 @@ export default function ImportarListaModal({ open, onOpenChange, idLista, listaN
     try {
       setLoading(true);
       setError("");
-      const res = await importarListaExcel(idLista, file);
+      const res = await importarListaExcel(idLista, file, ivaAplicacion);
       setResult(res);
       onSuccess?.();
     } catch (err) {
@@ -76,6 +77,22 @@ export default function ImportarListaModal({ open, onOpenChange, idLista, listaN
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* IVA a aplicar */}
+          {!result && (
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium whitespace-nowrap">IVA de la lista (%)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                className="h-9 w-24 rounded-md border border-input bg-background px-3 text-sm"
+                value={ivaAplicacion}
+                onChange={(e) => setIvaAplicacion(parseFloat(e.target.value) || 0)}
+              />
+              <span className="text-xs text-muted-foreground">Los precios del Excel se asumen netos (sin IVA)</span>
+            </div>
+          )}
+
           {/* Zona de drag & drop */}
           {!result && (
             <div

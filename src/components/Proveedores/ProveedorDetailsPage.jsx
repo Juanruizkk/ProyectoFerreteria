@@ -275,7 +275,7 @@ function ListaItemsPanel({ idLista, listaNombre }) {
   const formatCurrency = (n) =>
     n != null ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n) : "-";
   const formatMargen = (n) =>
-    n != null ? `${(n * 100).toFixed(1)}%` : "-";
+    n != null ? `${Number(n).toFixed(1)}%` : "-";
 
   return (
     <div className="space-y-3">
@@ -399,7 +399,7 @@ function ListaItemsPanel({ idLista, listaNombre }) {
                 <Label htmlFor="item-margen">
                   Margen <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
                 </Label>
-                <Input id="item-margen" type="number" min="0" step="0.01" placeholder="0.25"
+                <Input id="item-margen" type="number" min="0" step="0.1" placeholder="25"
                   value={itemForm.margen}
                   onChange={(e) => setItemForm((p) => ({ ...p, margen: e.target.value }))}
                   disabled={savingItem}
@@ -571,7 +571,7 @@ function CompraRow({ compra, onRepetir, onAnular }) {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-const EMPTY_LISTA_FORM = { nombre: "", observaciones: "" };
+const EMPTY_LISTA_FORM = { nombre: "", observaciones: "", ivaPorDefecto: 21 };
 
 export default function ProveedorDetailsPage() {
   const { id } = useParams();
@@ -685,7 +685,7 @@ export default function ProveedorDetailsPage() {
 
   const openEditLista = (lista) => {
     setEditingLista(lista);
-    setListaForm({ nombre: lista.nombre ?? "", observaciones: lista.observaciones ?? "" });
+    setListaForm({ nombre: lista.nombre ?? "", observaciones: lista.observaciones ?? "", ivaPorDefecto: lista.ivaPorDefecto ?? 21 });
     setListaFormError("");
     setListaDialog(true);
   };
@@ -697,10 +697,10 @@ export default function ProveedorDetailsPage() {
       setSavingLista(true);
       setListaFormError("");
       if (editingLista) {
-        await updateLista({ idLista: editingLista.idLista, nombre: listaForm.nombre.trim(), observaciones: listaForm.observaciones.trim() || null });
+        await updateLista({ idLista: editingLista.idLista, nombre: listaForm.nombre.trim(), observaciones: listaForm.observaciones.trim() || null, ivaPorDefecto: listaForm.ivaPorDefecto });
         toast.success(`"${listaForm.nombre}" actualizada`);
       } else {
-        await createLista({ idProveedor: Number(id), nombre: listaForm.nombre.trim(), observaciones: listaForm.observaciones.trim() || null });
+        await createLista({ idProveedor: Number(id), nombre: listaForm.nombre.trim(), observaciones: listaForm.observaciones.trim() || null, ivaPorDefecto: listaForm.ivaPorDefecto });
         toast.success(`"${listaForm.nombre}" creada`);
       }
       setListaDialog(false);
@@ -1122,6 +1122,22 @@ export default function ProveedorDetailsPage() {
               <Textarea id="lista-obs" placeholder="Observaciones opcionales..." rows={3}
                 value={listaForm.observaciones}
                 onChange={(e) => setListaForm((p) => ({ ...p, observaciones: e.target.value }))}
+                disabled={savingLista}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="lista-iva">
+                IVA por defecto (%)
+                <span className="ml-1 text-xs text-muted-foreground font-normal">— se aplica al importar Excel o cargar ítems</span>
+              </Label>
+              <Input
+                id="lista-iva"
+                type="number"
+                min="0"
+                step="0.5"
+                className="w-32"
+                value={listaForm.ivaPorDefecto}
+                onChange={(e) => setListaForm((p) => ({ ...p, ivaPorDefecto: parseFloat(e.target.value) || 0 }))}
                 disabled={savingLista}
               />
             </div>

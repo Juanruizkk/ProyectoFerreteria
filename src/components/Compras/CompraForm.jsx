@@ -222,6 +222,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           precioUnitario: d.precioUnitario,
           descuentoPorcentaje: d.descuentoPorcentaje,
           ivaPorcentaje: d.ivaPorcentaje,
+          margenAplicado: d.margenAplicado ?? null,
           deLista: false,
         }))
       );
@@ -251,6 +252,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           precioUnitario: d.precioUnitario,
           descuentoPorcentaje: d.descuentoPorcentaje,
           ivaPorcentaje: d.ivaPorcentaje,
+          margenAplicado: d.margenAplicado ?? null,
           deLista: false,
         }))
       );
@@ -288,6 +290,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           precioUnitario: item.precio ?? 0,
           descuentoPorcentaje: 0,
           ivaPorcentaje: 21,
+          margenAplicado: item.margen ?? null,
           deLista: true,
         },
       ]);
@@ -317,6 +320,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           precioUnitario: producto.precio ?? 0,
           descuentoPorcentaje: 0,
           ivaPorcentaje: 21,
+          margenAplicado: producto.porcentajeGanancia ?? null,
           deLista: false,
         },
       ]);
@@ -393,6 +397,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
         precioUnitario: d.precioUnitario,
         descuentoPorcentaje: d.descuentoPorcentaje,
         ivaPorcentaje: d.ivaPorcentaje,
+        margenAplicado: d.margenAplicado ?? null,
       })),
     };
 
@@ -820,6 +825,7 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
                     <TableHead className="w-32">Precio Unit.</TableHead>
                     <TableHead className="w-24">Desc. %</TableHead>
                     <TableHead className="w-24">IVA %</TableHead>
+                    <TableHead className="w-24">Margen %</TableHead>
                     <TableHead className="w-28 text-right">Subtotal</TableHead>
                     <TableHead className="w-28 text-right">Total</TableHead>
                     <TableHead className="w-10" />
@@ -881,21 +887,36 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
                         </TableCell>
 
                         <TableCell>
-                          <Select
-                            value={String(det.ivaPorcentaje)}
-                            onValueChange={(v) => actualizarDetalle(det._key, "ivaPorcentaje", v)}
-                          >
-                            <SelectTrigger className="h-8 w-20">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {IVA_OPCIONES.map((iva) => (
-                                <SelectItem key={iva} value={String(iva)}>
-                                  {iva}%
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            className="h-8 w-20"
+                            value={det.ivaPorcentaje}
+                            onChange={(e) => actualizarDetalle(det._key, "ivaPorcentaje", e.target.value)}
+                          />
+                        </TableCell>
+
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            className="h-8 w-20"
+                            placeholder="—"
+                            value={det.margenAplicado ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setDetalles((prev) =>
+                                prev.map((d) =>
+                                  d._key === det._key
+                                    ? { ...d, margenAplicado: v === "" ? null : parseFloat(v) }
+                                    : d
+                                )
+                              );
+                            }}
+                          />
                         </TableCell>
 
                         <TableCell className="text-right text-sm">{fmt(subtotal)}</TableCell>

@@ -143,9 +143,10 @@ export async function deleteItem(idLista, idProducto) {
 
 // ── Importación Excel de lista ────────────────────────────────────────────────
 
-export async function importarListaExcel(idLista, file) {
+export async function importarListaExcel(idLista, file, ivaAplicacion = 0) {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("ivaAplicacion", ivaAplicacion);
   const res = await fetchWithAuth(`${LP_ITEMS_URL}/${idLista}/import`, {
     method: "POST",
     body: formData,

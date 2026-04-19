@@ -266,7 +266,7 @@ export default function ListaDetailsPage() {
       : "-";
 
   const formatMargen = (n) =>
-    n != null ? `${(n * 100).toFixed(1)}%` : "-";
+    n != null ? `${Number(n).toFixed(1)}%` : "-";
 
   // ── Loading / not found ──────────────────────────────────────────────────
   if (loadingLista) {
@@ -316,6 +316,9 @@ export default function ListaDetailsPage() {
               <Badge variant={lista.activo ? "default" : "secondary"}>
                 {lista.activo ? "Activa" : "Inactiva"}
               </Badge>
+              <span className="text-xs text-muted-foreground">
+                IVA por defecto: {lista.ivaPorDefecto ?? 21}%
+              </span>
               {lista.fechaCreacion && (
                 <span className="text-xs text-muted-foreground">
                   Creada el {new Date(lista.fechaCreacion).toLocaleDateString("es-AR")}
@@ -493,7 +496,7 @@ export default function ListaDetailsPage() {
               <div className="space-y-1">
                 <Label htmlFor="item-margen">
                   Margen{" "}
-                  <span className="text-muted-foreground font-normal text-xs">(opcional, ej: 0.25)</span>
+                  <span className="text-muted-foreground font-normal text-xs">(opcional, ej: 25)</span>
                 </Label>
                 <Input
                   id="item-margen"
@@ -536,6 +539,7 @@ export default function ListaDetailsPage() {
           onOpenChange={setBulkImportOpen}
           idLista={idLista}
           listaNombre={lista.nombre}
+          ivaPorDefecto={lista.ivaPorDefecto ?? 21}
           onSuccess={loadItems}
         />
       )}

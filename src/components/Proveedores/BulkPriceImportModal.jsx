@@ -70,7 +70,7 @@ function ImportResult({ result, onReset }) {
 }
 
 // ── Modal principal ──────────────────────────────────────────────────────────
-export default function BulkPriceImportModal({ open, onOpenChange, idLista, listaNombre, onSuccess }) {
+export default function BulkPriceImportModal({ open, onOpenChange, idLista, listaNombre, ivaPorDefecto = 21, onSuccess }) {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [actualizarPrecio, setActualizarPrecio] = useState(false);
@@ -239,6 +239,12 @@ export default function BulkPriceImportModal({ open, onOpenChange, idLista, list
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* IVA info */}
+              <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">IVA aplicado:</span>
+                <span>{ivaPorDefecto}% (configurado en la lista)</span>
               </div>
 
               {/* Paso 3 — Decisión de precio de venta */}
