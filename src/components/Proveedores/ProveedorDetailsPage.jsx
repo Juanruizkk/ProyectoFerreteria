@@ -693,6 +693,8 @@ export default function ProveedorDetailsPage() {
   const handleListaSubmit = async (e) => {
     e.preventDefault();
     if (!listaForm.nombre.trim()) { setListaFormError("El nombre es requerido."); return; }
+    if (listaForm.nombre.trim().length < 2) { setListaFormError("El nombre debe tener al menos 2 caracteres."); return; }
+    if (listaForm.ivaPorDefecto < 0 || listaForm.ivaPorDefecto > 100) { setListaFormError("El IVA debe estar entre 0 y 100."); return; }
     try {
       setSavingLista(true);
       setListaFormError("");
@@ -1101,20 +1103,21 @@ export default function ProveedorDetailsPage() {
 
       {/* ── Dialog: crear/editar lista ───────────────────────────────────────── */}
       <Dialog open={listaDialog} onOpenChange={(v) => { if (!savingLista) setListaDialog(v); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editingLista ? "Editar Lista de Precios" : "Nueva Lista de Precios"}</DialogTitle>
             <DialogDescription>
               {editingLista ? `Modificando "${editingLista.nombre}"` : `Creando una lista para ${proveedor.nombre}`}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleListaSubmit} className="space-y-4">
+          <form onSubmit={handleListaSubmit} className="space-y-4 min-w-0">
             <div className="space-y-1">
               <Label htmlFor="lista-nombre">Nombre <span className="text-destructive">*</span></Label>
               <Input id="lista-nombre" placeholder="Ej: Lista Marzo 2025"
                 value={listaForm.nombre}
                 onChange={(e) => setListaForm((p) => ({ ...p, nombre: e.target.value }))}
                 disabled={savingLista}
+                maxLength={200}
               />
             </div>
             <div className="space-y-1">
@@ -1123,6 +1126,8 @@ export default function ProveedorDetailsPage() {
                 value={listaForm.observaciones}
                 onChange={(e) => setListaForm((p) => ({ ...p, observaciones: e.target.value }))}
                 disabled={savingLista}
+                maxLength={500}
+                className="resize-none w-full"
               />
             </div>
             <div className="space-y-1">
@@ -1132,13 +1137,16 @@ export default function ProveedorDetailsPage() {
               </Label>
               <Input
                 id="lista-iva"
-                type="number"
-                min="0"
-                step="0.5"
+                inputMode="decimal"
                 className="w-32"
                 value={listaForm.ivaPorDefecto}
-                onChange={(e) => setListaForm((p) => ({ ...p, ivaPorDefecto: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                  const val = parseFloat(raw);
+                  setListaForm((p) => ({ ...p, ivaPorDefecto: isNaN(val) ? 0 : Math.min(val, 100) }));
+                }}
                 disabled={savingLista}
+                maxLength={6}
               />
             </div>
             {listaFormError && <p className="text-sm text-destructive">{listaFormError}</p>}

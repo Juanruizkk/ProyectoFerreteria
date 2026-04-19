@@ -89,8 +89,10 @@ export default function ProveedorForm({ initialData, onSubmit, onCancel }) {
               <Input
                 id="telefono"
                 value={formData.telefono}
-                onChange={(e) => handleChange("telefono", e.target.value)}
-                placeholder="Ej: 381-4123456"
+                onChange={(e) => handleChange("telefono", e.target.value.replace(/\D/g, ""))}
+                placeholder="Ej: 3814123456"
+                inputMode="numeric"
+                maxLength={15}
               />
             </div>
 

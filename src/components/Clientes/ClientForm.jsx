@@ -418,8 +418,10 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
                 <Input
                   id="dni"
                   value={formData.dni}
-                  onChange={(e) => handleChange("dni", e.target.value)}
+                  onChange={(e) => handleChange("dni", e.target.value.replace(/\D/g, ""))}
                   placeholder="12345678"
+                  inputMode="numeric"
+                  maxLength={8}
                 />
                 {errors.dni && (
                   <p className="text-sm text-destructive">{errors.dni}</p>
@@ -440,8 +442,10 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
                 <Input
                   id="telefono"
                   value={formData.telefono}
-                  onChange={(e) => handleChange("telefono", e.target.value)}
+                  onChange={(e) => handleChange("telefono", e.target.value.replace(/\D/g, ""))}
                   placeholder="3815551234"
+                  inputMode="numeric"
+                  maxLength={15}
                 />
                 {errors.telefono && (
                   <p className="text-sm text-destructive">{errors.telefono}</p>
