@@ -170,11 +170,10 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
       const summary = await getCurrentAccountSummary(clientId);
       const saldoActual = summary?.latest?.saldoActual ?? 0;
       const limiteCuenta = summary?.latest?.limiteCuenta ?? summary?.opening?.limiteCuenta ?? 0;
-      const limiteTotal = saldoActual + limiteCuenta;
       setCCData({
         saldoActual,
-        limiteCredito: limiteTotal,
-        creditoDisponible: limiteTotal - saldoActual,
+        limiteCredito: limiteCuenta,
+        creditoDisponible: limiteCuenta + Math.max(0, -saldoActual),
       });
     } catch (error) {
       console.error("Error al cargar datos de cuenta corriente:", error);
@@ -503,12 +502,22 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
                                   <span className="text-muted-foreground">Crédito disponible: </span>
                                   <span className="font-bold text-green-700">{formatCurrency(ccData.creditoDisponible)}</span>
                                 </div>
-                                <div>
-                                  <span className="text-muted-foreground">Deuda actual: </span>
-                                  <span className={`font-medium ${ccData.saldoActual > 0 ? "text-orange-600" : "text-muted-foreground"}`}>
-                                    {formatCurrency(Math.max(ccData.saldoActual, 0))}
-                                  </span>
-                                </div>
+                                {ccData.saldoActual > 0 && (
+                                  <div>
+                                    <span className="text-muted-foreground">Deuda actual: </span>
+                                    <span className="font-medium text-orange-600">
+                                      {formatCurrency(ccData.saldoActual)}
+                                    </span>
+                                  </div>
+                                )}
+                                {ccData.saldoActual < 0 && (
+                                  <div>
+                                    <span className="text-muted-foreground">Saldo a favor: </span>
+                                    <span className="font-medium text-blue-600">
+                                      {formatCurrency(Math.abs(ccData.saldoActual))}
+                                    </span>
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>

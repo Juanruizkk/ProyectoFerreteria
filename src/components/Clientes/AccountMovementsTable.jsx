@@ -36,6 +36,7 @@ const TIPO_LABELS = {
   nota_debito: "Nota de débito",
   nota_credito: "Nota de crédito",
   interes_saldo_global: "Interés por mora",
+
   anulacion_pago: "Pago Anulado",
   modificacion_limite: "Modificación de Límite",
 };
@@ -118,6 +119,12 @@ const getEstadoPagoBadge = (estadoPago, importe, montoPagado) => {
           Pagado
         </Badge>
       );
+    case "anulado":
+      return (
+        <Badge variant="outline" className="text-muted-foreground">
+          Anulado
+        </Badge>
+      );
     default:
       return <span className="text-muted-foreground text-sm">—</span>;
   }
@@ -184,7 +191,7 @@ export default function AccountMovementsTable({
           <TableBody>
             {movements.map((m) => {
               const isExpanded = expandedRows.has(m.idMovimiento);
-              const creditoPost = limiteTotal - m.saldoActual;
+              const creditoPost = m.limiteCuenta + Math.max(0, -m.saldoActual);
               const detalleLargo = m.detalle && m.detalle.length > DETALLE_MAX_LEN;
 
               return (

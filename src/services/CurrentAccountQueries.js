@@ -78,6 +78,14 @@ export const getCurrentAccountSummary = async (clientId) => {
   }
 };
 
+export const getLimitHistory = async (clientId) => {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/api/CurrentAccount/limit-history/${clientId}`
+  );
+  if (!response.ok) throw new Error(await response.text());
+  return await response.json();
+};
+
 /**
  * Get paginated current account movements for a specific client
  * @param {number} clientId - Client ID

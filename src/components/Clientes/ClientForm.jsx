@@ -542,7 +542,7 @@ export default function ClientForm({ initialData, onSubmit, onCancel }) {
                       </p>
                     )}
                     <p className="text-sm text-muted-foreground">
-                      Puede ser positivo (a favor) o negativo (deuda)
+                      Positivo = deuda del cliente. Negativo = saldo a favor del cliente.
                     </p>
                   </div>
                 </div>

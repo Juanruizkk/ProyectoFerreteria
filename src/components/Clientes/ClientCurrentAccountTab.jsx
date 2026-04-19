@@ -137,8 +137,8 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
   const limiteTotal = limiteCuenta; 
   const deudaActual = Math.max(saldoActual, 0);
   const saldoAFavor = Math.max(-saldoActual, 0);
-  // El crédito disponible es el límite menos la deuda real. Si hay saldo a favor (saldo negativo), no suma al límite oficial.
-  const creditoDisponible = limiteCuenta - deudaActual;
+  // El crédito disponible es el límite actual + saldo a favor (puede superar el límite original).
+  const creditoDisponible = limiteCuenta + saldoAFavor;
   // ────────────────────────────────────────────────────────────────────────────
 
   const handleCreateAccount = async (accountData) => {
@@ -392,7 +392,11 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
             <>
               {/* 1. Bloque apertura */}
               {opening && (
-                <CurrentAccountOpeningInfo opening={opening} />
+                <CurrentAccountOpeningInfo
+                  opening={opening}
+                  latestLimitModification={summary?.latestLimitModification}
+                  clientId={clientId}
+                />
               )}
 
               {/* 2. Cards de resumen */}
