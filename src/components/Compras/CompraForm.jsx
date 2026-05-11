@@ -75,8 +75,9 @@ function useDebouncedValue(value, delay = 350) {
 // ── Componente principal ─────────────────────────────────────────────────────
 
 // proveedorInicial: { idProveedor, nombre } — pre-selecciona el proveedor y lo bloquea
+// listaInicial: number — pre-selecciona la lista de precios (idLista)
 // compraParaRepetir: compra completa — pre-carga datos como base para nueva compra
-export default function CompraForm({ initialData, proveedorInicial, compraParaRepetir, onSubmit, onCancel }) {
+export default function CompraForm({ initialData, proveedorInicial, listaInicial, compraParaRepetir, onSubmit, onCancel }) {
   const isEditing = !!initialData;
   const { getAbreviatura } = useUnidadesMedida();
 
@@ -151,7 +152,12 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
     setItemsLista([]);
     setForm((f) => ({ ...f, idLista: "" }));
     fetchListasByProveedor(parseInt(form.idProveedor))
-      .then((data) => setListas((data ?? []).filter((l) => l.activo)))
+      .then((data) => {
+        const activas = (data ?? []).filter((l) => l.activo);
+        setListas(activas);
+        if (listaInicial && activas.some((l) => l.idLista === listaInicial))
+          setForm((f) => ({ ...f, idLista: String(listaInicial) }));
+      })
       .catch(() => toast.error("No se pudieron cargar las listas de precios"))
       .finally(() => setLoadingListas(false));
   }, [form.idProveedor]);
@@ -279,6 +285,8 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
       );
       toast.info(`Cantidad actualizada para "${item.nombreProducto}"`);
     } else {
+      const iva = listaSeleccionada?.ivaPorDefecto ?? 21;
+      const precioNeto = iva > 0 ? (item.precio ?? 0) / (1 + iva / 100) : (item.precio ?? 0);
       setDetalles((prev) => [
         ...prev,
         {
@@ -287,9 +295,9 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
           nombreProducto: item.nombreProducto,
           idUnidadMedida: item.idUnidadMedida ?? null,
           cantidad: 1,
-          precioUnitario: item.precio ?? 0,
+          precioUnitario: precioNeto,
           descuentoPorcentaje: 0,
-          ivaPorcentaje: 21,
+          ivaPorcentaje: iva,
           margenAplicado: item.margen ?? null,
           deLista: true,
         },
@@ -643,7 +651,6 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
                           <TableHead className="text-xs">Producto</TableHead>
                           <TableHead className="text-xs">Marca</TableHead>
                           <TableHead className="text-xs text-right">Precio lista</TableHead>
-                          <TableHead className="text-xs text-right">Margen</TableHead>
                           <TableHead className="w-16" />
                         </TableRow>
                       </TableHeader>
@@ -670,9 +677,6 @@ export default function CompraForm({ initialData, proveedorInicial, compraParaRe
                                 </TableCell>
                                 <TableCell className="text-sm text-right py-2 font-semibold">
                                   {fmt(item.precio)}
-                                </TableCell>
-                                <TableCell className="text-sm text-right py-2 text-muted-foreground">
-                                  {item.margen != null ? `${item.margen}%` : "-"}
                                 </TableCell>
                                 <TableCell className="py-2">
                                   <Button

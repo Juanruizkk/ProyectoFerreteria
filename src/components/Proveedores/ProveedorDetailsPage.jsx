@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -576,6 +576,7 @@ const EMPTY_LISTA_FORM = { nombre: "", observaciones: "", ivaPorDefecto: 21 };
 export default function ProveedorDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { hasPermission } = usePermission();
 
   // Proveedor
@@ -586,7 +587,6 @@ export default function ProveedorDetailsPage() {
   // Listas de precios
   const [listas, setListas] = useState([]);
   const [loadingListas, setLoadingListas] = useState(false);
-  const [expandedListas, setExpandedListas] = useState({});
 
   // Dialog crear/editar lista
   const [listaDialog, setListaDialog] = useState(false);
@@ -626,6 +626,11 @@ export default function ProveedorDetailsPage() {
   // Dialog compra
   const [compraFormOpen, setCompraFormOpen] = useState(false);
   const [compraParaRepetir, setCompraParaRepetir] = useState(null);
+  const [idListaParaCompra, setIdListaParaCompra] = useState(null);
+  // Sentinel para auto-abrir el form cuando se navega desde ListaDetailsPage
+  const pendingCompraSentinel = useRef(
+    location.state?.abrirCompra === true ? { idLista: location.state?.idLista ?? null } : null
+  );
 
   // Dialog anular
   const [anularDialog, setAnularDialog] = useState(false);
@@ -637,6 +642,15 @@ export default function ProveedorDetailsPage() {
 
   // ── Carga ─────────────────────────────────────────────────────────────────
   useEffect(() => { loadProveedor(); loadListas(); }, [id]);
+
+  // Auto-abrir form de compra cuando se viene desde ListaDetailsPage
+  useEffect(() => {
+    if (pendingCompraSentinel.current && proveedor && !compraFormOpen) {
+      setIdListaParaCompra(pendingCompraSentinel.current.idLista);
+      setCompraFormOpen(true);
+      pendingCompraSentinel.current = null;
+    }
+  }, [proveedor]);
 
   const loadProveedor = async () => {
     try {
@@ -673,9 +687,6 @@ export default function ProveedorDetailsPage() {
   };
 
   // ── Handlers listas ───────────────────────────────────────────────────────
-  const toggleExpandLista = (idLista) =>
-    setExpandedListas((prev) => ({ ...prev, [idLista]: !prev[idLista] }));
-
   const openCreateLista = () => {
     setEditingLista(null);
     setListaForm(EMPTY_LISTA_FORM);
@@ -717,6 +728,7 @@ export default function ProveedorDetailsPage() {
   // ── Handlers compras ──────────────────────────────────────────────────────
   const handleNuevaCompra = () => {
     setCompraParaRepetir(null);
+    setIdListaParaCompra(null);
     setCompraFormOpen(true);
   };
 
@@ -731,11 +743,15 @@ export default function ProveedorDetailsPage() {
   };
 
   const handleCompraSubmit = async (payload) => {
-    await createCompra(payload);
-    toast.success("Compra registrada exitosamente");
-    setCompraFormOpen(false);
-    setCompraParaRepetir(null);
-    loadCompras(1, activoFiltro, fechaDesdeCompras, fechaHastaCompras, searchCompras);
+    try {
+      await createCompra(payload);
+      toast.success("Compra registrada exitosamente");
+      setCompraFormOpen(false);
+      setCompraParaRepetir(null);
+      loadCompras(1, activoFiltro, fechaDesdeCompras, fechaHastaCompras, searchCompras);
+    } catch (err) {
+      toast.error("Error al registrar la compra: " + err.message);
+    }
   };
 
   const handleExportProvConfirm = async () => {
@@ -797,7 +813,7 @@ export default function ProveedorDetailsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="detalle" className="w-full">
+      <Tabs defaultValue={location.state?.tab ?? "detalle"} className="w-full">
         <TabsList className="grid w-full max-w-lg grid-cols-3 mb-4">
           <TabsTrigger value="detalle">Detalle</TabsTrigger>
           <TabsTrigger
@@ -885,19 +901,8 @@ export default function ProveedorDetailsPage() {
                   {/* Cabecera de lista */}
                   <div
                     className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/30 transition select-none"
-                    onClick={() => toggleExpandLista(lista.idLista)}
+                    onClick={() => navigate(`/proveedores/${id}/lista/${lista.idLista}`)}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 shrink-0"
-                      onClick={(e) => { e.stopPropagation(); toggleExpandLista(lista.idLista); }}
-                    >
-                      {expandedListas[lista.idLista]
-                        ? <ChevronDown className="h-4 w-4" />
-                        : <ChevronRight className="h-4 w-4" />}
-                    </Button>
-
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">{lista.nombre}</span>
@@ -968,12 +973,6 @@ export default function ProveedorDetailsPage() {
                     </TooltipProvider>
                   </div>
 
-                  {/* Panel expandido con productos */}
-                  {expandedListas[lista.idLista] && (
-                    <CardContent className="pt-4 pb-4 px-4 border-t bg-muted/10">
-                      <ListaItemsPanel idLista={lista.idLista} listaNombre={lista.nombre} />
-                    </CardContent>
-                  )}
                 </Card>
               ))}
             </div>
@@ -1198,7 +1197,7 @@ export default function ProveedorDetailsPage() {
       </AlertDialog>
 
       {/* ── Dialog: formulario de compra ─────────────────────────────────────── */}
-      <Dialog open={compraFormOpen} onOpenChange={(v) => { if (!v) { setCompraFormOpen(false); setCompraParaRepetir(null); } }}>
+      <Dialog open={compraFormOpen} onOpenChange={(v) => { if (!v) { setCompraFormOpen(false); setCompraParaRepetir(null); setIdListaParaCompra(null); } }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{compraParaRepetir ? "Repetir Compra" : "Nueva Compra"}</DialogTitle>
@@ -1210,9 +1209,16 @@ export default function ProveedorDetailsPage() {
           </DialogHeader>
           <CompraForm
             proveedorInicial={proveedor}
+            listaInicial={idListaParaCompra}
             compraParaRepetir={compraParaRepetir ?? undefined}
             onSubmit={handleCompraSubmit}
-            onCancel={() => { setCompraFormOpen(false); setCompraParaRepetir(null); }}
+            onCancel={() => {
+              const origenLista = idListaParaCompra;
+              setCompraFormOpen(false);
+              setCompraParaRepetir(null);
+              setIdListaParaCompra(null);
+              if (origenLista) navigate(`/proveedores/${id}/lista/${origenLista}`);
+            }}
           />
         </DialogContent>
       </Dialog>
@@ -1268,6 +1274,7 @@ export default function ProveedorDetailsPage() {
           onSuccess={loadListas}
         />
       )}
+
     </div>
   );
 }

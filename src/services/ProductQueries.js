@@ -195,3 +195,42 @@ export async function exportarProductosExcel() {
   link.remove();
   window.URL.revokeObjectURL(downloadUrl);
 }
+
+// ── Actualización masiva de precios ──────────────────────────────────────────
+
+function triggerDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function descargarPlantillaPrecios() {
+  const res = await fetchWithAuth(`${API_URL}/plantilla-precios`);
+  if (!res.ok) throw new Error("Error al descargar la plantilla");
+  triggerDownload(await res.blob(), "plantilla_precios.xlsx");
+}
+
+export async function actualizarMasivoManual(items) {
+  const res = await fetchWithAuth(`${API_URL}/actualizar-masivo/manual`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function actualizarMasivoExcel(file, ivaDefecto = 21) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("ivaDefecto", String(ivaDefecto));
+  const res = await fetchWithAuth(`${API_URL}/actualizar-masivo/excel`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}

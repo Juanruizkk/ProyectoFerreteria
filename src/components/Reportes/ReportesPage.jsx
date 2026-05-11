@@ -735,20 +735,24 @@ export default function ReportesPage() {
                 sub={muData?.gananciaBruta != null ? `Ganancia bruta: ${formatCurrency(muData.gananciaBruta)}` : null}
                 loading={loading}
               />
-              <KpiCard
-                icon={Clock}
-                label="Tiempo promedio de cobro"
-                value={tcData != null ? `${tcData.diasPromedio ?? 0} días` : null}
-                sub="Promedio en CC"
-                loading={loading}
-              />
-              <KpiCard
-                icon={CreditCard}
-                label="Deuda total CC"
-                value={dtData != null ? formatCurrency(dtData.totalDeuda ?? dtData) : null}
-                sub="Saldo deudor acumulado"
-                loading={loading}
-              />
+              <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
+                <KpiCard
+                  icon={Clock}
+                  label="Tiempo promedio de cobro"
+                  value={tcData != null ? `${tcData.diasPromedio ?? 0} días` : null}
+                  sub="Promedio en CC"
+                  loading={loading}
+                />
+              </PermissionGuard>
+              <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
+                <KpiCard
+                  icon={CreditCard}
+                  label="Deuda total CC"
+                  value={dtData != null ? formatCurrency(dtData.totalDeuda ?? dtData) : null}
+                  sub="Saldo deudor acumulado"
+                  loading={loading}
+                />
+              </PermissionGuard>
             </div>
 
             {/* ── Gráfico principal ── */}
@@ -914,65 +918,67 @@ export default function ReportesPage() {
               </Card>
 
               {/* Clientes con saldo deudor */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-destructive" />
-                    <CardTitle className="text-base">Clientes con saldo deudor</CardTitle>
-                  </div>
-                  <CardDescription>Clientes con deuda pendiente en cuenta corriente</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {loading ? (
-                    <LoadingRows count={5} />
-                  ) : cdData && cdData.length > 0 ? (() => {
-                    const maxSaldo = Math.max(...cdData.map((c) => c.saldoDeudor ?? c.saldo ?? 0), 1);
-                    return (
-                      <div className="overflow-hidden rounded-b-md">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/50 hover:bg-muted/50">
-                              <TableHead>Cliente</TableHead>
-                              <TableHead className="text-right">Saldo deudor</TableHead>
-                              <TableHead className="text-right">Estado</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {cdData.map((row, i) => {
-                              const saldo  = row.saldoDeudor ?? row.saldo ?? 0;
-                              const nombre = row.nombreCliente ?? row.nombre ?? `Cliente ${row.idCliente}`;
-                              const esAlto = saldo > maxSaldo * 0.5;
-                              return (
-                                <TableRow key={row.idCliente ?? i} className="hover:bg-muted/30 transition-colors">
-                                  <TableCell className="font-medium text-sm">{nombre}</TableCell>
-                                  <TableCell className="text-right text-sm font-mono">
-                                    {formatCurrency(saldo)}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {esAlto ? (
-                                      <Badge className="bg-red-700 text-white text-xs hover:bg-red-700">
-                                        Alto
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-400">
-                                        Pendiente
-                                      </Badge>
-                                    )}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    );
-                  })() : (
-                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                      No hay clientes con saldo deudor
+              <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      <CardTitle className="text-base">Clientes con saldo deudor</CardTitle>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <CardDescription>Clientes con deuda pendiente en cuenta corriente</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {loading ? (
+                      <LoadingRows count={5} />
+                    ) : cdData && cdData.length > 0 ? (() => {
+                      const maxSaldo = Math.max(...cdData.map((c) => c.saldoDeudor ?? c.saldo ?? 0), 1);
+                      return (
+                        <div className="overflow-hidden rounded-b-md">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                <TableHead>Cliente</TableHead>
+                                <TableHead className="text-right">Saldo deudor</TableHead>
+                                <TableHead className="text-right">Estado</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {cdData.map((row, i) => {
+                                const saldo  = row.saldoDeudor ?? row.saldo ?? 0;
+                                const nombre = row.nombreCliente ?? row.nombre ?? `Cliente ${row.idCliente}`;
+                                const esAlto = saldo > maxSaldo * 0.5;
+                                return (
+                                  <TableRow key={row.idCliente ?? i} className="hover:bg-muted/30 transition-colors">
+                                    <TableCell className="font-medium text-sm">{nombre}</TableCell>
+                                    <TableCell className="text-right text-sm font-mono">
+                                      {formatCurrency(saldo)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {esAlto ? (
+                                        <Badge className="bg-red-700 text-white text-xs hover:bg-red-700">
+                                          Alto
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-400">
+                                          Pendiente
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      );
+                    })() : (
+                      <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                        No hay clientes con saldo deudor
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </PermissionGuard>
             </div>
 
             {/* ── Botón exportar ── */}

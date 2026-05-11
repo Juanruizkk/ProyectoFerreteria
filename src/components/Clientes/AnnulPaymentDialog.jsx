@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getCurrentUser } from "@/services/AuthService";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,7 @@ export function AnnulPaymentDialog({ open, onClose, movimiento, onSuccess }) {
     try {
       await annulPayment({
         idMovimientoPago: movimiento.idMovimiento,
-        idUsuarioRegistra: 1, // TODO: reemplazar con auth real
+        idUsuarioRegistra: getCurrentUser()?.userId,
         motivo: motivo.trim(),
       });
       toast.success("Pago anulado correctamente.");

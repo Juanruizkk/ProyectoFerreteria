@@ -84,7 +84,7 @@ export default function ClientTableInactive({ clientes, onActivate, isLoading })
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onActivate(cliente.idCliente)}
+                      onClick={() => onActivate(cliente)}
                       title="Activar cliente"
                       className="text-green-600 hover:text-green-700"
                     >

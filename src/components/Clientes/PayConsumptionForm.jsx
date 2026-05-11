@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getCurrentUser } from "@/services/AuthService";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -111,7 +112,7 @@ export default function PayConsumptionForm({ open, onClose, consumo, clientId, o
         detalle: generateDetail(),
         idTipoMovimiento: 8, // pago_factura
         idVenta: consumo.idVenta,
-        idUsuarioRegistra: 1, // TODO: reemplazar con auth real
+        idUsuarioRegistra: getCurrentUser()?.userId,
       });
       toast.success("Pago registrado exitosamente");
       onPaid(data.idMovimiento);

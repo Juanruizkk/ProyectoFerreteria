@@ -34,7 +34,9 @@ const ACTION_MAP = {
   STOCK_INGRESO:       { label: "Ingreso de stock",    verb: "registró ingreso de stock en", color: "teal"    },
   STOCK_EGRESO:        { label: "Egreso de stock",     verb: "registró egreso de stock en",  color: "orange"  },
   AJUSTE_STOCK:        { label: "Ajuste de stock",     verb: "ajustó el stock de",           color: "amber"   },
-  IMPORTACION_PRECIOS: { label: "Import. precios",     verb: "importó precios para",         color: "indigo"  },
+  IMPORTACION_PRECIOS:          { label: "Import. precios",        verb: "importó precios para",                color: "indigo"  },
+  ACTUALIZACION_PRECIOS_MANUAL: { label: "Actualiz. precios",      verb: "actualizó precios masivamente en",    color: "amber"   },
+  ACTUALIZACION_PRECIOS_EXCEL:  { label: "Actualiz. precios Excel", verb: "actualizó precios vía Excel en",     color: "amber"   },
   CC_CREADA:           { label: "CC creada",           verb: "creó la cuenta corriente de",  color: "teal"    },
   VENTA_REGISTRADA:    { label: "Venta registrada",    verb: "registró una venta para",      color: "blue"    },
   VENTA_PENDIENTE:     { label: "Venta pendiente",     verb: "generó una venta pendiente para", color: "amber" },
@@ -73,12 +75,23 @@ export function getActionColors(accion) {
 // ─── Entity config ────────────────────────────────────────────────────────────
 
 const ENTITY_MAP = {
-  PRODUCTO:  { label: "el producto",  labelPlain: "Producto"  },
-  CLIENTE:   { label: "el cliente",   labelPlain: "Cliente"   },
-  VENTA:     { label: "la venta",     labelPlain: "Venta"     },
-  USUARIO:   { label: "el usuario",   labelPlain: "Usuario"   },
-  PROVEEDOR: { label: "el proveedor", labelPlain: "Proveedor" },
-  COMPRA:    { label: "la compra",    labelPlain: "Compra"    },
+  PRODUCTO:              { label: "el producto",                 labelPlain: "Producto"                    },
+  CLIENTE:               { label: "el cliente",                  labelPlain: "Cliente"                     },
+  VENTA:                 { label: "la venta",                    labelPlain: "Venta"                       },
+  USUARIO:               { label: "el usuario",                  labelPlain: "Usuario"                     },
+  PROVEEDOR:             { label: "el proveedor",                labelPlain: "Proveedor"                   },
+  COMPRA:                { label: "la compra",                   labelPlain: "Compra"                      },
+  // Datos maestros
+  CATEGORIA:             { label: "la categoría",               labelPlain: "Categoría"                   },
+  UBICACION:             { label: "la ubicación",               labelPlain: "Ubicación"                   },
+  TIPO_MOVIMIENTO_STOCK: { label: "el tipo de movimiento",      labelPlain: "Tipo movimiento stock"       },
+  UNIDAD_MEDIDA:         { label: "la unidad de medida",        labelPlain: "Unidad de medida"            },
+  // Configuración
+  CONFIGURACION_CC:      { label: "la config. de CC",           labelPlain: "Config. cuenta corriente"   },
+  MOTIVO_NOTA_CREDITO:   { label: "el motivo de nota de créd.", labelPlain: "Motivo nota de crédito"     },
+  MOTIVO_NOTA_DEBITO:    { label: "el motivo de nota de déb.",  labelPlain: "Motivo nota de débito"      },
+  CONFIGURACION_INTERES: { label: "la config. de intereses",    labelPlain: "Config. intereses"          },
+  EMPRESA:               { label: "los datos de la empresa",    labelPlain: "Empresa"                    },
 };
 
 export function getEntityConfig(entidadTipo) {

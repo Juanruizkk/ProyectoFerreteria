@@ -21,6 +21,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Settings, Plus, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "sonner";
 import PermissionGuard from "@/components/PermissionGuard";
 import { usePermission } from "@/hooks/usePermission";
@@ -36,6 +45,33 @@ import {
   updateAccountConfig,
   toggleAccountConfigState,
 } from "@/services/AccountConfigQueries";
+
+function AccountConfigTableSkeleton() {
+  return (
+    <div className="rounded-lg border border-border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Monto Límite</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[1, 2, 3, 4].map((i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+              <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
 const emptyForm = { nombre: "", montoLimite: "" };
 
@@ -58,7 +94,7 @@ const NEW_BUTTON_LABEL = {
 
 export default function AccountConfigPage() {
   const { hasPermission } = usePermission();
-  const [activeTab, setActiveTab] = useState("limite-cc");
+  const [activeTab, setActiveTab] = useState(() => hasPermission("CC_MANAGE") ? "limite-cc" : "motivos-nd");
   const [limiteCCSubTab, setLimiteCCSubTab] = useState("activas");
 
   // Refs hacia los sub-managers para disparar openCreate desde el header
@@ -190,7 +226,7 @@ export default function AccountConfigPage() {
 
   return (
     <PermissionGuard
-      anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}
+      permission="CC_MANAGE"
       fallback={<AccessDenied moduleName="la configuración de cuenta corriente" />}
     >
       <div className="p-6 space-y-6">
@@ -205,16 +241,18 @@ export default function AccountConfigPage() {
               </p>
             </div>
           </div>
-          <Button onClick={handleNew}>
-            <Plus className="h-4 w-4 mr-2" />
-            {NEW_BUTTON_LABEL[activeTab] ?? "Nuevo"}
-          </Button>
+          {(activeTab !== "limite-cc" || hasPermission("CC_MANAGE")) && (
+            <Button onClick={handleNew}>
+              <Plus className="h-4 w-4 mr-2" />
+              {NEW_BUTTON_LABEL[activeTab] ?? "Nuevo"}
+            </Button>
+          )}
         </div>
 
         {/* Filtros de sección */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { key: "limite-cc",     label: "Límite de CC",               color: "border-primary",    visible: true },
+            { key: "limite-cc",     label: "Límite de CC",               color: "border-primary",    visible: hasPermission("CC_MANAGE") },
             { key: "motivos-nd",    label: "Motivos de Nota de Débito",   color: "border-amber-500",  visible: true },
             { key: "motivos-nc",    label: "Motivos de Nota de Crédito",  color: "border-blue-500",   visible: hasPermission("CC_NOTE_CREDIT") },
             { key: "config-interes",label: "Configuración de Interés",    color: "border-purple-500", visible: hasPermission("CC_MANAGE") },
@@ -257,18 +295,14 @@ export default function AccountConfigPage() {
               })}
             </div>
             {limiteCCSubTab === "activas" && (
-              loadingActivas ? (
-                <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-              ) : (
-                <AccountConfigTable configs={configsActivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={true} />
-              )
+              loadingActivas
+                ? <AccountConfigTableSkeleton />
+                : <AccountConfigTable configs={configsActivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={true} />
             )}
             {limiteCCSubTab === "inactivas" && (
-              loadingInactivas ? (
-                <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-              ) : (
-                <AccountConfigTable configs={configsInactivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={false} />
-              )
+              loadingInactivas
+                ? <AccountConfigTableSkeleton />
+                : <AccountConfigTable configs={configsInactivas} onEdit={openEdit} onToggleState={handleSolicitarToggle} isActive={false} />
             )}
           </div>
         )}

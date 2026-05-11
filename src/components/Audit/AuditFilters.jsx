@@ -15,13 +15,24 @@ import { searchUsers } from "@/services/UsersQueries";
 import { toast } from "sonner";
 
 const ENTIDADES = [
-  { value: "todas",     label: "Todas las entidades" },
-  { value: "CLIENTE",   label: "Cliente"             },
-  { value: "PRODUCTO",  label: "Producto"            },
-  { value: "VENTA",     label: "Venta"               },
-  { value: "USUARIO",   label: "Usuario"             },
-  { value: "PROVEEDOR", label: "Proveedor"           },
-  { value: "COMPRA",    label: "Compra a proveedor"  },
+  { value: "todas",                 label: "Todas las entidades"         },
+  { value: "CLIENTE",               label: "Cliente"                     },
+  { value: "PRODUCTO",              label: "Producto"                    },
+  { value: "VENTA",                 label: "Venta"                       },
+  { value: "USUARIO",               label: "Usuario"                     },
+  { value: "PROVEEDOR",             label: "Proveedor"                   },
+  { value: "COMPRA",                label: "Compra a proveedor"          },
+  // Datos maestros — productos
+  { value: "CATEGORIA",             label: "Categoría"                   },
+  { value: "UBICACION",             label: "Ubicación"                   },
+  { value: "TIPO_MOVIMIENTO_STOCK", label: "Tipo de movimiento de stock" },
+  { value: "UNIDAD_MEDIDA",         label: "Unidad de medida"            },
+  // Configuración del sistema
+  { value: "CONFIGURACION_CC",      label: "Config. cuenta corriente"    },
+  { value: "MOTIVO_NOTA_CREDITO",   label: "Motivo nota de crédito"      },
+  { value: "MOTIVO_NOTA_DEBITO",    label: "Motivo nota de débito"       },
+  { value: "CONFIGURACION_INTERES", label: "Config. intereses"           },
+  { value: "EMPRESA",               label: "Datos de la empresa"         },
 ];
 
 // Acciones disponibles por entidad
@@ -37,8 +48,10 @@ const ACCIONES_POR_ENTIDAD = {
     { value: "STOCK_INGRESO",       label: "Ingreso de stock"            },
     { value: "STOCK_EGRESO",        label: "Egreso de stock"             },
     { value: "AJUSTE_STOCK",        label: "Ajuste de stock"             },
-    { value: "IMPORTACION_PRECIOS", label: "Importación de precios"      },
-    { value: "CC_CREADA",           label: "Cuenta corriente creada"     },
+    { value: "IMPORTACION_PRECIOS",          label: "Importación de precios"           },
+    { value: "ACTUALIZACION_PRECIOS_MANUAL", label: "Actualización masiva de precios"  },
+    { value: "ACTUALIZACION_PRECIOS_EXCEL",  label: "Actualización de precios por Excel"},
+    { value: "CC_CREADA",                    label: "Cuenta corriente creada"          },
     { value: "VENTA_REGISTRADA",    label: "Venta registrada"            },
     { value: "VENTA_PENDIENTE",     label: "Venta pendiente"             },
     { value: "VENTA_ANULADA",        label: "Venta anulada"               },
@@ -61,7 +74,9 @@ const ACCIONES_POR_ENTIDAD = {
     { value: "STOCK_INGRESO",       label: "Ingreso de stock"            },
     { value: "STOCK_EGRESO",        label: "Egreso de stock"             },
     { value: "AJUSTE_STOCK",        label: "Ajuste de stock"             },
-    { value: "IMPORTACION_PRECIOS", label: "Importación de precios"      },
+    { value: "IMPORTACION_PRECIOS",           label: "Importación de precios"           },
+    { value: "ACTUALIZACION_PRECIOS_MANUAL",  label: "Actualización masiva de precios"  },
+    { value: "ACTUALIZACION_PRECIOS_EXCEL",   label: "Actualización de precios por Excel"},
   ],
   CLIENTE: [
     { value: "todas",               label: "Todas las acciones"          },
@@ -86,17 +101,33 @@ const ACCIONES_POR_ENTIDAD = {
     { value: "CAMBIO_CONTRASEÑA",   label: "Cambio de contraseña"        },
   ],
   PROVEEDOR: [
-    { value: "todas",  label: "Todas las acciones"       },
-    { value: "INSERT", label: "Alta de proveedor"        },
-    { value: "UPDATE", label: "Modificación de proveedor"},
-    { value: "DELETE", label: "Baja de proveedor"        },
+    { value: "todas",         label: "Todas las acciones"    },
+    { value: "INSERT",        label: "Alta (sistema)"         },
+    { value: "UPDATE",        label: "Modificación (sistema)" },
+    { value: "ACTUALIZACION", label: "Modificación"           },
+    { value: "BAJA",          label: "Baja"                   },
+    { value: "REACTIVACION",  label: "Reactivación"           },
   ],
   COMPRA: [
-    { value: "todas",            label: "Todas las acciones" },
-    { value: "COMPRA_REGISTRADA", label: "Compra registrada" },
-    { value: "COMPRA_ANULADA",    label: "Compra anulada"    },
+    { value: "todas",             label: "Todas las acciones" },
+    { value: "COMPRA_REGISTRADA", label: "Compra registrada"  },
+    { value: "COMPRA_ANULADA",    label: "Compra anulada"     },
   ],
 };
+
+// Acciones genéricas para entidades de datos maestros (solo triggers: INSERT/UPDATE/DELETE)
+const ACCIONES_DATOS_MAESTROS = [
+  { value: "todas",  label: "Todas las acciones" },
+  { value: "INSERT", label: "Creación"           },
+  { value: "UPDATE", label: "Modificación"       },
+  { value: "DELETE", label: "Eliminación"        },
+];
+
+const ENTIDADES_DATOS_MAESTROS = new Set([
+  "CATEGORIA", "UBICACION", "TIPO_MOVIMIENTO_STOCK", "UNIDAD_MEDIDA",
+  "CONFIGURACION_CC", "MOTIVO_NOTA_CREDITO", "MOTIVO_NOTA_DEBITO",
+  "CONFIGURACION_INTERES", "EMPRESA",
+]);
 
 export function AuditFilters({ onSearch, onClear, isLoading }) {
   const [filters, setFilters] = useState({
@@ -148,15 +179,18 @@ export function AuditFilters({ onSearch, onClear, isLoading }) {
     }
   }, [filters.from, filters.to]);
 
-  const accionesDisponibles =
-    ACCIONES_POR_ENTIDAD[filters.entidadTipo] ?? ACCIONES_POR_ENTIDAD.todas;
+  const getAcciones = (entidad) =>
+    ENTIDADES_DATOS_MAESTROS.has(entidad)
+      ? ACCIONES_DATOS_MAESTROS
+      : (ACCIONES_POR_ENTIDAD[entidad] ?? ACCIONES_POR_ENTIDAD.todas);
+
+  const accionesDisponibles = getAcciones(filters.entidadTipo);
 
   const handleChange = (field, value) => {
     setFilters((prev) => {
       const next = { ...prev, [field]: value };
-      // Si cambia la entidad, verificar si la acción actual sigue siendo válida
       if (field === "entidadTipo") {
-        const acciones = ACCIONES_POR_ENTIDAD[value] ?? ACCIONES_POR_ENTIDAD.todas;
+        const acciones = getAcciones(value);
         const accionValida = acciones.some((a) => a.value === prev.accion);
         if (!accionValida) next.accion = "todas";
       }

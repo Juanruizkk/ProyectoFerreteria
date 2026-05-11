@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import PermissionGuard from "@/components/PermissionGuard";
 
 export default function AccountConfigTable({ configs, onEdit, onToggleState, isActive }) {
   const formatCurrency = (amount) => {
@@ -48,37 +49,39 @@ export default function AccountConfigTable({ configs, onEdit, onToggleState, isA
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    {isActive ? (
-                      <>
+                  <PermissionGuard permission="CC_MANAGE">
+                    <div className="flex justify-end gap-2">
+                      {isActive ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(config)}
+                            title="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onToggleState(config, false)}
+                            title="Desactivar"
+                          >
+                            <PowerOff className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onEdit(config)}
-                          title="Editar"
+                          onClick={() => onToggleState(config, true)}
+                          title="Activar"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Power className="h-4 w-4 text-green-600" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onToggleState(config, false)}
-                          title="Desactivar"
-                        >
-                          <PowerOff className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onToggleState(config, true)}
-                        title="Activar"
-                      >
-                        <Power className="h-4 w-4 text-green-600" />
-                      </Button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  </PermissionGuard>
                 </TableCell>
               </TableRow>
             ))

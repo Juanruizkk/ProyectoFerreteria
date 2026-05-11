@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,12 +52,11 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   getListaById,
   fetchItemsByLista,
-  addItem,
+  addItemsBulk,
   updateItem,
   deleteItem,
 } from "@/services/ProveedorQueries";
 import { fetchAvailableProducts } from "@/services/SaleQueries";
-import BulkPriceImportModal from "./BulkPriceImportModal";
 
 // ── Buscador de productos con dropdown ──────────────────────────────────────
 function ProductSearch({ value, onChange, disabled }) {
@@ -154,15 +153,21 @@ export default function ListaDetailsPage() {
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
 
-  // Dialog add / edit item
+  // Dialog add (multi) / edit (single)
   const [itemDialog, setItemDialog] = useState(false);
-  const [editingItem, setEditingItem] = useState(null); // null = agregar
+  const [editingItem, setEditingItem] = useState(null); // null = modo agregar múltiple
+
+  // Estado modo agregar múltiple
+  const [stagingItems, setStagingItems] = useState([]); // [{ idProducto, nombreProducto, marca, precioNeto }]
+  const [currentProducto, setCurrentProducto] = useState(null);
+  const [currentPrecio, setCurrentPrecio] = useState("");
+  const [currentPrecioError, setCurrentPrecioError] = useState("");
+
+  // Estado modo editar uno
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
   const [itemFormError, setItemFormError] = useState("");
   const [savingItem, setSavingItem] = useState(false);
 
-  // Modal carga masiva
-  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   // Dialog eliminar item
   const deleteItemDialog = useConfirmDialog(async (item) => {
@@ -204,53 +209,75 @@ export default function ListaDetailsPage() {
   // ── Handlers items ───────────────────────────────────────────────────────
   const openAdd = () => {
     setEditingItem(null);
-    setItemForm(EMPTY_ITEM_FORM);
+    setStagingItems([]);
+    setCurrentProducto(null);
+    setCurrentPrecio("");
+    setCurrentPrecioError("");
     setItemFormError("");
     setItemDialog(true);
   };
 
   const openEdit = (item) => {
     setEditingItem(item);
-    setItemForm({
-      producto: { idProducto: item.idProducto, nombre: item.nombreProducto, marca: item.marca },
-      precio: String(item.precio ?? ""),
-      margen: item.margen != null ? String(item.margen) : "",
-    });
+    const iva = lista?.ivaPorDefecto ?? 21;
+    const precioNeto = item.precio != null
+      ? String(+(item.precio / (1 + iva / 100)).toFixed(2))
+      : "";
+    setItemForm({ producto: null, precio: precioNeto, margen: "" });
     setItemFormError("");
     setItemDialog(true);
   };
 
-  const handleItemSubmit = async (e) => {
+  const agregarAlStaging = () => {
+    if (!currentProducto) { setCurrentPrecioError("Seleccioná un producto."); return; }
+    const precio = parseFloat(currentPrecio);
+    if (isNaN(precio) || precio < 0) { setCurrentPrecioError("Ingresá un costo neto válido."); return; }
+
+    const idProducto = currentProducto.idProducto ?? currentProducto.IdProducto;
+    setStagingItems((prev) => {
+      const existe = prev.find((i) => i.idProducto === idProducto);
+      if (existe) return prev.map((i) => i.idProducto === idProducto ? { ...i, precioNeto: precio } : i);
+      return [...prev, {
+        idProducto,
+        nombreProducto: currentProducto.nombre ?? currentProducto.Nombre ?? "",
+        marca: currentProducto.marca ?? currentProducto.Marca ?? "",
+        precioNeto: precio,
+      }];
+    });
+    setCurrentProducto(null);
+    setCurrentPrecio("");
+    setCurrentPrecioError("");
+  };
+
+  const handleBulkSubmit = async () => {
+    if (stagingItems.length === 0) return;
+    setSavingItem(true);
+    setItemFormError("");
+    try {
+      const result = await addItemsBulk(idLista, stagingItems.map((i) => ({ idProducto: i.idProducto, precio: i.precioNeto })));
+      const msg = [
+        result.insertados > 0 && `${result.insertados} agregado${result.insertados !== 1 ? "s" : ""}`,
+        result.actualizados > 0 && `${result.actualizados} actualizado${result.actualizados !== 1 ? "s" : ""}`,
+      ].filter(Boolean).join(", ");
+      toast.success(msg || "Guardado");
+      setItemDialog(false);
+      loadItems();
+    } catch (err) {
+      setItemFormError(err.message);
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
     const precio = parseFloat(itemForm.precio);
-    const margen = itemForm.margen !== "" ? parseFloat(itemForm.margen) : null;
-
-    if (!editingItem && !itemForm.producto) {
-      setItemFormError("Seleccioná un producto.");
-      return;
-    }
-    if (isNaN(precio) || precio < 0) {
-      setItemFormError("El precio debe ser un número mayor o igual a 0.");
-      return;
-    }
-    if (margen !== null && (isNaN(margen) || margen < 0)) {
-      setItemFormError("El margen debe ser un número mayor o igual a 0.");
-      return;
-    }
-
+    if (isNaN(precio) || precio < 0) { setItemFormError("El costo neto debe ser un número mayor o igual a 0."); return; }
     try {
       setSavingItem(true);
       setItemFormError("");
-
-      if (editingItem) {
-        await updateItem(idLista, editingItem.idProducto, { idProducto: editingItem.idProducto, precio, margen });
-        toast.success("Precio actualizado");
-      } else {
-        const idProducto = itemForm.producto.idProducto ?? itemForm.producto.IdProducto;
-        await addItem(idLista, { idProducto, precio, margen });
-        toast.success(`"${itemForm.producto.nombre ?? itemForm.producto.Nombre}" agregado a la lista`);
-      }
-
+      await updateItem(idLista, editingItem.idProducto, { idProducto: editingItem.idProducto, precio });
+      toast.success("Precio actualizado");
       setItemDialog(false);
       loadItems();
     } catch (err) {
@@ -265,14 +292,11 @@ export default function ListaDetailsPage() {
       ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n)
       : "-";
 
-  const formatMargen = (n) =>
-    n != null ? `${Number(n).toFixed(1)}%` : "-";
-
   // ── Loading / not found ──────────────────────────────────────────────────
   if (loadingLista) {
     return (
       <div className="p-6 space-y-4">
-        <Button variant="outline" onClick={() => navigate(`/proveedores/${idProveedor}`)}>
+        <Button variant="outline" onClick={() => navigate(`/proveedores/${idProveedor}`, { state: { tab: "listas" } })}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver al proveedor
         </Button>
         <div className="text-center py-12 text-muted-foreground">Cargando lista...</div>
@@ -283,7 +307,7 @@ export default function ListaDetailsPage() {
   if (!lista) {
     return (
       <div className="p-6 space-y-4">
-        <Button variant="outline" onClick={() => navigate(`/proveedores/${idProveedor}`)}>
+        <Button variant="outline" onClick={() => navigate(`/proveedores/${idProveedor}`, { state: { tab: "listas" } })}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver al proveedor
         </Button>
         <div className="text-center py-12 text-muted-foreground">Lista no encontrada.</div>
@@ -295,11 +319,22 @@ export default function ListaDetailsPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={() => navigate(`/proveedores/${idProveedor}`)}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al proveedor
-        </Button>
-        <h1 className="text-2xl font-bold">Lista de Precios</h1>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate(`/proveedores/${idProveedor}`, { state: { tab: "listas" } })}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Volver al proveedor
+          </Button>
+          <h1 className="text-2xl font-bold">Lista de Precios</h1>
+        </div>
+        <PermissionGuard permission="COMP_CREATE">
+          <Button
+            onClick={() => navigate(`/proveedores/${idProveedor}`, {
+              state: { tab: "compras", abrirCompra: true, idLista: Number(idLista) },
+            })}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" /> Realizar compra
+          </Button>
+        </PermissionGuard>
       </div>
 
       {/* Card info lista */}
@@ -333,22 +368,11 @@ export default function ListaDetailsPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Productos en la lista</h2>
-          <div className="flex gap-2">
-            <PermissionGuard permission="LP_ITEM_ADD">
-              <Button
-                variant="outline"
-                className="gap-2 border-green-500 text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950/40"
-                onClick={() => setBulkImportOpen(true)}
-              >
-                <Upload className="h-4 w-4" /> Carga Masiva (Excel)
-              </Button>
-            </PermissionGuard>
-            <PermissionGuard permission="LP_ITEM_ADD">
-              <Button onClick={openAdd}>
-                <Plus className="mr-2 h-4 w-4" /> Agregar producto
-              </Button>
-            </PermissionGuard>
-          </div>
+          <PermissionGuard permission="LP_ITEM_ADD">
+            <Button onClick={openAdd}>
+              <Plus className="mr-2 h-4 w-4" /> Agregar producto
+            </Button>
+          </PermissionGuard>
         </div>
 
         <Card>
@@ -359,26 +383,31 @@ export default function ListaDetailsPage() {
                   <TableRow className="bg-muted">
                     <TableHead>Producto</TableHead>
                     <TableHead>Marca</TableHead>
-                    <TableHead className="text-right">Precio</TableHead>
-                    <TableHead className="text-right">Margen</TableHead>
+                    <TableHead className="text-right">Costo neto</TableHead>
+                    <TableHead className="text-right">IVA ({lista?.ivaPorDefecto ?? 21}%)</TableHead>
+                    <TableHead className="text-right">Costo final</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loadingItems ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                         Cargando productos...
                       </TableCell>
                     </TableRow>
                   ) : items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                         Sin productos en esta lista — agregá el primero con el botón de arriba
                       </TableCell>
                     </TableRow>
                   ) : (
-                    items.map((item) => (
+                    items.map((item) => {
+                      const iva = lista?.ivaPorDefecto ?? 21;
+                      const costoNeto = item.precio / (1 + iva / 100);
+                      const ivaImporte = item.precio - costoNeto;
+                      return (
                       <TableRow key={item.idProducto} className="hover:bg-muted/40 transition">
                         <TableCell className="font-medium">
                           {item.nombreProducto || `Producto #${item.idProducto}`}
@@ -387,10 +416,13 @@ export default function ListaDetailsPage() {
                           {item.marca || "-"}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(item.precio)}
+                          {formatCurrency(costoNeto)}
                         </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatMargen(item.margen)}
+                        <TableCell className="text-right font-mono text-muted-foreground">
+                          {formatCurrency(ivaImporte)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          {formatCurrency(item.precio)}
                         </TableCell>
                         <TableCell className="text-right">
                           <TooltipProvider>
@@ -424,7 +456,8 @@ export default function ListaDetailsPage() {
                           </TooltipProvider>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -439,50 +472,129 @@ export default function ListaDetailsPage() {
         )}
       </div>
 
-      {/* ── Dialog: agregar / editar item ─────────────────────────────────── */}
-      <Dialog open={itemDialog} onOpenChange={(v) => { if (!savingItem) setItemDialog(v); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingItem ? "Editar precio" : "Agregar producto a la lista"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingItem
-                ? `Modificando precio de "${editingItem.nombreProducto}"`
-                : `Seleccioná un producto y definí su precio en "${lista.nombre}"`}
-            </DialogDescription>
-          </DialogHeader>
+      {/* ── Dialog: agregar múltiple ──────────────────────────────────────── */}
+      {!editingItem && (
+        <Dialog open={itemDialog} onOpenChange={(v) => { if (!savingItem) { setItemDialog(v); if (!v) setStagingItems([]); } }}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Agregar productos a la lista</DialogTitle>
+              <DialogDescription>
+                Buscá y agregá productos. Podés agregar varios antes de guardar.
+                <span className="block mt-1 text-xs">IVA aplicado: <strong>{lista?.ivaPorDefecto ?? 21}%</strong></span>
+              </DialogDescription>
+            </DialogHeader>
 
-          <form onSubmit={handleItemSubmit} className="space-y-4">
-            {/* Búsqueda de producto — solo al agregar */}
-            {!editingItem && (
-              <div className="space-y-1">
-                <Label>
-                  Producto <span className="text-destructive">*</span>
-                </Label>
-                <ProductSearch
-                  value={itemForm.producto}
-                  onChange={(p) => {
-                    const precioActual = p?.precio ?? p?.Precio;
-                    setItemForm((prev) => ({
-                      ...prev,
-                      producto: p,
-                      // Auto-rellena el precio si el campo está vacío o si es un producto nuevo
-                      precio: precioActual != null ? String(precioActual) : prev.precio,
-                    }));
-                  }}
-                  disabled={savingItem}
-                />
+            <div className="space-y-4">
+              {/* Buscador + precio */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label>Producto</Label>
+                  <ProductSearch
+                    value={currentProducto}
+                    onChange={(p) => { setCurrentProducto(p); setCurrentPrecioError(""); }}
+                    disabled={savingItem}
+                  />
+                </div>
+                <div className="w-32 space-y-1">
+                  <Label htmlFor="current-precio">Costo neto</Label>
+                  <Input
+                    id="current-precio"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={currentPrecio}
+                    onChange={(e) => { setCurrentPrecio(e.target.value); setCurrentPrecioError(""); }}
+                    disabled={savingItem}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), agregarAlStaging())}
+                  />
+                </div>
+                <Button type="button" onClick={agregarAlStaging} disabled={savingItem} className="shrink-0">
+                  <Plus className="h-4 w-4 mr-1" /> Agregar
+                </Button>
               </div>
-            )}
 
-            <div className="grid grid-cols-2 gap-4">
+              {/* Preview costo final */}
+              {currentPrecio && !isNaN(parseFloat(currentPrecio)) && parseFloat(currentPrecio) >= 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Costo final (c/IVA):{" "}
+                  <strong>{formatCurrency(parseFloat(currentPrecio) * (1 + (lista?.ivaPorDefecto ?? 21) / 100))}</strong>
+                </p>
+              )}
+
+              {currentPrecioError && (
+                <p className="text-xs text-destructive">{currentPrecioError}</p>
+              )}
+
+              {/* Lista staging */}
+              {stagingItems.length > 0 && (
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted">
+                        <TableHead className="text-xs">Producto</TableHead>
+                        <TableHead className="text-xs text-right">Costo neto</TableHead>
+                        <TableHead className="text-xs text-right">Costo final</TableHead>
+                        <TableHead className="w-8" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {stagingItems.map((i) => (
+                        <TableRow key={i.idProducto}>
+                          <TableCell className="text-sm py-2">{i.nombreProducto}</TableCell>
+                          <TableCell className="text-sm text-right py-2 font-mono">{formatCurrency(i.precioNeto)}</TableCell>
+                          <TableCell className="text-sm text-right py-2 font-mono font-semibold">
+                            {formatCurrency(i.precioNeto * (1 + (lista?.ivaPorDefecto ?? 21) / 100))}
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-destructive hover:text-destructive"
+                              onClick={() => setStagingItems((prev) => prev.filter((x) => x.idProducto !== i.idProducto))}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {itemFormError && <p className="text-sm text-destructive">{itemFormError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setItemDialog(false); setStagingItems([]); }} disabled={savingItem}>
+                Cancelar
+              </Button>
+              <Button onClick={handleBulkSubmit} disabled={savingItem || stagingItems.length === 0}>
+                {savingItem ? "Guardando..." : `Guardar ${stagingItems.length > 0 ? `(${stagingItems.length})` : ""}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Dialog: editar precio de un item ─────────────────────────────── */}
+      {editingItem && (
+        <Dialog open={itemDialog} onOpenChange={(v) => { if (!savingItem) setItemDialog(v); }}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Editar costo</DialogTitle>
+              <DialogDescription>
+                Modificando costo de <strong>"{editingItem.nombreProducto}"</strong>
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="item-precio">
-                  Precio <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="edit-precio">Costo neto (sin IVA)</Label>
                 <Input
-                  id="item-precio"
+                  id="edit-precio"
                   type="number"
                   min="0"
                   step="0.01"
@@ -490,58 +602,29 @@ export default function ListaDetailsPage() {
                   value={itemForm.precio}
                   onChange={(e) => setItemForm((p) => ({ ...p, precio: e.target.value }))}
                   disabled={savingItem}
+                  autoFocus
                 />
+                {itemForm.precio && !isNaN(parseFloat(itemForm.precio)) && (
+                  <p className="text-xs text-muted-foreground">
+                    Costo final (c/IVA {lista?.ivaPorDefecto ?? 21}%):{" "}
+                    <strong>{formatCurrency(parseFloat(itemForm.precio) * (1 + (lista?.ivaPorDefecto ?? 21) / 100))}</strong>
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="item-margen">
-                  Margen{" "}
-                  <span className="text-muted-foreground font-normal text-xs">(opcional, ej: 25)</span>
-                </Label>
-                <Input
-                  id="item-margen"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={itemForm.margen}
-                  onChange={(e) => setItemForm((p) => ({ ...p, margen: e.target.value }))}
-                  disabled={savingItem}
-                />
-              </div>
-            </div>
+              {itemFormError && <p className="text-sm text-destructive">{itemFormError}</p>}
 
-            {itemFormError && (
-              <p className="text-sm text-destructive">{itemFormError}</p>
-            )}
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setItemDialog(false)}
-                disabled={savingItem}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={savingItem}>
-                {savingItem ? "Guardando..." : editingItem ? "Actualizar" : "Agregar"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Modal: carga masiva de precios ───────────────────────────────────── */}
-      {lista && (
-        <BulkPriceImportModal
-          open={bulkImportOpen}
-          onOpenChange={setBulkImportOpen}
-          idLista={idLista}
-          listaNombre={lista.nombre}
-          ivaPorDefecto={lista.ivaPorDefecto ?? 21}
-          onSuccess={loadItems}
-        />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setItemDialog(false)} disabled={savingItem}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={savingItem}>
+                  {savingItem ? "Guardando..." : "Actualizar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* ── AlertDialog: eliminar item ─────────────────────────────────────── */}

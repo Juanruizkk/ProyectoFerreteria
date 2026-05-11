@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { usePermission } from "@/hooks/usePermission";
+import { getCurrentUser } from "@/services/AuthService";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -100,6 +102,7 @@ export default function ManageAccountMovementForm({
   onMovementRegistered,
   onModificarLimite,
 }) {
+  const { hasPermission } = usePermission();
   const [selectedMode, setSelectedMode] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -221,7 +224,7 @@ export default function ManageAccountMovementForm({
           idMotivo: parseInt(selectedMotivo),
           detalleAdicional: detalleND.trim() || null,
           idVenta: null,
-          idUsuarioRegistra: 1, // TODO: reemplazar con auth real
+          idUsuarioRegistra: getCurrentUser()?.userId,
         });
         toast.success("Nota de débito registrada exitosamente.");
         onMovementRegistered?.();
@@ -316,7 +319,7 @@ export default function ManageAccountMovementForm({
             >
               {formatCurrency(currentBalance)}
             </span>
-            {onModificarLimite && (
+            {onModificarLimite && hasPermission("CC_MANAGE") && (
               <Button
                 type="button"
                 variant="outline"

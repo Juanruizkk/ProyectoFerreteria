@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Pencil, Power, PowerOff, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   getCreditNoteReasons,
@@ -154,7 +155,13 @@ const CreditNoteReasonManager = forwardRef(function CreditNoteReasonManager(_, r
         </TableHeader>
         <TableBody>
           {loading ? (
-            <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Cargando...</TableCell></TableRow>
+            [1, 2, 3, 4].map((i) => (
+              <TableRow key={i}>
+                <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                <TableCell className="text-right"><Skeleton className="h-7 w-16 ml-auto" /></TableCell>
+              </TableRow>
+            ))
           ) : motivos.length === 0 ? (
             <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">{emptyText}</TableCell></TableRow>
           ) : (

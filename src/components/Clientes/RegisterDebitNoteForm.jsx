@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getCurrentUser } from "@/services/AuthService";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -111,7 +112,7 @@ export default function RegisterDebitNoteForm({
         idMotivo: parseInt(selectedMotivo),
         detalleAdicional: detalleAdicional.trim() || null,
         idVenta: idVenta,
-        idUsuarioRegistra: 1, // TODO: reemplazar con auth real
+        idUsuarioRegistra: getCurrentUser()?.userId,
       });
       toast.success(
         isAjustePrecio

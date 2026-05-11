@@ -33,6 +33,8 @@ const ROLE_PERMISSIONS = {
     "VEN_READ",
     "CC_REGISTER_PAYMENT",
     "VEN_NO_STOCK",
+    "CC_NOTE_CREDIT",
+    "CC_NOTE_DEBIT",
     "PROD_READ",
     "CLI_CREATE",
     "CLI_UPDATE",

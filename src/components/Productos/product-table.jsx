@@ -4,6 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useUnidadesMedida } from "@/contexts/UnidadesMedidaContext"
+import PermissionGuard from "@/components/PermissionGuard"
+import { usePermission } from "@/hooks/usePermission"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +45,8 @@ function StockCell({ stock, stockMinimo, idUnidadMedida }) {
 export default function ProductTable({ productos, isLoading = false, onEditar, onEliminar, onToggleEstado, onToggleVentaSinStock, onGestionarCodigosBarras, onAjustarStock, onVerHistorial }) {
   const [confirmVss, setConfirmVss] = useState({ open: false, producto: null })
   const [barcodeDialog, setBarcodeDialog] = useState({ open: false, producto: null })
+  const { hasPermission } = usePermission()
+  const hasAnyAction = hasPermission("PROD_UPDATE") || hasPermission("PROD_STOCK_IN") || hasPermission("PROD_BARCODE") || hasPermission("PROD_DELETE")
 
   const abrirConfirmVss = (producto) => setConfirmVss({ open: true, producto })
   const cerrarConfirmVss = () => setConfirmVss({ open: false, producto: null })
@@ -66,7 +70,7 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
               <TableHead className="w-[10%]">Stock</TableHead>
               <TableHead className="w-[20%]">Categoría / Ubicación</TableHead>
               <TableHead className="w-[10%] text-center">V. sin stock</TableHead>
-              <TableHead className="w-[20%] text-right">Acciones</TableHead>
+              {hasAnyAction && <TableHead className="w-[20%] text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -84,7 +88,7 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
               ))
             ) : productos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={hasAnyAction ? 7 : 6}>
                   <EmptyState icon={Package} title="No hay productos" />
                 </TableCell>
               </TableRow>
@@ -154,82 +158,101 @@ export default function ProductTable({ productos, isLoading = false, onEditar, o
                       </div>
                     </TableCell>
 
-                    {/* Venta sin stock: ícono clickeable */}
+                    {/* Venta sin stock: ícono clickeable solo con PROD_UPDATE */}
                     <TableCell className="text-center">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => abrirConfirmVss(producto)}
-                            className="mx-auto flex items-center justify-center rounded-full p-1 hover:bg-muted transition-colors"
-                          >
-                            {producto.ventaSinStock
-                              ? <CheckCircle className="h-4 w-4 text-green-600" />
-                              : <XCircle className="h-4 w-4 text-red-400" />
-                            }
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {producto.ventaSinStock ? "Desactivar venta sin stock" : "Activar venta sin stock"}
-                        </TooltipContent>
-                      </Tooltip>
+                      {hasPermission("PROD_UPDATE") ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => abrirConfirmVss(producto)}
+                              className="mx-auto flex items-center justify-center rounded-full p-1 hover:bg-muted transition-colors"
+                            >
+                              {producto.ventaSinStock
+                                ? <CheckCircle className="h-4 w-4 text-green-600" />
+                                : <XCircle className="h-4 w-4 text-red-400" />
+                              }
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {producto.ventaSinStock ? "Desactivar venta sin stock" : "Activar venta sin stock"}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="mx-auto flex items-center justify-center">
+                          {producto.ventaSinStock
+                            ? <CheckCircle className="h-4 w-4 text-green-600" />
+                            : <XCircle className="h-4 w-4 text-red-400" />
+                          }
+                        </span>
+                      )}
                     </TableCell>
 
                     {/* Acciones */}
-                    <TableCell className="text-right">
+                    {hasAnyAction && <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1 flex-nowrap">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => onEditar(producto)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => onAjustarStock?.(producto)}>
-                              <Sliders className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Ajustar Stock</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => onVerHistorial?.(producto)}>
-                              <History className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Ver Historial</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => setBarcodeDialog({ open: true, producto })}>
-                              <Barcode className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Códigos de barra</TooltipContent>
-                        </Tooltip>
-                        {producto.activo ? (
+                        <PermissionGuard permission="PROD_UPDATE">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button size="sm" variant="outline" className="text-destructive" onClick={() => onEliminar(producto)}>
-                                <Trash2 className="h-4 w-4" />
+                              <Button size="sm" variant="outline" onClick={() => onEditar(producto)}>
+                                <Edit className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Desactivar</TooltipContent>
+                            <TooltipContent>Editar</TooltipContent>
                           </Tooltip>
-                        ) : (
+                        </PermissionGuard>
+                        <PermissionGuard permission="PROD_STOCK_IN">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button size="sm" variant="outline" className="text-green-600" onClick={() => onToggleEstado(producto.id)}>
-                                <RefreshCw className="h-4 w-4" />
+                              <Button size="sm" variant="outline" onClick={() => onAjustarStock?.(producto)}>
+                                <Sliders className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Reactivar</TooltipContent>
+                            <TooltipContent>Ajustar Stock</TooltipContent>
                           </Tooltip>
-                        )}
+                        </PermissionGuard>
+                        <PermissionGuard permission="PROD_STOCK_IN">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="sm" variant="outline" onClick={() => onVerHistorial?.(producto)}>
+                                <History className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Ver Historial</TooltipContent>
+                          </Tooltip>
+                        </PermissionGuard>
+                        <PermissionGuard permission="PROD_BARCODE">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="sm" variant="outline" onClick={() => setBarcodeDialog({ open: true, producto })}>
+                                <Barcode className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Códigos de barra</TooltipContent>
+                          </Tooltip>
+                        </PermissionGuard>
+                        <PermissionGuard permission="PROD_DELETE">
+                          {producto.activo ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" className="text-destructive" onClick={() => onEliminar(producto)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Desactivar</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" className="text-green-600" onClick={() => onToggleEstado(producto.id)}>
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Reactivar</TooltipContent>
+                            </Tooltip>
+                          )}
+                        </PermissionGuard>
                       </div>
-                    </TableCell>
+                    </TableCell>}
                   </TableRow>
                 )
               })

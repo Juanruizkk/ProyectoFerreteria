@@ -26,7 +26,7 @@ export async function fetchCategorias() {
 }
 
 export async function fetchCategoriaById(id) {
-  const res = await fetch(`${API_URL}/${id}`)
+  const res = await fetchWithAuth(`${API_URL}/${id}`)
   if (!res.ok) {
     if (res.status === 404) throw new Error("category_not_found")
     throw new Error("Error al obtener la categoría")
@@ -43,7 +43,7 @@ export async function fetchCategoriaById(id) {
 }
 
 export async function createCategoria(categoria) {
-  const res = await fetch(API_URL, {
+  const res = await fetchWithAuth(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -76,7 +76,7 @@ export async function createCategoria(categoria) {
 }
 
 export async function updateCategoria(id, categoria) {
-  const res = await fetch(`${API_URL}/update`, {
+  const res = await fetchWithAuth(`${API_URL}/update`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -108,7 +108,7 @@ export async function updateCategoria(id, categoria) {
 }
 
 export async function deleteCategoria(id) {
-  const res = await fetch(`${API_URL}/${id}`, {
+  const res = await fetchWithAuth(`${API_URL}/${id}`, {
     method: "DELETE"
   })
 

@@ -324,7 +324,6 @@ export default function CreateSaleModal({ open, onOpenChange, onSaleCreated }) {
         idCliente: selectedClient.id || selectedClient.idCliente,
         idMedioPago: paymentMethod === "Efectivo" ? 1 :
                      paymentMethod === "Cuenta Corriente" ? 2 : 1,
-        idUsuarioVendedor: 1, // TODO: Obtener del contexto de autenticación
         items: items.map((item) => ({
           IdProducto: item.id || item.idProducto,
           Cantidad: parseFloat(item.quantity),

@@ -63,7 +63,6 @@ export default function AnnulSaleDialog({ open, onOpenChange, sale, onSuccess })
       const result = await annulSale(sale.idVenta || sale.id, {
         idMotivo: parseInt(selectedMotivo),
         detalleAdicional: detalle.trim() || null,
-        idUsuarioRegistra: 1, // TODO: reemplazar con auth real
       });
       setAnnulResult(result);
       toast.success("Venta anulada. Se generó la nota de crédito.");

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, RefreshCw, Settings, ChevronDown } from "lucide-react";
+import PermissionGuard from "@/components/PermissionGuard";
+import { getCurrentUser } from "@/services/AuthService";
 import { toast } from "sonner";
 import { FaFilePdf, FaFileExcel } from "react-icons/fa";
 import {
@@ -146,7 +148,7 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
       await createCurrentAccount({
         ...accountData,
         idCliente: parseInt(clientId),
-        idUsuarioRegistra: 1, // TODO: Get from user context
+        idUsuarioRegistra: getCurrentUser()?.userId,
       });
       toast.success("Cuenta corriente creada exitosamente");
       setShowCreateAccountForm(false);
@@ -274,13 +276,15 @@ export default function ClientCurrentAccountTab({ cliente, clientId, onAccountCr
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              type="button"
-              onClick={() => setShowCreateAccountForm(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Crear Cuenta Corriente
-            </Button>
+            <PermissionGuard permission="CC_MANAGE">
+              <Button
+                type="button"
+                onClick={() => setShowCreateAccountForm(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Cuenta Corriente
+              </Button>
+            </PermissionGuard>
           </CardContent>
         </Card>
       </>

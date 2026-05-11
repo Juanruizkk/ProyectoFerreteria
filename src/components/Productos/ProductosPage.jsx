@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,6 +24,7 @@ import {
   LayoutGrid,
   Plus,
   X,
+  TrendingUp,
 } from "lucide-react";
 import ProductForm from "@/components/Productos/product-form";
 import ProductList from "@/components/Productos/product-list";
@@ -35,6 +37,7 @@ import { toast } from "sonner";
 import PermissionGuard from "@/components/PermissionGuard";
 import AccessDenied from "@/components/Common/AccessDenied";
 import { PermissionGroups } from "@/config/permissions";
+import { usePermission } from "@/hooks/usePermission";
 
 import {
   fetchProductsWithDetails,
@@ -56,6 +59,8 @@ import {
 } from "@/components/ui/select";
 
 export default function ProductosPage() {
+  const navigate = useNavigate();
+  const { hasPermission } = usePermission();
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
@@ -410,7 +415,7 @@ export default function ProductosPage() {
     { key: "activos",    label: "Activos",          color: "border-primary",    count: filtro === "activos"   ? totalCount : null },
     { key: "inactivos",  label: "Inactivos",         color: "border-red-500",    count: filtro === "inactivos" ? totalCount : null },
     { key: "stockBajo",  label: "Stock Bajo",        color: "border-amber-500",  count: stockBajoCounts.todos > 0 ? stockBajoCounts.todos : null },
-    { key: "nuevo",      label: "Cargar Producto",   color: "border-green-500",  count: null },
+    ...(hasPermission("PROD_CREATE") ? [{ key: "nuevo", label: "Cargar Producto", color: "border-green-500", count: null }] : []),
   ];
 
   return (
@@ -440,6 +445,11 @@ export default function ProductosPage() {
             >
               <TableIcon className="h-4 w-4" />
             </Button>
+            <PermissionGuard permission="PROD_UPDATE">
+              <Button variant="outline" onClick={() => navigate("/productos/actualizar-precios")} className="gap-2">
+                <TrendingUp className="h-4 w-4" /> Actualizar Precios
+              </Button>
+            </PermissionGuard>
             <PermissionGuard permission="PROD_CREATE">
               <Button onClick={abrirFormularioCrear} className="gap-2">
                 <Plus className="h-4 w-4" /> Nuevo Producto

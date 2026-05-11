@@ -122,6 +122,63 @@ function VentaDetail({ data }) {
   );
 }
 
+// ─── Vista: actualización masiva de precios ───────────────────────────────────
+
+const fmtARS = (v) =>
+  v != null
+    ? new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(v)
+    : "—";
+
+function PreciosMasivoDetail({ before, after }) {
+  if (!Array.isArray(after) || after.length === 0) return <EmptyData />;
+
+  const prevById = {};
+  if (Array.isArray(before))
+    before.forEach((p) => { prevById[p.IdProducto] = p; });
+
+  return (
+    <div className="space-y-2">
+      <SectionLabel label={`${after.length} producto${after.length !== 1 ? "s" : ""} actualizado${after.length !== 1 ? "s" : ""}`} />
+      {after.map((p, i) => {
+        const prev = prevById[p.IdProducto] ?? {};
+        const costoChanged  = prev.Costo  !== p.Costo;
+        const precioChanged = prev.Precio !== p.Precio;
+        return (
+          <div key={i} className="px-3 py-2.5 rounded-lg border border-border/40 bg-muted/10 space-y-2">
+            <p className="text-xs font-semibold text-foreground">{p.Nombre}</p>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-0.5">
+                <p className="text-muted-foreground uppercase tracking-wide text-[10px]">Costo</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {prev.Costo != null && costoChanged && (
+                    <span className="text-muted-foreground line-through">{fmtARS(prev.Costo)}</span>
+                  )}
+                  {costoChanged && <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />}
+                  <span className={costoChanged ? "text-emerald-700 font-medium" : "text-foreground"}>
+                    {fmtARS(p.Costo)}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-muted-foreground uppercase tracking-wide text-[10px]">Precio de venta</p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {prev.Precio != null && precioChanged && (
+                    <span className="text-muted-foreground line-through">{fmtARS(prev.Precio)}</span>
+                  )}
+                  {precioChanged && <ArrowRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />}
+                  <span className={precioChanged ? "text-emerald-700 font-medium" : "text-foreground"}>
+                    {fmtARS(p.Precio)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Vista: detalle de Compra ─────────────────────────────────────────────────
 // Campos reales del backend (PascalCase): Comprobante, Proveedor, Subtotal,
 // Descuento, IVA, Total, CantidadItems  |  anulación: Activo, Motivo
@@ -149,33 +206,51 @@ function CompraDetail({ data }) {
 
 // ─── Vista: movimiento de stock ───────────────────────────────────────────────
 
-function StockMovDetail({ data, accion }) {
-  if (!data) return <EmptyData />;
+function StockMovDetail({ before, after, accion }) {
+  const merged = (before || after) ? { ...(before || {}), ...(after || {}) } : null;
+  if (!merged) return <EmptyData />;
+
+  // Nuevos registros (camelCase) y viejos (PascalCase)
+  const producto     = merged.producto     ?? merged.nombreProducto ?? merged.Producto;
+  const cantidad     = merged.cantidad     ?? merged.Cantidad;
+  // Para stock anterior/nuevo usamos before y after por separado para no perder el valor previo
+  const stockAnterior = before?.stockAnterior ?? before?.stockPrevio ?? before?.Stock ?? before?.stock;
+  const stockNuevo    = after?.stockNuevo     ?? after?.stockActual  ?? after?.Stock  ?? after?.stock;
+  const motivo        = merged.motivo ?? merged.Motivo;
+
   const isIngreso = accion === "STOCK_INGRESO";
   const Icon      = isIngreso ? TrendingUp : TrendingDown;
   const iconColor = isIngreso ? "text-emerald-500" : "text-orange-500";
+
   return (
     <div className="space-y-0.5">
       <SectionLabel icon={<Icon className={`h-3.5 w-3.5 ${iconColor}`} />} label={isIngreso ? "Ingreso de stock" : "Egreso de stock"} />
-      <DetailRow label="Producto"       value={fmt(data.producto ?? data.nombreProducto)}   accent />
-      <DetailRow label="Cantidad"       value={fmt(data.cantidad)}                                 />
-      <DetailRow label="Stock anterior" value={fmt(data.stockAnterior ?? data.stockPrevio)} accent />
-      <DetailRow label="Stock nuevo"    value={fmt(data.stockNuevo    ?? data.stockActual)}        />
-      {data.motivo && <DetailRow label="Motivo" value={fmt(data.motivo)} accent />}
+      <DetailRow label="Producto"       value={fmt(producto)}       accent />
+      <DetailRow label="Cantidad"       value={fmt(cantidad)}               />
+      <DetailRow label="Stock anterior" value={fmt(stockAnterior)}  accent />
+      <DetailRow label="Stock nuevo"    value={fmt(stockNuevo)}             />
+      {motivo && <DetailRow label="Motivo" value={fmt(motivo)} accent />}
     </div>
   );
 }
 
 // ─── Vista: cuenta corriente creada ──────────────────────────────────────────
 
-function CCDetail({ data }) {
+function CCDetail({ data, detalle }) {
   if (!data) return <EmptyData />;
+
+  let clienteNombre = data.cliente ?? data.nombreCliente;
+  if (!clienteNombre && detalle) {
+    const match = detalle.match(/habilitada:\s*'([^']+)'/);
+    if (match) clienteNombre = match[1];
+  }
+
   return (
     <div className="space-y-0.5">
       <SectionLabel icon={<CreditCard className="h-3.5 w-3.5" />} label="Cuenta corriente" />
-      <DetailRow label="Cliente"        value={fmt(data.cliente ?? data.nombreCliente)} accent />
-      <DetailRow label="Límite crédito" value={fmt(data.limiteCredito, "currency")}           />
-      <DetailRow label="Saldo inicial"  value={fmt(data.saldoInicial ?? data.saldoActual, "currency")} accent />
+      <DetailRow label="Cliente"        value={fmt(clienteNombre)}                                                               accent />
+      <DetailRow label="Límite crédito" value={fmt(data.limiteCredito ?? data.LimiteCuenta, "currency")}                               />
+      <DetailRow label="Saldo inicial"  value={fmt(data.saldoInicial ?? data.SaldoInicial ?? data.saldoActual, "currency")}     accent />
       {data.tipoPago && <DetailRow label="Tipo de pago" value={fmt(data.tipoPago)} />}
     </div>
   );
@@ -291,12 +366,64 @@ function EmptyData() {
   );
 }
 
+// ─── Vista: detalle en texto plano parseado como filas clave-valor ────────────
+
+function parseDetalleParts(detalle) {
+  if (!detalle) return [];
+  return detalle.split(" | ").filter(Boolean).map((part) => {
+    const colonIdx = part.indexOf(": ");
+    if (colonIdx === -1) return { label: null, value: part };
+    return {
+      label: part.slice(0, colonIdx),
+      value: part.slice(colonIdx + 2).replace(/^'|'$/g, ""),
+    };
+  });
+}
+
+function DetalleRows({ detalle }) {
+  const parts = parseDetalleParts(detalle);
+  if (!parts.length) return null;
+  return (
+    <div className="space-y-0.5">
+      {parts.map((p, i) =>
+        p.label
+          ? <DetailRow key={i} label={p.label} value={p.value} accent={i % 2 === 0} />
+          : <div key={i} className="px-4 py-2.5 text-sm text-muted-foreground rounded-lg">{p.value}</div>
+      )}
+    </div>
+  );
+}
+
+function DetalleStructured({ detalle }) {
+  if (!detalle) return <EmptyData />;
+  const parts = parseDetalleParts(detalle);
+
+  if (parts.length === 1) {
+    return (
+      <div className="space-y-2">
+        <SectionLabel label="Información del evento" />
+        <div className="px-4 py-3 rounded-lg bg-muted/30 border border-border/40">
+          <p className="text-sm text-foreground leading-relaxed">{detalle}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <SectionLabel label="Información del evento" />
+      <DetalleRows detalle={detalle} />
+    </div>
+  );
+}
+
 // ─── Lógica de selección de vista ─────────────────────────────────────────────
 
-const STOCK_ACCIONES   = new Set(["STOCK_INGRESO", "STOCK_EGRESO"]);
-const VENTA_ACCIONES   = new Set(["VENTA_REGISTRADA", "VENTA_PENDIENTE", "VENTA_ANULADA"]);
-const COMPRA_ACCIONES  = new Set(["COMPRA_REGISTRADA", "COMPRA_ANULADA"]);
-const UPDATE_ACCIONES  = new Set([
+const STOCK_ACCIONES         = new Set(["STOCK_INGRESO", "STOCK_EGRESO"]);
+const VENTA_ACCIONES         = new Set(["VENTA_REGISTRADA", "VENTA_PENDIENTE", "VENTA_ANULADA"]);
+const COMPRA_ACCIONES        = new Set(["COMPRA_REGISTRADA", "COMPRA_ANULADA"]);
+const PRECIO_MASIVO_ACCIONES = new Set(["ACTUALIZACION_PRECIOS_MANUAL", "ACTUALIZACION_PRECIOS_EXCEL"]);
+const UPDATE_ACCIONES        = new Set([
   "ACTUALIZACION", "UPDATE", "PRECIO_ACTUALIZADO", "NOMBRE_ACTUALIZADO",
   "AJUSTE_STOCK", "REACTIVACION", "CAMBIO_CONTRASEÑA",
 ]);
@@ -317,11 +444,15 @@ function resolveBodyView(item, before, after) {
 
   // 3. Movimiento de stock → vista stock
   if (STOCK_ACCIONES.has(accion))
-    return <StockMovDetail data={merged} accion={accion} />;
+    return <StockMovDetail before={before} after={after} accion={accion} />;
 
-  // 4. Cuenta corriente creada → vista CC
+  // 4. Actualización masiva de precios → lista de productos
+  if (PRECIO_MASIVO_ACCIONES.has(accion))
+    return <PreciosMasivoDetail before={before} after={after} />;
+
+  // 5. Cuenta corriente creada → vista CC
   if (accion === "CC_CREADA")
-    return <CCDetail data={merged} />;
+    return <CCDetail data={merged} detalle={item.detalle} />;
 
   // 5. Modificación real con ambos lados → Antes / Después
   if (UPDATE_ACCIONES.has(accion) && before && after)
@@ -335,7 +466,10 @@ function resolveBodyView(item, before, after) {
   if (before && !after)
     return <SingleColumnDetail data={before} mode="deleted" />;
 
-  // 8. Ambos lados sin acción tipificada → Antes / Después genérico
+  // 8. Sin datos estructurados → dejar que el caller muestre DetalleStructured
+  if (!before && !after) return null;
+
+  // 9. Ambos lados sin acción tipificada → Antes / Después genérico
   return <BeforeAfterDetail before={before} after={after} accion={accion} />;
 }
 
@@ -344,10 +478,11 @@ function resolveBodyView(item, before, after) {
 function resolveFooterHint(item, before, after) {
   const { accion, entidadTipo } = item;
 
-  if (entidadTipo === "VENTA" || VENTA_ACCIONES.has(accion))   return "Registro transaccional · solo lectura";
-  if (entidadTipo === "COMPRA" || COMPRA_ACCIONES.has(accion)) return "Registro transaccional · solo lectura";
-  if (STOCK_ACCIONES.has(accion))                               return "Movimiento de stock · solo lectura";
-  if (accion === "CC_CREADA")                                   return "Alta de cuenta corriente";
+  if (entidadTipo === "VENTA" || VENTA_ACCIONES.has(accion))    return "Registro transaccional · solo lectura";
+  if (entidadTipo === "COMPRA" || COMPRA_ACCIONES.has(accion))  return "Registro transaccional · solo lectura";
+  if (STOCK_ACCIONES.has(accion))                                return "Movimiento de stock · solo lectura";
+  if (PRECIO_MASIVO_ACCIONES.has(accion))                        return Array.isArray(after) ? `${after.length} producto${after.length !== 1 ? "s" : ""} actualizado${after.length !== 1 ? "s" : ""}` : "Actualización masiva de precios";
+  if (accion === "CC_CREADA")                                    return "Alta de cuenta corriente";
   if (!before && after)                                         return "Registro creado";
   if (before && !after)                                         return "Registro eliminado";
 
@@ -371,6 +506,7 @@ export function AuditChangesModal({ item, open, onClose }) {
   const { user, verb, entity, id } = buildActivityText(item);
   const actionCfg = getActionConfig(item.accion);
   const colors    = getActionColors(item.accion);
+  const bodyView  = resolveBodyView(item, before, after);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -413,22 +549,27 @@ export function AuditChangesModal({ item, open, onClose }) {
 
         {/* ── Body ───────────────────────────────────────────────────────── */}
         <ScrollArea className="flex-1 px-5 py-4 overflow-auto">
-          {resolveBodyView(item, before, after)}
-
-          {item.detalle && (
-            <div className="mt-5 pt-4 border-t">
-              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-1">
-                Detalle
-              </p>
-              <p className="text-sm text-foreground">{item.detalle}</p>
-            </div>
+          {bodyView !== null ? (
+            <>
+              {bodyView}
+              {item.detalle && (
+                <div className="mt-5 pt-4 border-t">
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">
+                    Detalle
+                  </p>
+                  <DetalleRows detalle={item.detalle} />
+                </div>
+              )}
+            </>
+          ) : (
+            <DetalleStructured detalle={item.detalle} />
           )}
         </ScrollArea>
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}
         <div className="px-6 py-3.5 border-t bg-muted/10 shrink-0 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            {resolveFooterHint(item, before, after)}
+            {bodyView !== null ? resolveFooterHint(item, before, after) : "Registro de actividad · solo lectura"}
           </p>
           <Button variant="outline" size="sm" onClick={onClose}>
             Cerrar

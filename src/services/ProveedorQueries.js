@@ -141,6 +141,16 @@ export async function deleteItem(idLista, idProducto) {
   if (!res.ok) throw new Error(await parseError(res, "Error al quitar el producto"));
 }
 
+export async function addItemsBulk(idLista, items) {
+  const res = await fetchWithAuth(`${LP_URL}/${idLista}/items/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw new Error(await parseError(res, "Error al guardar los productos"));
+  return res.json();
+}
+
 // ── Importación Excel de lista ────────────────────────────────────────────────
 
 export async function importarListaExcel(idLista, file, ivaAplicacion = 0) {
@@ -203,3 +213,4 @@ export async function exportarProveedoresPdf() {
   if (!res.ok) throw new Error(await parseError(res, "Error al exportar proveedores"));
   triggerDownload(await res.blob(), "proveedores.pdf");
 }
+

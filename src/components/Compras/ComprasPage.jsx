@@ -15,6 +15,7 @@ import { AuditPagination } from "@/components/Audit/AuditPagination";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -126,6 +127,45 @@ function CompraExpandContent({ compra }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Skeleton de tabla ─────────────────────────────────────────────────────────
+
+function ComprasTableSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="border rounded-md overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted">
+                <TableHead className="w-10" />
+                <TableHead>Fecha</TableHead>
+                <TableHead>Proveedor</TableHead>
+                <TableHead>Comprobante</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right w-28">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-6 w-6" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-44" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-7 w-20 ml-auto" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -453,7 +493,7 @@ export default function ComprasPage() {
                 </CardContent>
               </Card>
               {loadingActivas ? (
-                <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Cargando...</CardContent></Card>
+                <ComprasTableSkeleton />
               ) : (
                 <>
                   <ComprasTable
@@ -503,7 +543,7 @@ export default function ComprasPage() {
                 </CardContent>
               </Card>
               {loadingAnuladas ? (
-                <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">Cargando...</CardContent></Card>
+                <ComprasTableSkeleton />
               ) : (
                 <>
                   <ComprasTable

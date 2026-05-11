@@ -135,8 +135,9 @@ export function AppSidebar() {
               {/* Configuración (colapsable) */}
               <PermissionGuard
                 anyOf={[
-                  ...Object.values(PermissionGroups.PRODUCTS.permissions),
-                  ...Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions),
+                  "PROD_CREATE", "PROD_UPDATE",
+                  ...Object.values(PermissionGroups.USERS.permissions),
+                  "CC_MANAGE",
                 ]}
               >
                 <SidebarMenuItem>
@@ -154,7 +155,7 @@ export function AppSidebar() {
 
                   {configOpen && (
                     <SidebarMenuSub>
-                      <PermissionGuard anyOf={Object.values(PermissionGroups.PRODUCTS.permissions)}>
+                      <PermissionGuard anyOf={["PROD_CREATE", "PROD_UPDATE"]}>
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild isActive={pathname.startsWith("/categorias")}>
                             <Link to="/categorias">
@@ -174,7 +175,7 @@ export function AppSidebar() {
                         </SidebarMenuSubItem>
                       </PermissionGuard>
 
-                      <PermissionGuard anyOf={Object.values(PermissionGroups.CURRENT_ACCOUNT.permissions)}>
+                      <PermissionGuard permission="CC_MANAGE">
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton asChild isActive={pathname.startsWith("/configuracion-cc")}>
                             <Link to="/configuracion-cc">
