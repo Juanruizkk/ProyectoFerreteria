@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertCircle, Info, Loader2, RefreshCw, Users, Zap } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { getCurrentUser } from "@/services/AuthService";
 import PermissionGuard from "@/components/PermissionGuard";
@@ -170,12 +171,15 @@ export default function OverdueClientsPanel({ onGoToInterestConfig }) {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                  Cargando...
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-28 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-8 w-28 ml-auto" /></TableCell>
+                </TableRow>
+              ))
             ) : overdueClients.length === 0 && !overdueError ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">

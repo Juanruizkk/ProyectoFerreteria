@@ -19,7 +19,10 @@
       "Bash(grep -l \"handleSubmit\\\\|type=\"\"submit\"\"\" /c/Users/enzo_/OneDrive/Documentos/Facultad/ProyectoFinal/ProyectoFerreteria/src/components/Productos/*.jsx)",
       "Bash(find C:/Users/enzo_/OneDrive/Documentos/Facultad/ProyectoFinal/ProyectoFerreteria/src/components -name CuentaCorriente*.jsx -o -name *CC*.jsx -o -name *cc*.jsx)",
       "Bash(node --input-type=module --eval \"import\\(''''./src/components/Proveedores/ProveedorDetailsPage.jsx''''\\)\")",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\enzo_\\\\OneDrive\\\\Documentos\\\\Facultad\\\\ProyectoFinal\\\\ProyectoFerreteria\\\\src\" -Recurse -Include \"*.jsx\", \"*.js\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)"
     ],
     "deny": [],
     "ask": []
