@@ -1,12 +1,77 @@
-# React + Vite
+# SVS - Sistema de Venta y Stock (Frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend del sistema de gestión de ventas y stock para ferretería, desarrollado con React y shadcn/ui.
 
-Currently, two official plugins are available:
+## Tecnologías
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Framework**: React (JavaScript puro)
+- **Build tool**: Vite
+- **UI**: shadcn/ui
+- **Autenticación**: JWT
 
-## Expanding the ESLint configuration
+## Requisitos
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Node.js 18+
+- npm o yarn
+
+## Instalación
+
+```bash
+npm install
+```
+
+## Scripts
+
+```bash
+# Desarrollo
+npm run dev
+
+# Build para producción
+npm run build
+
+# Preview del build
+npm run preview
+```
+
+## Estructura del proyecto
+
+```
+src/
+  components/    # Componentes reutilizables (shadcn/ui y propios)
+  pages/         # Vistas principales por módulo
+  services/      # Llamadas a la API del backend
+  hooks/         # Custom hooks
+  utils/         # Funciones auxiliares
+```
+
+## Módulos del sistema
+
+- **Autenticación**: Login con JWT, redirección según rol
+- **Usuarios**: CRUD completo (solo Administrador)
+- **Productos**: CRUD, carga de stock, códigos de barra, ubicación en depósito
+- **Clientes**: CRUD, cuenta corriente, movimientos
+- **Ventas**: Registro de ventas, emisión de facturas, búsqueda
+- **Reportes**: Reportes financieros y de gestión, exportación PDF/Excel
+
+## Roles
+
+| Rol | Acceso |
+|-----|--------|
+| Administrador | Acceso completo |
+| Encargado de Precios | Productos, stock, precios |
+| Vendedor | Ventas, clientes, consulta de stock |
+
+## Conexión con el backend
+
+El frontend consume la API REST del backend (ASP.NET Core). Configurar la URL base en las variables de entorno:
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+## Equipo
+
+- Peralta Enzo
+- Ruiz Rodriguez Juan Ignacio
+
+**Universidad Nacional de Tucumán - FACET - 2025**
